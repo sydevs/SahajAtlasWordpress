@@ -1,0 +1,24 @@
+# Local WordPress test environments
+.wp-env.override.json
+wordpress/
+wp-content/
+
+# Playwright / Playground
+node_modules/
+test-results/
+playwright-report/
+.playground/
+
+# Build output — the release zip is built in CI, never committed
+build/
+*.zip
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Never commit a real key
+.env
+.env.local
