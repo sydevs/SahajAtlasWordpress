@@ -97,7 +97,7 @@ Nine of the thirteen domains were fetched and fingerprinted. This is the compati
 
 ---
 
-## Step 0b — one upstream ticket, in SahajAtlasWeb
+## Step 0b — one upstream ticket, in SahajAtlasWeb — ✅ FILED as SahajAtlasWeb#169
 
 **`SahajAtlasWeb`: map mode must be containable.** Verified in
 `src/views/FullInterface.tsx:139` — the map renders `<div style={{ position: 'fixed', inset: 0 }}>`
@@ -111,6 +111,14 @@ with **no `z-index`**. So on the atlas page:
 Neither is "header, then atlas below". **Decision taken: raise a ticket rather than work around it** —
 embeds that do not own the whole page are wanted generally, which means the widget needs a way to
 determine its container other than assuming the viewport.
+
+✅ **Filed 2026-08-25 as [SahajAtlasWeb#169](https://github.com/sydevs/SahajAtlasWeb/issues/169).**
+⚠ **And the premise improved while writing it.** `FullInterface.tsx`'s comment claims containment is
+intractable — vaul measures the window, `--sy-sheet-top` is viewport-relative. **Both were solved by
+#161**, and the whole interface is *already* contained in one place: the compact card's expanded
+dialog is `fixed inset-2 [contain:layout]`, and `FullInterface` renders inside it. So the ticket is
+to **generalize an existing, tested mechanism** from "a dialog we own" to "an element on the host's
+page" — not to build one. That is a much smaller job than this plan assumed.
 
 **The plugin is not blocked by it.** Build the page template to include the header template part; the
 widget change is what makes it render correctly. Until then ship the atlas page **without** the
