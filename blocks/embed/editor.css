@@ -1,0 +1,5 @@
+/* The editor placeholder only. The front end ships no CSS at all — the widget styles itself, and
+   the Atlas page's element must stay unstyled so the widget measures it as unmeasurable. */
+.wp-block-sahaj-atlas-embed .components-placeholder {
+	min-height: 160px;
+}

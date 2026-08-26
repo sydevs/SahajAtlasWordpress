@@ -22,3 +22,6 @@ build/
 # Never commit a real key
 .env
 .env.local
+
+# Captured output from the WordPress test run
+.test-output.txt

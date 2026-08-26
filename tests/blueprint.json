@@ -1,0 +1,11 @@
+{
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "preferredVersions": { "php": "7.4", "wp": "6.7" },
+  "steps": [
+    { "step": "activatePlugin", "pluginPath": "sahaj-atlas/sahaj-atlas.php" },
+    {
+      "step": "runPHP",
+      "code": "<?php require '/wordpress/wp-content/plugins/sahaj-atlas/tests/bootstrap.php';"
+    }
+  ]
+}

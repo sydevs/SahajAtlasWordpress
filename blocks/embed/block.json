@@ -1,0 +1,24 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "sahaj-atlas/embed",
+  "version": "0.1.0",
+  "title": "Sahaj Atlas",
+  "category": "embed",
+  "icon": "location-alt",
+  "description": "Show one meditation class, or its registration form, inside this page.",
+  "textdomain": "sahaj-atlas",
+  "supports": {
+    "html": false,
+    "multiple": false,
+    "reusable": false,
+    "align": ["wide", "full"]
+  },
+  "attributes": {
+    "map":   { "type": "boolean", "default": false },
+    "atlas": { "type": "string",  "default": "" }
+  },
+  "editorScript": "sahaj-atlas-editor",
+  "editorStyle": "sahaj-atlas-editor-style",
+  "render": "file:./render.php"
+}
