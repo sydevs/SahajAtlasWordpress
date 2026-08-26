@@ -78,7 +78,11 @@ add_action( 'template_redirect', 'sahaj_atlas_resolve_and_enqueue' );
 // ⚠ After the embed is resolved (priority 10): the SEO takeover only runs on a page that actually
 // carries the widget, and it reads the route the resolver has already validated.
 add_action( 'template_redirect', 'sahaj_atlas_seo_boot', 11 );
-add_action( 'wp_body_open', 'sahaj_atlas_render_element_once', 1 );
+// ⚠ `wp_footer`, not `wp_body_open` — a LAST-RESORT fallback now that both templates print the
+// element in the flow (a contained map draws where its element sits, so it must come after the
+// header). It no-ops when the flow print already happened.
+add_action( 'wp_footer', 'sahaj_atlas_render_element_once', 1 );
+add_action( 'wp_enqueue_scripts', 'sahaj_atlas_enqueue_page_assets' );
 add_filter( 'body_class', 'sahaj_atlas_body_class' );
 add_filter( 'template_include', 'sahaj_atlas_template_include' );
 add_action( 'admin_menu', 'sahaj_atlas_admin_menu' );

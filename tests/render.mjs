@@ -106,7 +106,23 @@ async function check(run) {
 
     ok('exactly one document', (html.match(/<!doctype/gi) ?? []).length === 1)
     ok('exactly one <sahaj-atlas> element', (html.match(/<sahaj-atlas[\s>]/g) ?? []).length === 1)
-    ok('no site footer', !html.includes('site-footer') && !html.includes('wp-block-template-part'))
+    ok('no site footer', !/site-footer|wp-block-template-part[^"]*footer/.test(html))
+
+    // ── The contained map (SahajAtlasWeb#170) ──────────────────────────────────────────────────
+    // The header is only safe to render because the element is SIZED: an unsized map embed is
+    // `position: fixed; inset: 0` and paints straight over it. The two assertions belong together
+    // — either alone passes on the broken page.
+    ok('the site header renders', run.theme === 'classic' ? html.includes('site-header') : /<header/.test(html))
+    ok('the sizing stylesheet is loaded', html.includes('assets/atlas-page.css'))
+    ok('and the measurement script', html.includes('assets/atlas-page.js'))
+
+    // ⚠ The element must come AFTER the header in the flow. A contained map draws where its
+    // element sits, so printing it at `wp_body_open` — which is what the plugin used to do — puts
+    // the atlas above the header instead of below it.
+    const headerAt = html.search(/<header/)
+    const elementAt = html.search(/<sahaj-atlas[\s>]/)
+
+    ok('with the element below the header', headerAt >= 0 && elementAt > headerAt, `header ${headerAt}, element ${elementAt}`)
 
     // The loader is a real ES module — its first statement is a top-level `import`, which is a
     // SyntaxError in a classic script. A `<script>` without `type="module"` is a hard break, not a
@@ -154,7 +170,15 @@ async function check(run) {
 
       // An in-content embed is map-LESS, so unlike the Atlas page it needs a height: an unsized
       // custom element is an inline box of zero height and looks like it did not render at all.
-      ok(`${kind}: the element is sized`, /min-height/.test(tag?.[0] ?? ''), tag?.[0] ?? 'no element')
+      // ⚠ `height`, never `min-height`. The widget fills its element with `height: 100%`, which
+      // needs a definite height to resolve against — `min-height` leaves it nothing to fill, so it
+      // refuses the box and covers the browser window instead. The plugin shipped `min-height`
+      // until SahajAtlasWeb#170 wrote the rule down.
+      const style = tag?.[0] ?? ''
+
+      ok(`${kind}: the element is sized`, /[^-]height:\s*\d/.test(style), style || 'no element')
+      ok(`${kind}: with a definite height, not min-height`, !/min-height/.test(style), style)
+      ok(`${kind}: and display:block, which a custom element needs to take one`, /display:\s*block/.test(style), style)
       ok(`${kind}: the loader asks for no map`, loader.includes('map=false'), loader)
       ok(`${kind}: and carries the route`, loader.includes('atlas=%2Fgb%2Flondon%2F1204') || loader.includes('atlas=/gb/london/1204'), loader)
 

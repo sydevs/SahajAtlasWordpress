@@ -133,13 +133,44 @@ $GLOBALS['sahaj_atlas_printed'] = false;
 $markup = sahaj_atlas_element_markup( $GLOBALS['sahaj_atlas_active'] );
 
 sahaj_ok( 'renders one element', 1 === substr_count( $markup, '<sahaj-atlas' ) );
-sahaj_ok( 'a map-less embed is given a height', false !== strpos( $markup, 'min-height' ) );
+
+/*
+ * ⚠ **`height`, never `min-height`, and both halves of this are the assertion.** The widget fills
+ * its element with `height: 100%`, which needs a DEFINITE height to resolve against: `min-height`
+ * sizes the element on screen and leaves the widget nothing to fill, so it refuses the box and
+ * falls back to covering the browser window (SahajAtlasWeb#170). The plugin shipped `min-height`,
+ * and this spec asserted it — the test was pinning the defect.
+ *
+ * `display: block` matters as much: a custom element is `display: inline` by default and cannot
+ * take a height at all, so a height rule without it is not a size.
+ */
+sahaj_ok( 'a map-less embed is given a definite height', (bool) preg_match( '/[^-]height:\s*\d/', $markup ) );
+sahaj_ok( 'and not merely a min-height', false === strpos( $markup, 'min-height' ) );
+sahaj_ok( 'and display:block, without which a height does nothing', false !== strpos( $markup, 'display:block' ) );
+
 sahaj_is( 'and never a second one for the same request', '', sahaj_atlas_element_markup( $GLOBALS['sahaj_atlas_active'] ) );
+
+$GLOBALS['sahaj_atlas_printed'] = false;
+$GLOBALS['sahaj_atlas_active']  = array( 'map' => true, 'atlas' => '', 'source' => 'shortcode' );
+
+// An in-content MAP embed is sized too, which is what makes it a *contained* map rather than a
+// takeover of the article it sits in. Before #170 the only way to have a map was to cover the
+// window, so this element deliberately carried no CSS at all.
+sahaj_ok(
+	'an in-content map embed is contained, not a takeover',
+	(bool) preg_match( '/[^-]height:\s*\d/', sahaj_atlas_element_markup( $GLOBALS['sahaj_atlas_active'] ) )
+);
 
 $GLOBALS['sahaj_atlas_printed'] = false;
 $GLOBALS['sahaj_atlas_active']  = array( 'map' => true, 'atlas' => '', 'source' => 'page' );
 
-sahaj_ok( 'a map embed gets no CSS at all — an unstyled element measures 0×0, which the widget reads as "unmeasurable" and answers with the full interface', '<sahaj-atlas></sahaj-atlas>' === sahaj_atlas_element_markup( $GLOBALS['sahaj_atlas_active'] ) );
+/*
+ * ⚠ The Atlas page's element carries NO inline style, and that is not a leftover of the old rule —
+ * it is sized by `assets/atlas-page.css` so a host can override the height with ordinary CSS. An
+ * inline style would need `!important` to beat, on the one property that decides whether the map
+ * is contained at all.
+ */
+sahaj_is( 'the Atlas page element is sized by the stylesheet, not inline', '<sahaj-atlas></sahaj-atlas>', sahaj_atlas_page_element_markup() );
 
 // ---------------------------------------------------------------------------------------------
 

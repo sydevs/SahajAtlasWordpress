@@ -23,11 +23,22 @@ if ( '' === $sahaj_atlas_markup ) {
 	return;
 }
 
+/*
+ * ⚠ **The markup is NOT passed through `wp_kses`, and running it through one silently broke the
+ * block.** `wp_kses` filters a `style` attribute with `safecss_filter_attr()`, whose property
+ * allowlist does not include `display` — so `display:block;height:520px` came out as
+ * `height:520px`, and a custom element defaults to `display: inline`, which cannot take a height.
+ * The block therefore rendered an unsized element: collapsed for a map-less embed, and a
+ * window-covering takeover for a map one. The shortcode, which does not sanitize, was fine — so
+ * the two paths disagreed and only the block was wrong.
+ *
+ * Sanitizing here was never buying anything either. `sahaj_atlas_element_markup()` builds a fixed
+ * string from one boolean; no attribute value comes from a caller, and the route rides on the
+ * script URL rather than on the element. `wp_kses` belongs on content somebody else authored.
+ */
 printf(
 	'<div %s>%s</div>',
 	// `get_block_wrapper_attributes()` is what applies the alignment and any theme block styles.
 	wp_kses_data( get_block_wrapper_attributes() ),
-	// The markup is a bare `<sahaj-atlas>` element we built ourselves, with no host input in it —
-	// the route is validated by `sahaj_atlas_clean_route()` and is not interpolated here.
-	wp_kses( $sahaj_atlas_markup, array( 'sahaj-atlas' => array( 'style' => true ) ) )
+	$sahaj_atlas_markup // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built entirely by sahaj_atlas_element_markup(); see above.
 );

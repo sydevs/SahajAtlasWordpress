@@ -79,23 +79,27 @@ function sahaj_atlas_register_page_template() {
 	if ( wp_is_block_theme() && function_exists( 'register_block_template' ) ) {
 		/*
 		 * Block themes (WP 6.7+). Core renders this through `template-canvas.php`, which already
-		 * emits the doctype and calls `wp_head()`, `wp_body_open()` and `wp_footer()` — so omitting
-		 * the footer template part is the entire "no footer" requirement, with every hook intact
-		 * and not one line of hand-written HTML.
+		 * emits the doctype and calls `wp_head()`, `wp_body_open()` and `wp_footer()` — so listing
+		 * the header part and omitting the footer one is the entire page, with every hook intact and
+		 * not one line of hand-written HTML.
 		 *
-		 * ⚠ The header part is deliberately absent for now. The map renders `position: fixed;
-		 * inset: 0` with no `z-index`, so a site header either disappears under it or floats over
-		 * the widget's own controls. SahajAtlasWeb#169 tracks making map mode containable; when it
-		 * lands, add the header part back here — a one-line change, which is why the page is built
-		 * this way rather than around the limitation.
+		 * ⚠ The header part is here because SahajAtlasWeb#170 landed. Before it, the map was
+		 * `position: fixed; inset: 0` with no `z-index`, so a site header either vanished under it
+		 * or floated over the widget's own controls; the page shipped headerless rather than
+		 * broken. What makes it work now is `assets/atlas-page.css` giving the element a height —
+		 * the opt-in for a *contained* map. Remove that stylesheet and this header goes back to
+		 * being painted over.
+		 *
+		 * A theme with no `header` part renders nothing for it, which is the pre-#170 page.
 		 */
 		register_block_template(
 			'sahaj-atlas//' . SAHAJ_ATLAS_TEMPLATE,
 			array(
 				'title'       => __( 'Sahaj Atlas (full screen)', 'sahaj-atlas' ),
-				'description' => __( 'Fills the window with the atlas. No footer.', 'sahaj-atlas' ),
+				'description' => __( 'The site header, then the atlas. No footer.', 'sahaj-atlas' ),
 				'post_types'  => array( 'page' ),
-				'content'     => '<!-- wp:html --><!-- The element is printed at wp_body_open. --><!-- /wp:html -->',
+				'content'     => '<!-- wp:template-part {"slug":"header","tagName":"header"} /-->'
+					. '<!-- wp:sahaj-atlas/page /-->',
 			)
 		);
 

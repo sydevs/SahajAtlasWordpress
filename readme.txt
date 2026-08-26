@@ -22,7 +22,8 @@ secret, and one key covers your whole site.
 
 = What it adds to your site =
 
-* A single Atlas page, created for you from the plugin's settings screen.
+* A single Atlas page, created for you from the plugin's settings screen — your site's own header
+  at the top, the atlas filling the rest of the screen, and no footer.
 * A shortcode and a block for showing one class, or one class's registration form, inside your own
   pages.
 * A status panel that tells you whether your key works and whether everything is set up correctly.
@@ -85,7 +86,7 @@ canvas template and place the `[sahaj_atlas]` shortcode on it.
 
 = 0.1.0 =
 * First release.
-* Creates and owns one Atlas page per site, with the site header and no footer.
+* Creates and owns one Atlas page per site: your site's header, then the atlas, no footer.
 * Serves deep atlas links as real URLs (`/find-a-class/gb/london`) when the site uses pretty
   permalinks and the maintainers have registered the page.
 * Server-rendered page titles, descriptions, canonicals, hreflang, Open Graph and structured data

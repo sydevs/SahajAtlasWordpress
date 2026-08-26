@@ -52,13 +52,29 @@ See the table in `docs/implementation-plan.md`. The load-bearing ones:
 
 - ⚠ **`auto.js` is an ES module.** `wp_enqueue_script_module()` only — `wp_enqueue_script` with
   `defer` is a hard break, not a fallback.
-- ⚠ **Print `<sahaj-atlas></sahaj-atlas>` on `wp_body_open` priority 1.** Core prints script modules
-  in the footer on classic themes and in `<head>` on block themes, and the loader *refuses* `<head>`.
-  An explicit element makes placement irrelevant, and puts it outside page-builder `transform`
-  wrappers that would otherwise confine the map.
-- ⚠ **Never style `<sahaj-atlas>` on the atlas page.** The widget degrades to a compact card when its
-  slot is under 0.8× the viewport. Unstyled measures 0×0, which reads as "unmeasurable" and gives the
-  full interface. A helpful `height: calc(100vh - 80px)` silently collapses the map.
+- ⚠ **Print an explicit `<sahaj-atlas></sahaj-atlas>`.** Core prints script modules in the footer on
+  classic themes and in `<head>` on block themes, and the loader *refuses* `<head>`; an element that
+  already exists is adopted wherever it is, so where the script tag lands stops mattering.
+  ⚠ **Where the ELEMENT sits now matters, though, and it used to not.** A contained map draws in its
+  element's box, so both templates print it in the flow *after* the header. `wp_body_open` was right
+  while the map was a fixed overlay and is wrong now — it would put the atlas above the header. The
+  `wp_footer` hook keeps the print as a last-resort fallback for a theme that runs neither template.
+  The old transform-ancestor hazard went with it: a contained map establishes its own containing
+  block.
+- ⚠ **SIZE `<sahaj-atlas>` — this inverted with SahajAtlasWeb#170 and the old rule is now wrong.**
+  Giving the element `display: block` and a **definite height** is the opt-in for a *contained* map:
+  it draws inside that box, in its own stacking context, and the site header above it survives. It
+  is also never asked the compact-card question. Unsized, the map is `position: fixed; inset: 0` and
+  covers whatever is on the page — which is why the Atlas page had no header until #170.
+- ⚠ **`min-height` is not a height, and this was a live defect.** The widget fills its element with
+  `height: 100%`, which needs a *definite* height to resolve against; `min-height` sizes the element
+  on screen and leaves the widget nothing to fill, so it **refuses the box and covers the browser
+  window**. `display: block` matters as much — a custom element is `display: inline` and cannot take
+  a height at all.
+- ⚠ **Do not `wp_kses()` markup this plugin generated.** `safecss_filter_attr()`'s property
+  allowlist has no `display`, so it silently reduced `display:block;height:520px` to `height:520px`
+  and left the block path rendering an unsized element while the shortcode path was fine. Sanitize
+  content somebody else authored; our own element markup has no caller input in it.
 - ⚠ **`get_header()` must never run on a block theme.** It falls through to
   `wp-includes/theme-compat/header.php` and emits a second, 2010-era `<!DOCTYPE html>`.
 - ⚠ **`get_footer()` ≠ `wp_footer()`.** Skip the former; the latter must always fire.
@@ -87,6 +103,7 @@ Everything in "Responsibilities" below is implemented and covered. Run the whole
 | Module | Does |
 | --- | --- |
 | `includes/embed.php` | Resolves the page's ONE embed, builds the script URL, prints the element |
+| `assets/atlas-page.{css,js}` | Sizes the element below the theme's header — the contained-map opt-in |
 | `includes/page.php` | Owns the Atlas page and both template paths |
 | `includes/routing.php` | `parse_request` matching + canonical-redirect suppression |
 | `includes/shortcode.php` | `[sahaj_atlas]`, sharing the block's render body |

@@ -1,0 +1,39 @@
+/*
+ * The Atlas page's layout: site header at the top, the atlas filling the rest of the screen.
+ *
+ * ⚠ Giving `<sahaj-atlas>` a height is the OPT-IN for a contained map (SahajAtlasWeb#170). Without
+ * one the map is `position: fixed; inset: 0` and covers the header we just rendered — which is why
+ * the page shipped without a header until that landed. With one, the widget puts its whole self in
+ * a single stacking context inside this box: the header stays visible, a sticky header floats over
+ * the map the way it floats over any other content, and nothing the widget draws escapes.
+ *
+ * ⚠ `height`, never `min-height`. The widget fills its element with `height: 100%`, which needs a
+ * definite height to resolve against — `min-height` sizes the element on screen but leaves the
+ * widget nothing to fill, so it refuses the box and falls back to covering the window. Same for
+ * `display: block`: a custom element is `display: inline` by default and cannot take a height at
+ * all.
+ */
+
+body.sahaj-atlas-page sahaj-atlas {
+	display: block;
+	width: 100%;
+	/*
+	 * The viewport, less whatever the theme's header occupies. `--sahaj-atlas-top` is written by
+	 * `assets/atlas-page.js`; the `0px` fallback is the honest answer if that never runs, and gives
+	 * a full-height map with the header scrolled above it rather than a collapsed one.
+	 *
+	 * ⚠ Not `100dvh` flat. Nothing caps a contained map from above, so a full-viewport box under a
+	 * header pushes its own bottom edge — where the mobile bottom sheet and its drag handle live —
+	 * below the fold, and a first-time visitor sees a map with no visible controls.
+	 */
+	height: calc(100dvh - var(--sahaj-atlas-top, 0px));
+	/* `dvh` is WordPress 6.7-era baseline, but a very old browser gets a usable page rather than a
+	 * zero-height one. */
+	height: calc(100vh - var(--sahaj-atlas-top, 0px));
+	height: calc(100dvh - var(--sahaj-atlas-top, 0px));
+}
+
+/* The atlas owns the screen below the header, so the page itself must not also scroll. */
+body.sahaj-atlas-page {
+	overflow-x: hidden;
+}

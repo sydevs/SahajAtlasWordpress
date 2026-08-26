@@ -256,15 +256,47 @@ function sahaj_atlas_script_url( $embed ) {
  * card on any site with a tall header.
  */
 function sahaj_atlas_render_element_once() {
+	echo sahaj_atlas_page_element_markup(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built below; children escaped in includes/seo.php.
+}
+
+/**
+ * Render the Atlas page's element as a block, for the block-theme template.
+ *
+ * ⚠ **Registered in PHP with no `block.json` and no editor script, so it never appears in the
+ * inserter** — it is an implementation detail of the registered page template, not something a
+ * volunteer places. It exists because the template's markup has to go through
+ * `sahaj_atlas_page_element_markup()` rather than being literal `<sahaj-atlas></sahaj-atlas>`: the
+ * SEO takeover renders the crawlable content as the element's CHILDREN, and static template markup
+ * cannot carry those. A literal element would also miss the printed-once flag and let the
+ * `wp_footer` fallback emit a second one, which the widget refuses.
+ *
+ * @return string
+ */
+function sahaj_atlas_render_page_block() {
+	return sahaj_atlas_page_element_markup();
+}
+
+/**
+ * The Atlas page's element, once per request.
+ *
+ * @return string Empty after the first call, or when this page's embed is not the Atlas page's.
+ */
+function sahaj_atlas_page_element_markup() {
 	$active = $GLOBALS['sahaj_atlas_active'];
 
 	if ( null === $active || 'page' !== $active['source'] || $GLOBALS['sahaj_atlas_printed'] ) {
-		return;
+		return '';
 	}
 
 	$GLOBALS['sahaj_atlas_printed'] = true;
 
-	echo '<sahaj-atlas>' . sahaj_atlas_element_children() . '</sahaj-atlas>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built and escaped in includes/seo.php.
+	/*
+	 * ⚠ **No inline style, and that is still deliberate — it is `assets/atlas-page.css` that sizes
+	 * this element.** The rule lives in a stylesheet so a host can override it (a taller header, a
+	 * fixed height, their own layout) with ordinary CSS. An inline style would be unoverridable
+	 * without `!important`, on the one property that decides whether the map is contained at all.
+	 */
+	return '<sahaj-atlas>' . sahaj_atlas_element_children() . '</sahaj-atlas>';
 }
 
 /**
@@ -302,13 +334,36 @@ function sahaj_atlas_element_markup( $embed ) {
 	$GLOBALS['sahaj_atlas_printed'] = true;
 
 	/*
-	 * In-content embeds are map-less and container-relative, so unlike the Atlas page they DO need
-	 * a height — an unsized custom element is an inline box of zero height and appears not to
-	 * render at all. `min-height` rather than `height` so a theme can grow it.
+	 * ⚠ **`height`, not `min-height` — and this was a real defect until SahajAtlasWeb#170 wrote the
+	 * rule down.** The widget fills its element with `height: 100%`, which needs a *definite*
+	 * height to resolve against. `min-height: 640px` sizes the element on screen and leaves the
+	 * widget nothing to fill, so it refuses the box, says so in the console, and **falls back to
+	 * covering the browser window** — an in-content embed taking over the article it sits in. The
+	 * comment here used to justify `min-height` as letting a theme grow the box; it bought that for
+	 * a takeover.
+	 *
+	 * Both modes are sized now. A map embed with a height is a *contained* map: it lives in this
+	 * box, inside its own stacking context, and is never asked the compact-card question at all.
 	 */
-	$style = empty( $embed['map'] ) ? ' style="display:block;min-height:640px"' : '';
+	$style = ' style="display:block;height:' . ( empty( $embed['map'] ) ? '640px' : '520px' ) . '"';
 
 	return '<sahaj-atlas' . $style . '>' . sahaj_atlas_element_children() . '</sahaj-atlas>';
+}
+
+/**
+ * Load the Atlas page's layout, and only there.
+ *
+ * ⚠ Registered on `wp_enqueue_scripts`, gated on the page. The stylesheet gives `<sahaj-atlas>` a
+ * height, which is what makes the map a *contained* one — so loading it anywhere else would box a
+ * map that is meant to take the window.
+ */
+function sahaj_atlas_enqueue_page_assets() {
+	if ( ! sahaj_atlas_is_atlas_page() ) {
+		return;
+	}
+
+	wp_enqueue_style( 'sahaj-atlas-page', SAHAJ_ATLAS_URL . 'assets/atlas-page.css', array(), SAHAJ_ATLAS_VERSION );
+	wp_enqueue_script( 'sahaj-atlas-page', SAHAJ_ATLAS_URL . 'assets/atlas-page.js', array(), SAHAJ_ATLAS_VERSION, false );
 }
 
 /**
@@ -347,4 +402,14 @@ function sahaj_atlas_register_block() {
 	);
 
 	register_block_type( SAHAJ_ATLAS_DIR . 'blocks/embed' );
+
+	// The template-only element block. See `sahaj_atlas_render_page_block()` for why it exists and
+	// why it is invisible to the editor.
+	register_block_type(
+		'sahaj-atlas/page',
+		array(
+			'render_callback' => 'sahaj_atlas_render_page_block',
+			'supports'        => array( 'inserter' => false ),
+		)
+	);
 }
