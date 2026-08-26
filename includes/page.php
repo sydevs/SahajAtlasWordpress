@@ -185,6 +185,16 @@ function sahaj_atlas_create_page() {
 		return $id;
 	}
 
+	/*
+	 * ⚠ **One meta value serves BOTH theme kinds, and it reads like it should not.** A classic theme
+	 * needs the `.php` filename, which is what `theme_page_templates` offers; a block theme matches
+	 * by template SLUG, which has no suffix. Core reconciles them: `resolve_block_template()` runs
+	 * every candidate through `_strip_template_file_suffix()` before comparing, so
+	 * `sahaj-atlas-page.php` matches the registered `sahaj-atlas//sahaj-atlas-page`. Verified in the
+	 * core source and end to end on both WordPress 6.7 (the fleet's floor) and current — see
+	 * `tests/render.mjs`, which asserts the block run renders `wp-site-blocks` with no template parts
+	 * rather than the classic file. Storing the suffix-less slug instead would break classic themes.
+	 */
 	update_post_meta( $id, '_wp_page_template', SAHAJ_ATLAS_TEMPLATE . '.php' );
 	update_option( SAHAJ_ATLAS_OPTION_PAGE, (int) $id );
 
