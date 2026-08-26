@@ -44,6 +44,16 @@ function sahaj_atlas_register_route_var() {
  * @param WP $wp The request, by reference.
  */
 function sahaj_atlas_parse_request( $wp ) {
+	/*
+	 * ⚠ Before everything, and before the healthy-page check reads the same request: the sitemap
+	 * lives at the site ROOT, not under the Atlas page, so it must not be filtered by rules about
+	 * the atlas subtree. `sahaj_atlas_maybe_serve_sitemap()` sends its own response and returns
+	 * true; there is nothing left for WordPress to route.
+	 */
+	if ( sahaj_atlas_maybe_serve_sitemap( $wp ) ) {
+		exit;
+	}
+
 	if ( ! sahaj_atlas_page_is_healthy() ) {
 		return;
 	}

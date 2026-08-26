@@ -27,6 +27,7 @@ secret, and one key covers your whole site.
 * A shortcode and a block for showing one class, or one class's registration form, inside your own
   pages.
 * A status panel that tells you whether your key works and whether everything is set up correctly.
+* A sitemap of every atlas page, announced in your `robots.txt`, so search engines can find them.
 
 = Services this plugin uses =
 
@@ -93,5 +94,8 @@ canvas template and place the `[sahaj_atlas]` shortcode on it.
   for every atlas link, replacing whatever Yoast, All in One SEO or Rank Math would emit there.
 * A `[sahaj_atlas]` shortcode and a block for showing one class, or its registration form, inside
   your own pages.
+* A sitemap at `/sahaj-atlas-sitemap.xml`, announced in `robots.txt` and added to Yoast's and Rank
+  Math's sitemap indexes. Nothing on your site links into the atlas pages, so this is how search
+  engines find them at all.
 * A status panel covering the four things that otherwise fail silently: the API key, the Atlas
   page, clean URLs, and whether this domain is registered.

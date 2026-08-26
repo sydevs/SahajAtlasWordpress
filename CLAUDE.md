@@ -91,6 +91,14 @@ See the table in `docs/implementation-plan.md`. The load-bearing ones:
   `parse_request` — the plugin would turn the host's 404 page into the atlas. The shared URL
   contract does publish root-mount canonicals, so this is a shape SahajCloud can be configured to
   emit: the refusal is only safe because the diagnostics panel says why.
+- ⚠ **An empty sitemap is a 404, never an empty `<urlset>`, and no index line at all.** Empty means
+  the fetch failed or ownership is not set up — both temporary. A valid-but-empty sitemap tells a
+  crawler we affirmatively have nothing, and an index entry pointing at a 404 is a broken link
+  handed straight to one. Both are the state a site is in for five minutes after any failed fetch.
+- ⚠ **Publish only URLs on THIS host.** The endpoint answers what the *client* owns, and an owned
+  subtree is not by definition served from the domain asking — one key shared between two sites, or
+  a mis-set `canonical.embed`, puts a foreign host in the list, and a sitemap naming another domain
+  is a cross-site claim.
 - ⚠ **Suppress the host's SEO plugin only AFTER a successful fetch.** Suppressing first and then
   finding the endpoint unreachable leaves the page with no metadata at all — strictly worse than the
   generic metadata being replaced.
@@ -110,15 +118,19 @@ Everything in "Responsibilities" below is implemented and covered. Run the whole
 | `includes/settings.php` | The one option, the screen, the create-page button |
 | `includes/diagnostics.php` | The four checks |
 | `includes/seo.php` | The metadata takeover and crawlable body content |
+| `includes/sitemap.php` | `/sahaj-atlas-sitemap.xml`, `robots.txt`, and the SEO-plugin index lines |
 | `includes/updates.php` | Plugin Update Checker against GitHub Releases |
 
-**Sitemaps are deliberately absent, and that is a blocked scope item rather than an oversight.**
-`/api/atlas/seo` answers one route at a time and nothing enumerates them, so there is nothing for a
-sitemap provider to list. The workaround — reading `/events/geojson` + `/regions` and composing the
-URLs here — is the one thing this design refuses everywhere else: `canonical` is read and never
-recomputed, so a PHP sitemap builder would be a second implementation of the URL rule, free to
-disagree with `canonicalUrl.ts` on the one artefact whose whole job is publishing URLs a crawler
-will fetch. Tracked upstream as **SahajCloud#650**; the four adapter hooks are listed there.
+**Sitemaps ship** (SahajCloud#651 supplied the enumeration endpoint that #650 asked for). ⚠ **The
+plugin serves ONE sitemap of its own, at `/sahaj-atlas-sitemap.xml`, rather than feeding four SEO
+plugins' sitemap systems.** An adapter per system means four renderer APIs — Yoast's registered
+callback writing XML through a global, AIOSEO's `stdClass` rows, Rank Math's own shape, core's
+`WP_Sitemaps_Provider` subclass — of which three cannot be exercised here at all. Integration code
+written from memory against an API nobody has to hand is the sort that looks right and 500s on
+somebody's live site. Serving our own file means the document is fully covered, and each system then
+only has to *point* at it, which is a string in every case. **`robots.txt` is the load-bearing
+line**: every crawler reads it, with any SEO plugin or none, so the Yoast and Rank Math index entries
+are a convenience rather than the discovery path.
 
 ## Testing
 
@@ -158,7 +170,7 @@ half-loaded plugin and reports four unrelated-looking failures.
 | Loader behaviour | `src/loader/index.ts` in SahajAtlasWeb |
 | Slot / compact-card rules | `src/lib/embed-slot.ts` in SahajAtlasWeb |
 | SEO endpoint | `GET /api/atlas/seo` — SahajCloud PR #646; response types in `src/endpoints/responseTypes.ts` |
-| Sitemap enumeration | **does not exist** — SahajCloud#650 |
+| Sitemap enumeration | `GET /api/atlas/sitemap` — SahajCloud PR #651 |
 | Shared URL contract | `src/lib/atlas/atlas-url-contract.json` in **sydevs/SahajCloud** |
 
 **Ask rather than infer** where these docs and the code disagree. The code is what ships.

@@ -151,6 +151,29 @@ async function check(run) {
 
     ok('an unrelated missing URL still 404s', missing.status === 404, `status ${missing.status}`)
 
+    // ── The sitemap ────────────────────────────────────────────────────────────────────────────
+    // The cache is seeded by the blueprint, so this exercises the serving path — `parse_request`
+    // interception, the headers and the document — without a real API key. The fetch itself is
+    // `wp_remote_get` and a transient, and is covered by the PHP suite's rules for the answer.
+    const sitemap = await fetch(`${base}/sahaj-atlas-sitemap.xml`)
+    const xml = await sitemap.text()
+
+    ok('the sitemap is served', sitemap.status === 200, `status ${sitemap.status}`)
+    ok('as XML', (sitemap.headers.get('content-type') ?? '').includes('xml'), sitemap.headers.get('content-type') ?? '')
+
+    // ⚠ A sitemap must not itself be indexed — it is a machine file, and one that turns up in
+    // results is a page of raw XML with the site's name on it.
+    ok('and not itself indexed', (sitemap.headers.get('x-robots-tag') ?? '').includes('noindex'), sitemap.headers.get('x-robots-tag') ?? '')
+
+    ok('listing the atlas URLs', (xml.match(/<loc>/g) ?? []).length === 2, xml.slice(0, 200))
+    ok('with no WordPress page markup in it', !xml.includes('<html') && !xml.includes('<!doctype'), xml.slice(0, 120))
+
+    // ⚠ The whole discovery path for the atlas: nothing on the site links into these routes, so a
+    // crawler learns they exist here or not at all.
+    const robots = await (await fetch(`${base}/robots.txt`)).text()
+
+    ok('robots.txt points at it', /Sitemap:\s*\S*sahaj-atlas-sitemap\.xml/.test(robots), robots.trim())
+
     // ── In-content embeds ──────────────────────────────────────────────────────────────────────
     // A shortcode and a block are two different resolution paths (`sahaj_atlas_embed_from_shortcode`
     // scans the raw content; `sahaj_atlas_find_block` walks the parsed block tree), so one working

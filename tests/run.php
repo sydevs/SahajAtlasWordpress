@@ -296,6 +296,7 @@ sahaj_ok( 'names the host', 0 === strpos( $mount, (string) wp_parse_url( home_ur
 sahaj_ok( 'and the page path', false !== strpos( $mount, (string) get_page_uri( sahaj_atlas_page_id() ) ) );
 
 require __DIR__ . '/contract.php';
+require __DIR__ . '/sitemap.php';
 
 // ---------------------------------------------------------------------------------------------
 

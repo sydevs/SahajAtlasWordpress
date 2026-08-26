@@ -55,6 +55,7 @@ require_once SAHAJ_ATLAS_DIR . 'includes/shortcode.php';
 require_once SAHAJ_ATLAS_DIR . 'includes/settings.php';
 require_once SAHAJ_ATLAS_DIR . 'includes/diagnostics.php';
 require_once SAHAJ_ATLAS_DIR . 'includes/seo.php';
+require_once SAHAJ_ATLAS_DIR . 'includes/sitemap.php';
 require_once SAHAJ_ATLAS_DIR . 'includes/updates.php';
 
 add_action( 'init', 'sahaj_atlas_init' );
@@ -68,6 +69,7 @@ function sahaj_atlas_init() {
 	sahaj_atlas_register_settings();
 	sahaj_atlas_register_page_template();
 	sahaj_atlas_register_route_var();
+	sahaj_atlas_register_sitemap();
 	sahaj_atlas_register_updates();
 }
 
