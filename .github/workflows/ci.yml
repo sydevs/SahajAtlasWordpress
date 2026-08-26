@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: Lint & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Both run PHP in WebAssembly via @wp-playground/cli — no system PHP, no Docker, and the
+      # same versions a client site runs: the fleet's floor is WordPress 6.7 on PHP 7.4.
+      - name: Syntax check
+        run: npm run lint
+
+      - name: Integration tests (WordPress 6.7, PHP 7.4)
+        run: npm test
+
+  contract:
+    name: URL contract in sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ⚠ `atlas-url-contract.json` is byte-identical in SahajCloud, SahajAtlasWeb and here. A copy
+      # that drifts is worse than no copy: the suite keeps passing against a contract the rest of
+      # the system has moved on from. SahajCloud is private, so this needs a token — without one the
+      # step reports that it could not check rather than passing silently.
+      - name: Compare with SahajCloud
+        env:
+          GH_TOKEN: ${{ secrets.SAHAJCLOUD_READ_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::No SAHAJCLOUD_READ_TOKEN — the URL contract was NOT checked for drift."
+            exit 0
+          fi
+          gh api -H 'Accept: application/vnd.github.raw' \
+            repos/sydevs/SahajCloud/contents/src/lib/atlas/atlas-url-contract.json \
+            > /tmp/upstream.json
+          diff -u /tmp/upstream.json tests/atlas-url-contract.json \
+            || { echo "::error::tests/atlas-url-contract.json has drifted from SahajCloud."; exit 1; }

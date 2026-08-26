@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ⚠ **The zip's top-level directory must be `sahaj-atlas`, and this is the only reason this
+      # workflow exists.** GitHub's own "Source code (zip)" wraps everything in
+      # `SahajAtlasWordpress-<tag>/`, and WordPress installs an update into the directory the zip
+      # names — so that archive installs a SECOND plugin beside the first on every update, and the
+      # site then runs two copies which each refuse the other's <sahaj-atlas> element. The same slug
+      # appears in `includes/updates.php` (`SAHAJ_ATLAS_SLUG`) and must never diverge from this.
+      - name: Build the plugin zip
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          HEADER=$(sed -n 's/^ \* Version: *//p' sahaj-atlas.php | head -1 | tr -d '[:space:]')
+          if [ "$HEADER" != "$VERSION" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match the plugin header version ($HEADER)."
+            exit 1
+          fi
+          mkdir -p build/sahaj-atlas
+          rsync -a --exclude-from=.distignore ./ build/sahaj-atlas/
+          cd build && zip -qr "../sahaj-atlas-${VERSION}.zip" sahaj-atlas
+
+      - name: Attach it to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --notes "See readme.txt for the changelog." \
+            --verify-tag \
+            "sahaj-atlas-${GITHUB_REF_NAME#v}.zip" \
+            || gh release upload "$GITHUB_REF_NAME" "sahaj-atlas-${GITHUB_REF_NAME#v}.zip" --clobber

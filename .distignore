@@ -1,0 +1,15 @@
+# Everything that must NOT ship inside the plugin zip.
+.git
+.github
+.gitignore
+.distignore
+.editorconfig
+.test-output.txt
+node_modules
+package.json
+package-lock.json
+tests
+docs
+build
+CLAUDE.md
+README.md

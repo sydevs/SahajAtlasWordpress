@@ -60,7 +60,37 @@ Ask the Sahaj Atlas maintainers. Keys are issued by hand, one per site.
 
 Open Settings → Sahaj Atlas. The status panel names the problem.
 
+= What are "clean URLs"? =
+
+With them on, a link to a city looks like `yoursite.org/find-a-class/gb/london`. Search engines can
+index those, and visitors can share them. With them off the same place is
+`yoursite.org/find-a-class/?atlas=/gb/london`, which still works but is less shareable.
+
+They need two things: your site must use any permalink setting other than "Plain", and the Sahaj
+Atlas maintainers must have your page's address on file. The status panel tells you which is
+missing and shows you the address to send them.
+
+= Can the atlas be my site's front page? =
+
+Not with clean URLs. The atlas would have to answer every address on your site, including the ones
+that should show "not found". Give it a page of its own and link to it from your menu.
+
+= I use Elementor / WPBakery / Beaver Builder =
+
+That is fine — the Atlas page does not use them, and the shortcode works inside all of them. If
+your page builder takes over the Atlas page's layout, set that page to the builder's blank or
+canvas template and place the `[sahaj_atlas]` shortcode on it.
+
 == Changelog ==
 
 = 0.1.0 =
-* Not yet released.
+* First release.
+* Creates and owns one Atlas page per site, with the site header and no footer.
+* Serves deep atlas links as real URLs (`/find-a-class/gb/london`) when the site uses pretty
+  permalinks and the maintainers have registered the page.
+* Server-rendered page titles, descriptions, canonicals, hreflang, Open Graph and structured data
+  for every atlas link, replacing whatever Yoast, All in One SEO or Rank Math would emit there.
+* A `[sahaj_atlas]` shortcode and a block for showing one class, or its registration form, inside
+  your own pages.
+* A status panel covering the four things that otherwise fail silently: the API key, the Atlas
+  page, clean URLs, and whether this domain is registered.

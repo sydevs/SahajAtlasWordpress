@@ -1,0 +1,154 @@
+{
+  "$comment": "Shared canonical-Atlas-URL contract. SahajCloud builds these URLs (src/lib/atlas/canonicalUrl.ts); SahajAtlasWeb and WeMeditateWeb parse them back into a view. All three assert against this file byte-identically, so sync it by raw GitHub URL rather than re-deriving the rules. `expected: null` means 'refuse to emit a URL', never 'emit a best guess'.",
+  "version": 1,
+  "queryParam": "atlas",
+  "slugPattern": "^(/[a-z0-9-]+)+$",
+  "cases": [
+    {
+      "name": "path routing, mount with no trailing slash",
+      "target": { "origin": "https://wemeditate.com", "mount": "/map", "routing": "path" },
+      "webPath": "/nl/amsterdam/1204",
+      "expected": "https://wemeditate.com/map/nl/amsterdam/1204"
+    },
+    {
+      "name": "path routing, mount with a trailing slash — no doubled slash",
+      "target": { "origin": "https://wemeditate.com", "mount": "/map/", "routing": "path" },
+      "webPath": "/nl/amsterdam/1204",
+      "expected": "https://wemeditate.com/map/nl/amsterdam/1204"
+    },
+    {
+      "name": "path routing, root mount",
+      "target": { "origin": "https://sahajayoga.nl", "mount": "/", "routing": "path" },
+      "webPath": "/nl/amsterdam",
+      "expected": "https://sahajayoga.nl/nl/amsterdam"
+    },
+    {
+      "name": "path routing, empty mount",
+      "target": { "origin": "https://sahajayoga.nl", "mount": "", "routing": "path" },
+      "webPath": "/nl/amsterdam",
+      "expected": "https://sahajayoga.nl/nl/amsterdam"
+    },
+    {
+      "name": "path routing, origin with a trailing slash",
+      "target": { "origin": "https://wemeditate.com/", "mount": "/map", "routing": "path" },
+      "webPath": "/nl/amsterdam",
+      "expected": "https://wemeditate.com/map/nl/amsterdam"
+    },
+    {
+      "name": "query routing, mount trailing slash preserved",
+      "target": {
+        "origin": "https://sahajayoga.nl",
+        "mount": "/locatelessons/",
+        "routing": "query"
+      },
+      "webPath": "/nl/amsterdam/1204",
+      "expected": "https://sahajayoga.nl/locatelessons/?atlas=/nl/amsterdam/1204"
+    },
+    {
+      "name": "query routing, mount without a trailing slash",
+      "target": {
+        "origin": "https://sahajayoga.at",
+        "mount": "/meditations-kurse-finden",
+        "routing": "query"
+      },
+      "webPath": "/at/wien",
+      "expected": "https://sahajayoga.at/meditations-kurse-finden?atlas=/at/wien"
+    },
+    {
+      "name": "query routing, mount already carrying a query joins with &",
+      "target": { "origin": "https://host.example", "mount": "/?p=42", "routing": "query" },
+      "webPath": "/nl/amsterdam/1204",
+      "expected": "https://host.example/?p=42&atlas=/nl/amsterdam/1204"
+    },
+    {
+      "name": "query routing, WordPress permalink mount",
+      "target": {
+        "origin": "https://host.example",
+        "mount": "/index.php?page_id=7",
+        "routing": "query"
+      },
+      "webPath": "/de/berlin",
+      "expected": "https://host.example/index.php?page_id=7&atlas=/de/berlin"
+    },
+    {
+      "name": "query routing, root mount",
+      "target": { "origin": "https://host.example", "mount": "/", "routing": "query" },
+      "webPath": "/de/berlin",
+      "expected": "https://host.example/?atlas=/de/berlin"
+    },
+    {
+      "name": "query routing, empty mount normalizes to /",
+      "target": { "origin": "https://host.example", "mount": "", "routing": "query" },
+      "webPath": "/de/berlin",
+      "expected": "https://host.example/?atlas=/de/berlin"
+    },
+    {
+      "name": "single-segment path (a country region)",
+      "target": { "origin": "https://sahajayoga.org.uk", "mount": "/map", "routing": "path" },
+      "webPath": "/united-kingdom",
+      "expected": "https://sahajayoga.org.uk/map/united-kingdom"
+    },
+    {
+      "name": "four-level path with a numeric event id",
+      "target": {
+        "origin": "https://sahajayoga.nl",
+        "mount": "/locatelessons/",
+        "routing": "query"
+      },
+      "webPath": "/belgium/flanders/antwerp/downtown-hall/12345",
+      "expected": "https://sahajayoga.nl/locatelessons/?atlas=/belgium/flanders/antwerp/downtown-hall/12345"
+    },
+    {
+      "name": "missing origin — incomplete owner record",
+      "target": { "origin": "", "mount": "/map", "routing": "path" },
+      "webPath": "/nl/amsterdam",
+      "expected": null
+    },
+    {
+      "name": "mount is a full URL, not a path",
+      "target": {
+        "origin": "https://host.example",
+        "mount": "https://elsewhere.example/map",
+        "routing": "path"
+      },
+      "webPath": "/nl/amsterdam",
+      "expected": null
+    },
+    {
+      "name": "mount carries a fragment — never emit one",
+      "target": { "origin": "https://host.example", "mount": "/map#!/here", "routing": "query" },
+      "webPath": "/nl/amsterdam",
+      "expected": null
+    },
+    {
+      "name": "path routing cannot extend a mount that carries a query",
+      "target": { "origin": "https://host.example", "mount": "/?p=42", "routing": "path" },
+      "webPath": "/nl/amsterdam",
+      "expected": null
+    },
+    {
+      "name": "webPath with an empty segment — a blank region slug",
+      "target": { "origin": "https://host.example", "mount": "/map", "routing": "path" },
+      "webPath": "/nl//amsterdam",
+      "expected": null
+    },
+    {
+      "name": "webPath not slash-prefixed",
+      "target": { "origin": "https://host.example", "mount": "/map", "routing": "path" },
+      "webPath": "nl/amsterdam",
+      "expected": null
+    },
+    {
+      "name": "empty webPath",
+      "target": { "origin": "https://host.example", "mount": "/map", "routing": "path" },
+      "webPath": "",
+      "expected": null
+    },
+    {
+      "name": "webPath carrying a fragment",
+      "target": { "origin": "https://host.example", "mount": "/map", "routing": "query" },
+      "webPath": "/nl/amsterdam#!/x",
+      "expected": null
+    }
+  ]
+}

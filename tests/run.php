@@ -264,6 +264,8 @@ sahaj_ok( 'has no trailing slash', '/' !== substr( $mount, -1 ) );
 sahaj_ok( 'names the host', 0 === strpos( $mount, (string) wp_parse_url( home_url(), PHP_URL_HOST ) ) );
 sahaj_ok( 'and the page path', false !== strpos( $mount, (string) get_page_uri( sahaj_atlas_page_id() ) ) );
 
+require __DIR__ . '/contract.php';
+
 // ---------------------------------------------------------------------------------------------
 
 echo "\n$sahaj_assertions assertion(s), $sahaj_failures failure(s)\n";

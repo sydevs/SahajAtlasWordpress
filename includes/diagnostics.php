@@ -210,6 +210,17 @@ function sahaj_atlas_check_path_routing( $client ) {
 		);
 	}
 
+	if ( sahaj_atlas_page_is_front_page() ) {
+		return array(
+			'status' => 'warn',
+			'label'  => $label,
+			'detail' => esc_html__(
+				'Off, because your atlas is the site\'s front page. Clean URLs need the atlas on a page of its own — anything else would mean the atlas answering every address on the site, including the ones that should show "not found". Give it its own page under Settings → Reading, or leave clean URLs off.',
+				'sahaj-atlas'
+			),
+		);
+	}
+
 	$embed = sahaj_atlas_canonical_embed( $client );
 
 	if ( '' === $embed ) {

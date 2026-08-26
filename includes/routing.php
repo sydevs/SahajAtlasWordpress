@@ -54,6 +54,10 @@ function sahaj_atlas_parse_request( $wp ) {
 		return;
 	}
 
+	if ( sahaj_atlas_page_is_front_page() ) {
+		return;
+	}
+
 	$page_id = sahaj_atlas_page_id();
 	$base    = get_page_uri( $page_id );
 
@@ -74,9 +78,22 @@ function sahaj_atlas_parse_request( $wp ) {
 		return;
 	}
 
+	$route = '/' . substr( $path, strlen( $base ) + 1 );
+
+	/*
+	 * ⚠ An empty segment (`/nl//amsterdam`) is refused rather than passed on. The shared URL
+	 * contract declines to PUBLISH such a URL — a blank region slug is a known data defect
+	 * upstream — so claiming one here would serve the atlas at an address nothing points at, under
+	 * a route the widget then cannot resolve. A 404 is the honest answer and is what the rest of
+	 * the system already assumes.
+	 */
+	if ( false !== strpos( $route, '//' ) ) {
+		return;
+	}
+
 	$wp->query_vars = array(
-		'page_id'              => $page_id,
-		SAHAJ_ATLAS_ROUTE_VAR  => '/' . substr( $path, strlen( $base ) + 1 ),
+		'page_id'             => $page_id,
+		SAHAJ_ATLAS_ROUTE_VAR => $route,
 	);
 }
 
@@ -125,5 +142,29 @@ function sahaj_atlas_current_route() {
  * @return bool
  */
 function sahaj_atlas_path_routing_viable() {
-	return sahaj_atlas_page_is_healthy() && (bool) get_option( 'permalink_structure' );
+	return sahaj_atlas_page_is_healthy()
+		&& (bool) get_option( 'permalink_structure' )
+		&& ! sahaj_atlas_page_is_front_page();
+}
+
+/**
+ * Is the Atlas page this site's front page?
+ *
+ * ⚠ **The one path-routing configuration this plugin refuses, and refusing is correct.** The shared
+ * URL contract happily publishes `https://example.org/nl/amsterdam` for a root mount, so this is a
+ * shape SahajCloud can be configured to emit. Serving it would mean claiming every URL on the site
+ * that no post, page, category, tag, feed or archive answered — and half of those are resolved
+ * *after* `parse_request`, so the plugin cannot know which. It would turn the site's 404 page into
+ * the atlas.
+ *
+ * Refusing is only safe because it is VISIBLE: the widget falls back to query routing, and the
+ * diagnostics panel says why. A silent fallback here would leave every canonical SahajCloud
+ * publishes pointing at a 404.
+ *
+ * @return bool
+ */
+function sahaj_atlas_page_is_front_page() {
+	$id = sahaj_atlas_page_id();
+
+	return $id > 0 && 'page' === get_option( 'show_on_front' ) && $id === (int) get_option( 'page_on_front' );
 }
