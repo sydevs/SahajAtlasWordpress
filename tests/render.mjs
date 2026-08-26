@@ -134,6 +134,40 @@ async function check(run) {
     const missing = await fetch(base + MISSING)
 
     ok('an unrelated missing URL still 404s', missing.status === 404, `status ${missing.status}`)
+
+    // ── In-content embeds ──────────────────────────────────────────────────────────────────────
+    // A shortcode and a block are two different resolution paths (`sahaj_atlas_embed_from_shortcode`
+    // scans the raw content; `sahaj_atlas_find_block` walks the parsed block tree), so one working
+    // says nothing about the other. Neither is reachable from the PHP suite, which never renders a
+    // post.
+    for (const [kind, slug] of [
+      ['shortcode', '/shortcode-host/'],
+      ['block', '/block-host/'],
+    ]) {
+      const page = await fetch(base + slug)
+      const body = await page.text()
+      const tag = body.match(/<sahaj-atlas[^>]*>/)
+      const loader = (body.match(/<script[^>]*src="([^"]*auto\.js[^"]*)"/) ?? [])[1]?.replace(/&amp;/g, '&') ?? ''
+
+      ok(`${kind}: the page renders`, page.status === 200, `status ${page.status}`)
+      ok(`${kind}: exactly one element`, (body.match(/<sahaj-atlas[\s>]/g) ?? []).length === 1)
+
+      // An in-content embed is map-LESS, so unlike the Atlas page it needs a height: an unsized
+      // custom element is an inline box of zero height and looks like it did not render at all.
+      ok(`${kind}: the element is sized`, /min-height/.test(tag?.[0] ?? ''), tag?.[0] ?? 'no element')
+      ok(`${kind}: the loader asks for no map`, loader.includes('map=false'), loader)
+      ok(`${kind}: and carries the route`, loader.includes('atlas=%2Fgb%2Flondon%2F1204') || loader.includes('atlas=/gb/london/1204'), loader)
+
+      // ⚠ An in-content embed must NEVER claim path routing: the server only serves the subtree
+      // under the Atlas page, so a deep link from a widget on an article would 404.
+      ok(`${kind}: and never claims path routing`, !loader.includes('routing=path'), loader)
+
+      // The surrounding content still has to be there — a render callback that swallowed the post
+      // would pass every assertion above.
+      if (kind === 'shortcode') {
+        ok('shortcode: the rest of the content survives', body.includes('Before.') && body.includes('After.'))
+      }
+    }
   } finally {
     server.kill('SIGTERM')
     await sleep(1500)

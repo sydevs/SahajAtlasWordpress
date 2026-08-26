@@ -1,11 +1,17 @@
 {
   "$schema": "https://playground.wordpress.net/blueprint-schema.json",
-  "preferredVersions": { "php": "7.4", "wp": "6.7" },
+  "preferredVersions": {
+    "php": "7.4",
+    "wp": "6.7"
+  },
   "steps": [
-    { "step": "activatePlugin", "pluginPath": "sahaj-atlas/sahaj-atlas.php" },
+    {
+      "step": "activatePlugin",
+      "pluginPath": "sahaj-atlas/sahaj-atlas.php"
+    },
     {
       "step": "runPHP",
-      "code": "<?php require_once '/wordpress/wp-load.php'; update_option('permalink_structure','/%postname%/'); update_option(SAHAJ_ATLAS_OPTION_KEY,'demo-key-abc'); $id = sahaj_atlas_create_page(); global $wp_rewrite; $wp_rewrite->init(); $wp_rewrite->flush_rules(true); echo $id;"
+      "code": "<?php require_once '/wordpress/wp-load.php'; update_option('permalink_structure','/%postname%/'); update_option(SAHAJ_ATLAS_OPTION_KEY,'demo-key-abc'); $id = sahaj_atlas_create_page(); global $wp_rewrite; $wp_rewrite->init(); $wp_rewrite->flush_rules(true); echo $id; wp_insert_post(array('post_type'=>'page','post_status'=>'publish','post_title'=>'Shortcode host','post_name'=>'shortcode-host','post_content'=>'<p>Before.</p>[sahaj_atlas atlas=\"/gb/london/1204\"]<p>After.</p>')); wp_insert_post(array('post_type'=>'page','post_status'=>'publish','post_title'=>'Block host','post_name'=>'block-host','post_content'=>'<!-- wp:sahaj-atlas/embed {\"atlas\":\"/gb/london/1204\"} /-->'));"
     }
   ]
 }
