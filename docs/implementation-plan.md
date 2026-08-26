@@ -1,3 +1,22 @@
+> **Status — 2026-08-25: Phases 1 and 2 are implemented and pushed.**
+>
+> This file is the plan as written *before* the work, kept for its reasoning — why the owned page
+> beat block-and-shortcode, why override beat feeding an SEO plugin, what the fleet survey found.
+> **It is not a status document, and where it disagrees with the code the code is right.**
+> `CLAUDE.md` carries what was actually built, the traps found while building it, and how to run
+> the three test lanes.
+>
+> Two deliberate departures from this plan, both argued in `CLAUDE.md`:
+>
+> - **Sitemaps are not implemented.** `/api/atlas/seo` answers one route at a time and nothing
+>   enumerates them; composing the URLs here would be a second implementation of the canonical rule.
+>   Tracked as SahajCloud#650.
+> - **A front-page atlas refuses path routing.** The shared URL contract publishes root-mount
+>   canonicals, so it is a shape the CMS can emit — but serving it means claiming every URL on the
+>   site. The diagnostics panel reports it instead.
+
+---
+
 # SahajAtlasWordpress — implementation plan (stage C5)
 
 ## Context
