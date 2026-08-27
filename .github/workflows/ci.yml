@@ -12,26 +12,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: npm
+          node-version-file: .node-version
+          cache: pnpm
 
-      - run: npm ci
+      - run: pnpm install --frozen-lockfile
 
       # Both run PHP in WebAssembly via @wp-playground/cli — no system PHP, no Docker, and the
       # same versions a client site runs: the fleet's floor is WordPress 6.7 on PHP 7.4.
       - name: Syntax check
-        run: npm run lint
+        run: pnpm lint
 
       - name: Integration tests (WordPress 6.7, PHP 7.4)
-        run: npm test
+        run: pnpm test
 
       # Boots a real server per theme kind. The plugin takes a genuinely different code path for
       # each — `register_block_template()` vs `template_include` — so one of them passing says
       # nothing about the other.
       - name: Render checks (block and classic themes)
-        run: npm run test:render
+        run: pnpm test:render
 
   contract:
     name: URL contract in sync

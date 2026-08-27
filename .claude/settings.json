@@ -1,0 +1,89 @@
+{
+  "env": {
+    "MAX_THINKING_TOKENS": "10000"
+  },
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:developer.wordpress.org)",
+      "WebFetch(domain:wordpress.org)",
+      "WebFetch(domain:make.wordpress.org)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:docs.claude.com)",
+      "WebSearch",
+      "Bash(pnpm lint)",
+      "Bash(pnpm test)",
+      "Bash(pnpm test:*)",
+      "Bash(pnpm start)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm remove:*)",
+      "Bash(pnpm list:*)",
+      "Bash(pnpm outdated:*)",
+      "Bash(pnpm audit:*)",
+      "Bash(pnpm exec:*)",
+      "Bash(pnpm run:*)",
+      "Bash(npm view:*)",
+      "Bash(php -l:*)",
+      "Bash(wp-playground-cli:*)",
+      "Bash(gh issue create:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh issue comment:*)",
+      "Bash(gh pr create:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh pr edit:*)",
+      "Bash(gh pr comment:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh release view:*)",
+      "Bash(gh release list:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git checkout:*)",
+      "Bash(git switch:*)",
+      "Bash(git stash:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git status:*)",
+      "Bash(git branch:*)",
+      "Bash(git fetch:*)",
+      "Bash(git pull:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(cat:*)",
+      "Bash(tree:*)",
+      "Bash(mkdir:*)",
+      "Bash(mv:*)",
+      "Bash(cp:*)",
+      "Bash(chmod:*)",
+      "Bash(curl:*)",
+      "Bash(echo:*)",
+      "Bash(awk:*)",
+      "Bash(sed:*)",
+      "Bash(tee:*)",
+      "Bash(lsof:*)",
+      "Bash(which:*)",
+      "Bash(mktemp:*)",
+      "Bash(rsync -a --exclude-from=.distignore:*)",
+      "mcp__github__*"
+    ]
+  },
+  "extraKnownMarketplaces": {
+    "sydevs": {
+      "source": {
+        "source": "github",
+        "repo": "sydevs/claude-workflow"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "workflow@sydevs": true
+  }
+}

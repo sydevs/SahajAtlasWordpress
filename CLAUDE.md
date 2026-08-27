@@ -115,7 +115,7 @@ See the table in `docs/implementation-plan.md`. The load-bearing ones:
 ## What is built, and what is not
 
 Everything in "Responsibilities" below is implemented and covered. Run the whole gate with
-`npm run test:all` — syntax check, the PHP suite, then the render checks.
+`pnpm test:all` — syntax check, the PHP suite, then the render checks.
 
 | Module | Does |
 | --- | --- |
@@ -147,9 +147,9 @@ Three lanes, all on `@wp-playground/cli` — PHP in WebAssembly, so no Docker an
 
 | Lane | Command | Covers |
 | --- | --- | --- |
-| Syntax | `npm run lint` | `token_get_all(…, TOKEN_PARSE)` over every PHP file |
-| Behaviour | `npm test` | 69 assertions in a booted WordPress 6.7 / PHP 7.4 |
-| Render | `npm run test:render` | Real HTTP against a real server, per theme kind |
+| Syntax | `pnpm lint` | `token_get_all(…, TOKEN_PARSE)` over every PHP file |
+| Behaviour | `pnpm test` | 69 assertions in a booted WordPress 6.7 / PHP 7.4 |
+| Render | `pnpm test:render` | Real HTTP against a real server, per theme kind |
 
 ⚠ **A new assertion is not finished until it has FAILED.** Reintroduce the defect at the site that
 would really cause it, watch it go red, then restore. Every guard added so far has been through

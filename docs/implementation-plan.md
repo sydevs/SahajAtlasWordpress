@@ -50,7 +50,7 @@ Step 0b. Everything else is a new, separate project.
    gh repo create sydevs/SahajAtlasWordpress --public \
      --description "WordPress plugin for embedding the Sahaj Atlas" --clone
    ```
-2. **Clone it to `~/Documents/Projects/SahajAtlasWordpress`**, alongside the sibling projects.
+2. **Clone it to `~/Documents/WeMeditate/SahajAtlasWordpress`**, alongside the sibling projects.
 3. **Copy the brief into it** as `docs/brief.md` — it is currently gitignored inside SahajAtlasWeb
    (`.claude/reports/`), so a fresh session in the new repo cannot see it. Its §10 "where the truth
    lives" table is the pointer back to the widget contract.
