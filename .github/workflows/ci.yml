@@ -39,20 +39,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ⚠ `atlas-url-contract.json` is byte-identical in SahajCloud, SahajAtlasWeb and here. A copy
-      # that drifts is worse than no copy: the suite keeps passing against a contract the rest of
-      # the system has moved on from. SahajCloud is private, so this needs a token — without one the
-      # step reports that it could not check rather than passing silently.
+      # `atlas-url-contract.json` is byte-identical in SahajCloud (which builds these URLs),
+      # SahajAtlasWeb (which parses them) and here (which serves them). A copy that drifts is worse
+      # than no copy: the suite keeps passing against a contract the rest of the system has moved
+      # on from.
+      #
+      # ⚠ **No token, and no skip branch.** An earlier version of this job read the file through
+      # `gh api` with a `SAHAJCLOUD_READ_TOKEN` secret, and warned-and-passed when the secret was
+      # absent — on the stated premise that SahajCloud is private. **It is public.** That premise
+      # was written without checking, and it cost the check its teeth: the secret was never added,
+      # so every run took the warn branch and the contract was never actually compared. A gate that
+      # cannot run is worth less than one that does not exist, because it reads green.
+      #
+      # The raw URL is the same one `pnpm sync:atlas-contract` uses in SahajAtlasWeb, unauthenticated
+      # there too. If SahajCloud ever does go private this step fails loudly, which is the correct
+      # way to find out.
       - name: Compare with SahajCloud
-        env:
-          GH_TOKEN: ${{ secrets.SAHAJCLOUD_READ_TOKEN }}
         run: |
-          if [ -z "$GH_TOKEN" ]; then
-            echo "::warning::No SAHAJCLOUD_READ_TOKEN — the URL contract was NOT checked for drift."
-            exit 0
-          fi
-          gh api -H 'Accept: application/vnd.github.raw' \
-            repos/sydevs/SahajCloud/contents/src/lib/atlas/atlas-url-contract.json \
-            > /tmp/upstream.json
+          curl -fsSL --retry 3 \
+            https://raw.githubusercontent.com/sydevs/SahajCloud/main/src/lib/atlas/atlas-url-contract.json \
+            -o /tmp/upstream.json
           diff -u /tmp/upstream.json tests/atlas-url-contract.json \
-            || { echo "::error::tests/atlas-url-contract.json has drifted from SahajCloud."; exit 1; }
+            || { echo "::error::tests/atlas-url-contract.json has drifted from SahajCloud. Copy the upstream file over it and re-check the specs in tests/contract.php."; exit 1; }

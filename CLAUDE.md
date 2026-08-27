@@ -180,7 +180,7 @@ half-loaded plugin and reports four unrelated-looking failures.
 | Slot / compact-card rules | `src/lib/embed-slot.ts` in SahajAtlasWeb |
 | SEO endpoint | `GET /api/atlas/seo` — SahajCloud PR #646; response types in `src/endpoints/responseTypes.ts` |
 | Sitemap enumeration | `GET /api/atlas/sitemap` — SahajCloud PR #651 |
-| Shared URL contract | `src/lib/atlas/atlas-url-contract.json` in **sydevs/SahajCloud** |
+| Shared URL contract | `src/lib/atlas/atlas-url-contract.json` in **sydevs/SahajCloud** (public; CI diffs the raw URL, no token) |
 
 **Ask rather than infer** where these docs and the code disagree. The code is what ships.
 
