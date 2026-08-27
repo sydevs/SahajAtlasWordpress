@@ -259,15 +259,29 @@ function sahaj_atlas_check_path_routing( $client ) {
 /**
  * Check 4 — will this site's own domain be accepted?
  *
- * ⚠ An **empty** `allowedDomains` refuses every host rather than allowing all of them. A volunteer
- * would experience that as a widget that loads and then shows nothing, with the reason only in a
- * console they will never open.
+ * ⚠ **Mirrors `parseAllowedDomains()` + `isHostAllowed()` in SahajCloud
+ * (`src/plugins/usage/originEnforcement.ts`).** The first version of this check guessed at all
+ * three rules and got all three wrong, which is worse than not checking: the panel is what a
+ * volunteer trusts instead of emailing, so a confident wrong red sends them to the maintainers
+ * about a site that works.
+ *
+ * - **The list is newline-separated** (it is a textarea), commas merely tolerated. Splitting on
+ *   commas alone read a real two-domain client as one impossible domain and reported it unusable.
+ * - **An empty list ALLOWS every origin** — the documented backward-compatible default. The old
+ *   text said it refuses everything and told the volunteer to contact us. (An earlier design note
+ *   in the programme proposed inverting that; it was never implemented, and this check was written
+ *   against the proposal rather than the server.)
+ * - **`*.example.org` is a wildcard and matches subdomains only, not the apex** — while a bare
+ *   `example.org` matches that host exactly and nothing below it. The old check treated every entry
+ *   as a suffix, so a bare apex entry silently admitted every subdomain: it granted `*.example.org`
+ *   where the operator had written `example.org`.
  *
  * @param array|WP_Error|null $client Result of the client read.
  * @return array{status:string, label:string, detail:string}
  */
 function sahaj_atlas_check_allowed_domains( $client ) {
 	$label = __( 'This domain', 'sahaj-atlas' );
+	$host  = sahaj_atlas_normalize_host( (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
 
 	if ( ! is_array( $client ) ) {
 		return array(
@@ -277,31 +291,22 @@ function sahaj_atlas_check_allowed_domains( $client ) {
 		);
 	}
 
-	$raw  = isset( $client['allowedDomains'] ) ? (string) $client['allowedDomains'] : '';
-	$list = array_filter( array_map( 'trim', explode( ',', $raw ) ) );
-	$host = (string) wp_parse_url( home_url(), PHP_URL_HOST );
+	$patterns = sahaj_atlas_parse_allowed_domains( isset( $client['allowedDomains'] ) ? $client['allowedDomains'] : '' );
 
-	if ( ! $list ) {
+	if ( ! $patterns ) {
 		return array(
-			'status' => 'fail',
+			'status' => 'ok',
 			'label'  => $label,
-			'detail' => esc_html__(
-				'The Atlas server has no domains registered for your key, which means it will refuse every page. Ask the maintainers to add this site.',
-				'sahaj-atlas'
-			) . ' <code>' . esc_html( $host ) . '</code>',
+			'detail' => esc_html__( 'Your key has no domain restriction, so this site is accepted.', 'sahaj-atlas' ),
 		);
 	}
 
-	foreach ( $list as $allowed ) {
-		$allowed = strtolower( ltrim( $allowed, '.' ) );
-
-		if ( $host === $allowed || substr( $host, -strlen( '.' . $allowed ) ) === '.' . $allowed ) {
-			return array(
-				'status' => 'ok',
-				'label'  => $label,
-				'detail' => '<code>' . esc_html( $host ) . '</code>',
-			);
-		}
+	if ( sahaj_atlas_is_host_allowed( $host, $patterns ) ) {
+		return array(
+			'status' => 'ok',
+			'label'  => $label,
+			'detail' => '<code>' . esc_html( $host ) . '</code>',
+		);
 	}
 
 	return array(
@@ -311,9 +316,103 @@ function sahaj_atlas_check_allowed_domains( $client ) {
 			/* translators: 1: this site's host. 2: the domains registered with the Atlas server. */
 			esc_html__( 'The Atlas server does not have %1$s registered. It has %2$s. Ask the maintainers to add this one.', 'sahaj-atlas' ),
 			'<code>' . esc_html( $host ) . '</code>',
-			'<code>' . esc_html( implode( ', ', $list ) ) . '</code>'
+			'<code>' . esc_html( implode( ', ', $patterns ) ) . '</code>'
 		),
 	);
+}
+
+/**
+ * Normalize one entry or host into a comparable bare host, or `''` if it is not one.
+ *
+ * @param string $value A host, URL, or allowlist entry.
+ * @return string
+ */
+function sahaj_atlas_normalize_host( $value ) {
+	$value = strtolower( trim( (string) $value ) );
+
+	if ( '' === $value ) {
+		return '';
+	}
+
+	$wildcard = 0 === strpos( $value, '*.' );
+
+	if ( $wildcard ) {
+		$value = substr( $value, 2 );
+	}
+
+	// An entry may be written as a URL. Everything after the authority is not a host.
+	$value = preg_replace( '#^[a-z][a-z0-9+.-]*://#', '', $value );
+	$value = preg_replace( '#[/?\#].*$#', '', (string) $value );
+
+	// Ports are stripped: the server compares port-stripped hostnames.
+	$value = preg_replace( '#:\d+$#', '', (string) $value );
+
+	// The trailing-dot fully-qualified form.
+	$value = rtrim( (string) $value, '.' );
+
+	if ( '' === $value || false !== strpos( $value, '*' ) ) {
+		return '';
+	}
+
+	return $wildcard ? '*.' . $value : $value;
+}
+
+/**
+ * Parse the newline-separated `allowedDomains` textarea into host patterns.
+ *
+ * @param mixed $raw The stored value.
+ * @return string[]
+ */
+function sahaj_atlas_parse_allowed_domains( $raw ) {
+	if ( ! is_string( $raw ) || '' === trim( $raw ) ) {
+		return array();
+	}
+
+	$entries  = preg_split( '/[\r\n,]+/', $raw );
+	$patterns = array();
+
+	foreach ( (array) $entries as $entry ) {
+		$host = sahaj_atlas_normalize_host( $entry );
+
+		if ( '' !== $host ) {
+			$patterns[] = $host;
+		}
+	}
+
+	return $patterns;
+}
+
+/**
+ * Does a host match one of the patterns?
+ *
+ * @param string   $host     A normalized bare host.
+ * @param string[] $patterns Normalized patterns.
+ * @return bool
+ */
+function sahaj_atlas_is_host_allowed( $host, $patterns ) {
+	if ( '' === $host ) {
+		return false;
+	}
+
+	foreach ( $patterns as $pattern ) {
+		if ( 0 === strpos( $pattern, '*.' ) ) {
+			// ⚠ The leading dot is what stops suffix injection: `evil-example.org` must not match
+			// `*.example.org`. The apex itself does not match a wildcard either.
+			$suffix = substr( $pattern, 1 );
+
+			if ( strlen( $host ) > strlen( $suffix ) && substr( $host, -strlen( $suffix ) ) === $suffix ) {
+				return true;
+			}
+
+			continue;
+		}
+
+		if ( $host === $pattern ) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 /**

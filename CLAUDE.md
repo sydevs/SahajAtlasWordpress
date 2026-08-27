@@ -95,6 +95,15 @@ See the table in `docs/implementation-plan.md`. The load-bearing ones:
   the fetch failed or ownership is not set up — both temporary. A valid-but-empty sitemap tells a
   crawler we affirmatively have nothing, and an index entry pointing at a 404 is a broken link
   handed straight to one. Both are the state a site is in for five minutes after any failed fetch.
+- ⚠ **`allowedDomains` is NEWLINE-separated and an EMPTY list ALLOWS every origin.** Both were
+  guessed wrong first, and the panel is what a volunteer trusts instead of emailing us, so a
+  confident wrong red is worse than no check. The field is a textarea (commas merely tolerated), so
+  a comma-only split read a real two-domain client as one impossible domain; and empty is the
+  documented backward-compatible "allow all" upstream, not a refusal. `*.example.org` matches
+  subdomains but never the apex, and a bare `example.org` matches that host alone — treating every
+  entry as a suffix silently grants the wildcard the operator did not write. Mirror
+  `parseAllowedDomains()` / `isHostAllowed()` in SahajCloud `src/plugins/usage/originEnforcement.ts`;
+  do not re-derive them.
 - ⚠ **Publish only URLs on THIS host.** The endpoint answers what the *client* owns, and an owned
   subtree is not by definition served from the domain asking — one key shared between two sites, or
   a mis-set `canonical.embed`, puts a foreign host in the list, and a sitemap naming another domain
