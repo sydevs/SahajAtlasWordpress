@@ -4,12 +4,18 @@
 .gitignore
 .distignore
 .editorconfig
+.DS_Store
 .test-output.txt
 node_modules
 package.json
-package-lock.json
+pnpm-lock.yaml
+.node-version
 tests
 docs
 build
 CLAUDE.md
 README.md
+
+# Agent configuration — dev-only, and `.mcp.json` names internal services.
+.claude
+.mcp.json

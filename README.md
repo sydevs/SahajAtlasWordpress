@@ -50,13 +50,13 @@ No Docker, no system PHP — [`@wp-playground/cli`](https://www.npmjs.com/packag
 runs PHP in WebAssembly.
 
 ```
-npm install
-npm run test:all     # syntax + behaviour + render, which is what CI runs
-npm start            # a real WordPress with the plugin mounted, for poking at by hand
+pnpm install
+pnpm test:all        # syntax + behaviour + render, which is what CI runs
+pnpm start           # a real WordPress with the plugin mounted, for poking at by hand
 ```
 
-The three lanes separately: `npm run lint` (syntax), `npm test` (69 assertions in a booted
-WordPress 6.7 on PHP 7.4 — the fleet's floor), `npm run test:render` (real HTTP against a real
+The three lanes separately: `pnpm lint` (syntax), `pnpm test` (69 assertions in a booted
+WordPress 6.7 on PHP 7.4 — the fleet's floor), `pnpm test:render` (real HTTP against a real
 server, once per theme kind, because block and classic themes take different code paths).
 
 ## Licence

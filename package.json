@@ -2,14 +2,20 @@
   "name": "sahaj-atlas-wordpress",
   "private": true,
   "description": "Dev tooling only. NOTHING here ships in the plugin zip \u2014 see .github/workflows/release.yml.",
+  "packageManager": "pnpm@10.25.0",
   "scripts": {
     "lint": "wp-playground-cli php --mount .:/plugin -- /plugin/tests/lint.php",
     "test": "wp-playground-cli run-blueprint --blueprint tests/blueprint.json --mount .:/wordpress/wp-content/plugins/sahaj-atlas --verbosity quiet; php tests/report.php 2>/dev/null || wp-playground-cli php --mount .:/plugin -- /plugin/tests/report.php",
     "start": "wp-playground-cli start --auto-mount .",
     "test:render": "node tests/render.mjs",
-    "test:all": "npm run lint && npm test && npm run test:render"
+    "test:all": "pnpm lint && pnpm test && pnpm test:render"
   },
   "devDependencies": {
     "@wp-playground/cli": "^3.1.51"
+  },
+  "pnpm": {
+    "ignoredBuiltDependencies": [
+      "fs-ext-extra-prebuilt"
+    ]
   }
 }
