@@ -148,7 +148,7 @@ Three lanes, all on `@wp-playground/cli` — PHP in WebAssembly, so no Docker an
 | Lane | Command | Covers |
 | --- | --- | --- |
 | Syntax | `pnpm lint` | `token_get_all(…, TOKEN_PARSE)` over every PHP file |
-| Behaviour | `pnpm test` | 69 assertions in a booted WordPress 6.7 / PHP 7.4 |
+| Behaviour | `pnpm test` | The behaviour suite, in a booted WordPress 6.7 / PHP 7.4 |
 | Render | `pnpm test:render` | Real HTTP against a real server, per theme kind |
 
 ⚠ **A new assertion is not finished until it has FAILED.** Reintroduce the defect at the site that

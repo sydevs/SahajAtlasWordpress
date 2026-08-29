@@ -87,7 +87,7 @@ or a registration form, map-less, inside normal content.
 | --- | --- |
 | Audience | **Non-technical local volunteers**, one per site. Drives everything below. |
 | Atlas pages per site | **One.** The plugin owns it. |
-| Page chrome | **Site header, no footer** — but the widget cannot yet coexist with a header, so an upstream ticket comes first and the header lands after it. See Step 0. |
+| Page chrome | **Site header, no footer.** Planned as blocked on an upstream ticket, because the widget could not then coexist with a header; that ticket (SahajAtlasWeb#170) has since landed and the header ships. Giving `<sahaj-atlas>` a definite height is the contained-map opt-in — see `assets/atlas-page.css` and the note in `includes/page.php`. |
 | In-content embeds | **Shortcode + block**, map-less, for an event or registration form. |
 | Editor preview | **Static placeholder.** Never boot the widget in the editor. |
 | Setup | A **button in settings** creates the atlas page. Never automatic on activation. |
