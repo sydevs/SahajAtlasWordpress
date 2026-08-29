@@ -7,10 +7,6 @@ meditation classes — to a WordPress site.
 **Developers:** start with [`CLAUDE.md`](CLAUDE.md), then
 [`docs/implementation-plan.md`](docs/implementation-plan.md).
 
-> **Status: complete, not yet tagged.** Both phases are implemented and tested; there is no release
-> to download until `v0.1.0` is tagged, at which point CI builds the zip the instructions below
-> refer to.
-
 ## Why a plugin rather than a snippet
 
 WordPress strips `<script>` from saved content for every role below Administrator — and for *every*
@@ -23,7 +19,8 @@ all.
 ⚠ **If your site already shows the Sahaj Atlas** — an older embed, an iframe, or a pasted script —
 **remove it first.** Two atlases on one page will not work.
 
-1. Download **`sahaj-atlas.zip`** from the [Releases](../../releases) page.
+1. Download the newest **`sahaj-atlas-<version>.zip`** from the [Releases](../../releases) page —
+   the version number changes with every release, so take the highest one.
    ⚠ Not "Source code (zip)" — that one installs incorrectly.
 2. WordPress → **Plugins → Add New Plugin → Upload Plugin** → choose the file → **Install Now**.
 3. **Activate** it.
@@ -55,7 +52,7 @@ pnpm test:all        # syntax + behaviour + render, which is what CI runs
 pnpm start           # a real WordPress with the plugin mounted, for poking at by hand
 ```
 
-The three lanes separately: `pnpm lint` (syntax), `pnpm test` (69 assertions in a booted
+The three lanes separately: `pnpm lint` (syntax), `pnpm test` (the behaviour suite, in a booted
 WordPress 6.7 on PHP 7.4 — the fleet's floor), `pnpm test:render` (real HTTP against a real
 server, once per theme kind, because block and classic themes take different code paths).
 

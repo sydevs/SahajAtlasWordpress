@@ -46,7 +46,7 @@ https://github.com/sydevs/SahajAtlasWeb/blob/main/docs/embedding.md
 ⚠ **If your site already shows the Sahaj Atlas** — an older embed, an iframe, or a pasted script —
 **remove it first.** Two atlases on one page will not work.
 
-1. Download `sahaj-atlas.zip` from the Releases page. Do **not** use "Source code (zip)".
+1. On the Releases page, download the newest `sahaj-atlas-<version>.zip` (the version number changes with every release). Do **not** use "Source code (zip)".
 2. In WordPress, go to Plugins → Add New Plugin → Upload Plugin, choose the file, and install it.
 3. Activate the plugin.
 4. Go to Settings → Sahaj Atlas, paste your API key, and press "Create the Atlas page".
