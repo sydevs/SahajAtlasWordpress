@@ -72,7 +72,16 @@
       "Bash(which:*)",
       "Bash(mktemp:*)",
       "Bash(rsync -a --exclude-from=.distignore:*)",
-      "mcp__github__*"
+      "mcp__github__*",
+      "Edit(.claude/docs/**)",
+      "Write(.claude/docs/**)",
+      "Edit(.claude/rules/**)",
+      "Write(.claude/rules/**)",
+      "Edit(.claude/skills/**)",
+      "Write(.claude/skills/**)",
+      "Edit(CLAUDE.md)",
+      "Edit(AGENTS.md)",
+      "Write(AGENTS.md)"
     ]
   },
   "extraKnownMarketplaces": {
