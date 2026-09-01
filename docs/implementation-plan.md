@@ -3,10 +3,10 @@
 > This file is the plan as written *before* the work, kept for its reasoning — why the owned page
 > beat block-and-shortcode, why override beat feeding an SEO plugin, what the fleet survey found.
 > **It is not a status document, and where it disagrees with the code the code is right.**
-> `CLAUDE.md` carries what was actually built, the traps found while building it, and how to run
+> `AGENTS.md` carries what was actually built, the traps found while building it, and how to run
 > the three test lanes.
 >
-> Two deliberate departures from this plan, both argued in `CLAUDE.md`:
+> Two deliberate departures from this plan, both argued in `AGENTS.md`:
 >
 > - **Sitemaps are not implemented.** `/api/atlas/seo` answers one route at a time and nothing
 >   enumerates them; composing the URLs here would be a second implementation of the canonical rule.
@@ -59,7 +59,7 @@ Step 0b. Everything else is a new, separate project.
    install a second copy instead of replacing the first. Check it does not collide with an existing
    wordpress.org plugin.
 5. Add the standard scaffolding: `.gitignore`, GPL-2.0-or-later `LICENSE`, `readme.txt` (from day one
-   — PUC surfaces its changelog in the update dialog), and a `CLAUDE.md` recording the decisions
+   — PUC surfaces its changelog in the update dialog), and an `AGENTS.md` recording the decisions
    below so they are not relitigated.
 
 ---

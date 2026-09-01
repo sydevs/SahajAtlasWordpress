@@ -4,7 +4,7 @@ Adds the [Sahaj Atlas](https://github.com/sydevs/SahajAtlasWeb) — a searchable
 meditation classes — to a WordPress site.
 
 **Site owners:** see [Installation](#installation) below. You do not need to paste any code.
-**Developers:** start with [`CLAUDE.md`](CLAUDE.md), then
+**Developers:** start with [`AGENTS.md`](AGENTS.md), then
 [`docs/implementation-plan.md`](docs/implementation-plan.md).
 
 ## Why a plugin rather than a snippet

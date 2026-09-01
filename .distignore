@@ -13,6 +13,7 @@ pnpm-lock.yaml
 tests
 docs
 build
+AGENTS.md
 CLAUDE.md
 README.md
 
