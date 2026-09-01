@@ -11,7 +11,7 @@
   },
   "securityReview": {
     "triggerPattern": "^includes/|^sahaj-atlas\\.php|^blocks/|^templates/|^\\.distignore|^\\.github/workflows/release\\.yml",
-    "rationale": "CLAUDE.md \u2014 the plugin renders on 13 volunteer-run sites; .distignore governs what ships."
+    "rationale": "AGENTS.md \u2014 the plugin renders on 13 volunteer-run sites; .distignore governs what ships."
   },
   "worktreeSetup": [
     "pnpm install"
