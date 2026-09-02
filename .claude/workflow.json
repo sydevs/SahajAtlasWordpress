@@ -1,5 +1,5 @@
 {
-  "$comment": "Per-repo settings read by the sydevs `workflow` plugin. Replaces the 'Intentional per-repo deltas' table that used to live in three hand-synced copies of .claude/docs/workflow-parity.md.",
+  "$comment": "Per-repo values read by the sydevs `workflow` plugin and its skills. Values only \u2014 the rules that consume them live in the skills, the stories in docs/.",
   "packageManager": "pnpm",
   "leanGate": {
     "command": "pnpm test:all",
@@ -43,6 +43,5 @@
     "**/*.md",
     ".claude/**",
     "tests/atlas-url-contract.json"
-  ],
-  "prAllowlistNote": "Where a TICKETLESS PR may be opened without a `ready-to-implement` issue: dependency bumps, lint/format sweeps, generated-type re-syncs, doc corrections. Ticket work is gated on the `ready-to-implement` label instead, never on these globs."
+  ]
 }
