@@ -190,11 +190,15 @@ Verified in `SahajAtlasWeb/src/loader/index.ts` — **do not re-derive**:
 - **Block theme** → `<head>`, which the loader explicitly refuses (`resolveElement()` guards
   `parent.nodeName !== 'HEAD'` and logs "could not find a place to render").
 
-**One move fixes both**: always print an explicit `<sahaj-atlas></sahaj-atlas>` on `wp_body_open` at
-priority 1. The loader adopts an existing element wherever it is, so where the script tag lands stops
-mattering. It also puts the element as a **direct child of `<body>`** — the only reliable defence
-against an Elementor/WPBakery `transform` ancestor becoming the containing block and confining the
-map.
+**One move fixes both**: always print an explicit `<sahaj-atlas></sahaj-atlas>`. The loader adopts an
+existing element wherever it is, so where the script tag lands stops mattering.
+
+⚠ **Where the element sits became load-bearing with SahajAtlasWeb#170, and this line used to say
+`wp_body_open`.** A contained map draws in its element's box, so both templates print it **in the
+flow after the header**; `wp_body_open` would put the atlas above it. `wp_footer` at priority 1 is
+kept as a last-resort fallback for a theme that runs neither template, and no-ops once the flow
+print has happened. The transform-ancestor defence that justified `wp_body_open` is retired with the
+fixed-position overlay it protected — a contained map establishes its own containing block.
 
 ⚠ `get_footer()` and `wp_footer()` are different. Skip the **former**; the latter must always fire or
 the module never prints and the admin bar breaks.
@@ -451,13 +455,14 @@ regression, E2E that drives the block editor UI (that is core's code), mocking f
   `theme_page_templates`. Expect at least one of the two Elementor sites to need the atlas page set
   to Elementor's own "Canvas" template with the widget supplied by shortcode. **Budget this as a
   documented per-site variant, not plugin code.**
-- **`transform` ancestors** on Elementor/WPBakery animated sections confine `position: fixed`. Printing
-  the element at `wp_body_open` steps outside them — but only on the atlas page. An in-content
-  `map=true` embed inside an animated section will be confined, and the visible symptom is the
-  **compact card**, not a broken map. Make the editor placeholder's map-mode warning loud.
-- **A theme that never calls `wp_body_open()`** (pre-5.2 custom themes, some builder headers) falls back
-  to printing the element inside the template — which reintroduces the transform hazard for exactly
-  those sites. Diagnostics should report *where* the element rendered.
+- ~~**`transform` ancestors** on Elementor/WPBakery animated sections confine `position: fixed`.~~
+  **Retired by SahajAtlasWeb#170.** It applied while the map was a fixed overlay; a *contained* map
+  — which every embed this plugin prints now is, since all of them are sized — establishes its own
+  containing block, so an animated wrapper cannot capture it. Kept as a struck line because the
+  hazard is the reason the original placement rule existed, and deleting it invites the rule back.
+- **A theme that never calls `wp_body_open()`** (pre-5.2 custom themes, some builder headers) is no
+  longer a placement problem, because the element is printed in the template's flow rather than on
+  that hook. Diagnostics should still report *where* the element rendered.
 - **A volunteer renames, trashes or duplicates the atlas page.** The plugin must notice and say so.
 - **A site already embeds the atlas** — `sahajayoga.at` serves an iframe to the legacy origin today.
   Two atlases on one site is the likeliest first-install failure, and by decision the plugin does not

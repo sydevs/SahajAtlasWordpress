@@ -233,27 +233,32 @@ function sahaj_atlas_script_url( $embed ) {
 }
 
 /**
- * Print `<sahaj-atlas></sahaj-atlas>` for the Atlas page, at `wp_body_open`.
+ * Print `<sahaj-atlas></sahaj-atlas>` for the Atlas page, in the flow after the header.
  *
- * ⚠ **Two separate problems are solved by printing an explicit element, and both are invisible
- * until they bite.**
- *
- * First, placement. Core prints script modules at `wp_footer` on a classic theme and in `<head>` on
- * a block theme (`WP_Script_Modules::add_hooks()`). The Atlas page's template omits the footer
+ * ⚠ **Printing an explicit element is what makes the placement of core's script tag stop
+ * mattering.** Core prints script modules at `wp_footer` on a classic theme and in `<head>` on a
+ * block theme (`WP_Script_Modules::add_hooks()`). The Atlas page's template omits the footer
  * *markup*, and the loader outright refuses `<head>` — it logs "could not find a place to render"
- * rather than guess. An element that already exists is adopted wherever it is, so where the script
- * tag lands stops mattering.
+ * rather than guess. An element that already exists is adopted wherever it is.
  *
- * Second, containment. `wp_body_open` puts the element as a direct child of `<body>`, outside every
- * theme and page-builder wrapper. An ancestor carrying `transform`, `filter` or `contain` becomes
- * the containing block for `position: fixed` descendants — which is the whole map — and Elementor
- * and WPBakery both wrap sections in transforms for entrance animations.
+ * ⚠ **Where the element sits is itself load-bearing now, and it did not used to be.** A contained
+ * map draws in its element's box (SahajAtlasWeb#170), so both templates call this *after* the
+ * header (`templates/atlas-page.php:52`) rather than at `wp_body_open`, which would put the atlas
+ * above it. `sahaj-atlas.php` keeps a `wp_footer` hook at priority 1 as a last-resort fallback for
+ * a theme that runs neither template; it no-ops once the flow print has happened.
  *
- * ⚠ **The element gets no CSS, and that is load-bearing.** The widget degrades to a compact card
- * when its slot measures under 0.8× the viewport. An unstyled custom element is `display: inline`
- * with no content, so it measures 0×0, which the widget reads as "unmeasurable" and answers with
- * the full interface. A helpful `height: calc(100vh - 80px)` would silently collapse the map into a
- * card on any site with a tall header.
+ * The transform-ancestor argument that used to justify `wp_body_open` is **retired**: it applied
+ * while the map was a `position: fixed` overlay, whose containing block an ancestor's `transform`,
+ * `filter` or `contain` could capture. A contained map establishes its own containing block, so a
+ * page-builder wrapper no longer reaches it.
+ *
+ * ⚠ **The element is SIZED, and that is load-bearing** — the inverse of what this docblock said
+ * before #170. `display: block` plus a *definite* height is the opt-in for a contained map:
+ * `sahaj_atlas_page_element_markup()` emits `style="display:block;height:520px|640px"`, and
+ * `assets/atlas-page.css` sizes the Atlas page's element against the theme's header. Take the
+ * sizing away and the map reverts to `position: fixed; inset: 0`, covering the header this page
+ * renders — which is why it shipped without one until #170. `min-height` is not a height; see the
+ * note on the markup builder below.
  */
 function sahaj_atlas_render_element_once() {
 	echo sahaj_atlas_page_element_markup(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built below; children escaped in includes/seo.php.
