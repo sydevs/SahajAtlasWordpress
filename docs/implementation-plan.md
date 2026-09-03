@@ -190,20 +190,28 @@ Verified in `SahajAtlasWeb/src/loader/index.ts` — **do not re-derive**:
 - **Block theme** → `<head>`, which the loader explicitly refuses (`resolveElement()` guards
   `parent.nodeName !== 'HEAD'` and logs "could not find a place to render").
 
-**One move fixes both**: always print an explicit `<sahaj-atlas></sahaj-atlas>` on `wp_body_open` at
-priority 1. The loader adopts an existing element wherever it is, so where the script tag lands stops
-mattering. It also puts the element as a **direct child of `<body>`** — the only reliable defence
-against an Elementor/WPBakery `transform` ancestor becoming the containing block and confining the
-map.
+**One move fixes both**: always print an explicit `<sahaj-atlas></sahaj-atlas>`. The loader adopts an
+existing element wherever it is, so where the script tag lands stops mattering.
+
+⚠ **Where the element sits became load-bearing with SahajAtlasWeb#170, and this line used to say
+`wp_body_open`.** A contained map draws in its element's box, so both templates print it **in the
+flow after the header**; `wp_body_open` would put the atlas above it. `wp_footer` at priority 1 is
+kept as a last-resort fallback for a theme that runs neither template, and no-ops once the flow
+print has happened. The transform-ancestor defence that justified `wp_body_open` retired with the
+fixed overlay it protected — see the struck entry in **Risks** below.
 
 ⚠ `get_footer()` and `wp_footer()` are different. Skip the **former**; the latter must always fire or
 the module never prints and the admin bar breaks.
 
-⚠ **Do not give `<sahaj-atlas>` any CSS on the atlas page.** `lib/embed-slot.ts` degrades to the
-compact card when the slot is under **0.8×** the viewport on a measured axis. An unstyled element
-measures 0×0, which reads as "unmeasurable" and yields the full interface. A helpful
-`height: calc(100vh - 80px)` would silently collapse the map into a card on any site with a tall
-header. Worth a code comment.
+⚠ **SIZE `<sahaj-atlas>` on the atlas page — this rule inverted with SahajAtlasWeb#170, and it used
+to read as its own opposite.** `display: block` plus a **definite** height is the opt-in for a
+*contained* map: it draws inside that box, in its own stacking context, the header above it
+survives, and it is never asked the compact-card question at all. Unsized, the map is
+`position: fixed; inset: 0` and covers whatever is on the page — which is why the atlas page shipped
+headerless until #170. `assets/atlas-page.css` is where the page's element gets its height, in a
+stylesheet rather than inline so a host can override it without `!important`. `min-height` is not a
+height: the widget fills its element with `height: 100%`, which needs a definite one to resolve
+against.
 
 ### In-content embeds — the route shapes
 
@@ -451,13 +459,14 @@ regression, E2E that drives the block editor UI (that is core's code), mocking f
   `theme_page_templates`. Expect at least one of the two Elementor sites to need the atlas page set
   to Elementor's own "Canvas" template with the widget supplied by shortcode. **Budget this as a
   documented per-site variant, not plugin code.**
-- **`transform` ancestors** on Elementor/WPBakery animated sections confine `position: fixed`. Printing
-  the element at `wp_body_open` steps outside them — but only on the atlas page. An in-content
-  `map=true` embed inside an animated section will be confined, and the visible symptom is the
-  **compact card**, not a broken map. Make the editor placeholder's map-mode warning loud.
-- **A theme that never calls `wp_body_open()`** (pre-5.2 custom themes, some builder headers) falls back
-  to printing the element inside the template — which reintroduces the transform hazard for exactly
-  those sites. Diagnostics should report *where* the element rendered.
+- ~~**`transform` ancestors** on Elementor/WPBakery animated sections confine `position: fixed`.~~
+  **Retired by SahajAtlasWeb#170.** It applied while the map was a fixed overlay; a *contained* map
+  — which every embed this plugin prints now is, since all of them are sized — establishes its own
+  containing block, so an animated wrapper cannot capture it. Kept as a struck line because the
+  hazard is the reason the original placement rule existed, and deleting it invites the rule back.
+- **A theme that never calls `wp_body_open()`** (pre-5.2 custom themes, some builder headers) is no
+  longer a placement problem, because the element is printed in the template's flow rather than on
+  that hook. Diagnostics should still report *where* the element rendered.
 - **A volunteer renames, trashes or duplicates the atlas page.** The plugin must notice and say so.
 - **A site already embeds the atlas** — `sahajayoga.at` serves an iframe to the legacy origin today.
   Two atlases on one site is the likeliest first-install failure, and by decision the plugin does not

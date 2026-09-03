@@ -1,5 +1,7 @@
-/* The editor placeholder only. The front end ships no CSS at all — the widget styles itself, and
-   the Atlas page's element must stay unstyled so the widget measures it as unmeasurable. */
+/* The editor placeholder only — nothing here reaches the front end, where the widget styles itself.
+   The one thing the front end does set is the element's SIZE, and that is load-bearing: a definite
+   height is what makes the map contained rather than a full-window overlay (SahajAtlasWeb#170).
+   In-content embeds carry it inline; the Atlas page's element gets it from `assets/atlas-page.css`. */
 .wp-block-sahaj-atlas-embed .components-placeholder {
 	min-height: 160px;
 }
