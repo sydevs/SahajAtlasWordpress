@@ -1,0 +1,27 @@
+# Adds every new issue and pull request to the org-wide workflow board:
+# https://github.com/orgs/sydevs/projects/2
+#
+# The board is a read-only lens over the Stage issue field and PR review
+# state — it stores nothing the autonomous loop reads. See
+# sydevs/claude-workflow/docs/why.md#the-board-is-a-lens.
+#
+# pull_request_target (not pull_request) so the org secret is available on
+# PRs from forks; nothing is checked out here, which is what makes that safe.
+name: Add to workflow board
+
+on:
+  issues:
+    types: [opened, reopened, transferred]
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions: {}
+
+jobs:
+  add-to-project:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/add-to-project@v2
+        with:
+          project-url: https://github.com/orgs/sydevs/projects/2
+          github-token: ${{ secrets.ADD_TO_PROJECT_PAT }}
