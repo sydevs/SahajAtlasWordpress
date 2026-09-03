@@ -242,23 +242,23 @@ function sahaj_atlas_script_url( $embed ) {
  * rather than guess. An element that already exists is adopted wherever it is.
  *
  * ⚠ **Where the element sits is itself load-bearing now, and it did not used to be.** A contained
- * map draws in its element's box (SahajAtlasWeb#170), so both templates call this *after* the
- * header (`templates/atlas-page.php:52`) rather than at `wp_body_open`, which would put the atlas
- * above it. `sahaj-atlas.php` keeps a `wp_footer` hook at priority 1 as a last-resort fallback for
- * a theme that runs neither template; it no-ops once the flow print has happened.
- *
- * The transform-ancestor argument that used to justify `wp_body_open` is **retired**: it applied
- * while the map was a `position: fixed` overlay, whose containing block an ancestor's `transform`,
- * `filter` or `contain` could capture. A contained map establishes its own containing block, so a
- * page-builder wrapper no longer reaches it.
+ * map draws in its element's box (SahajAtlasWeb#170), so both templates print it *after* the
+ * header rather than at `wp_body_open`, which would put the atlas above it. Only the classic
+ * template calls this function (`templates/atlas-page.php:52`); the block template renders
+ * `wp:sahaj-atlas/page`, whose callback is `sahaj_atlas_render_page_block()`. `sahaj-atlas.php`
+ * keeps a `wp_footer` hook at priority 1 as a last-resort fallback for a theme that runs neither
+ * template; it no-ops once the flow print has happened. (The transform-ancestor argument that used
+ * to justify `wp_body_open` retired with the fixed overlay it protected — `AGENTS.md`, "Traps
+ * already paid for", carries that inversion.)
  *
  * ⚠ **The element is SIZED, and that is load-bearing** — the inverse of what this docblock said
- * before #170. `display: block` plus a *definite* height is the opt-in for a contained map:
- * `sahaj_atlas_page_element_markup()` emits `style="display:block;height:520px|640px"`, and
- * `assets/atlas-page.css` sizes the Atlas page's element against the theme's header. Take the
- * sizing away and the map reverts to `position: fixed; inset: 0`, covering the header this page
- * renders — which is why it shipped without one until #170. `min-height` is not a height; see the
- * note on the markup builder below.
+ * before #170. `display: block` plus a *definite* height is the opt-in for a contained map. Take
+ * the sizing away and the map reverts to `position: fixed; inset: 0`, covering the header this page
+ * renders — which is why it shipped without one until #170. **Which sizer applies is the path, and
+ * the split is deliberate:** the Atlas page's element carries no inline style and is sized by
+ * `assets/atlas-page.css` (`body.sahaj-atlas-page sahaj-atlas`), so a host can override the height
+ * with ordinary CSS rather than `!important`; only in-content embeds are sized inline, by
+ * `sahaj_atlas_element_markup()`. `min-height` is not a height — see that builder's note.
  */
 function sahaj_atlas_render_element_once() {
 	echo sahaj_atlas_page_element_markup(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built below; children escaped in includes/seo.php.

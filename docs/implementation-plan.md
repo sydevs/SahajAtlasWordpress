@@ -197,17 +197,21 @@ existing element wherever it is, so where the script tag lands stops mattering.
 `wp_body_open`.** A contained map draws in its element's box, so both templates print it **in the
 flow after the header**; `wp_body_open` would put the atlas above it. `wp_footer` at priority 1 is
 kept as a last-resort fallback for a theme that runs neither template, and no-ops once the flow
-print has happened. The transform-ancestor defence that justified `wp_body_open` is retired with the
-fixed-position overlay it protected — a contained map establishes its own containing block.
+print has happened. The transform-ancestor defence that justified `wp_body_open` retired with the
+fixed overlay it protected — see the struck entry in **Risks** below.
 
 ⚠ `get_footer()` and `wp_footer()` are different. Skip the **former**; the latter must always fire or
 the module never prints and the admin bar breaks.
 
-⚠ **Do not give `<sahaj-atlas>` any CSS on the atlas page.** `lib/embed-slot.ts` degrades to the
-compact card when the slot is under **0.8×** the viewport on a measured axis. An unstyled element
-measures 0×0, which reads as "unmeasurable" and yields the full interface. A helpful
-`height: calc(100vh - 80px)` would silently collapse the map into a card on any site with a tall
-header. Worth a code comment.
+⚠ **SIZE `<sahaj-atlas>` on the atlas page — this rule inverted with SahajAtlasWeb#170, and it used
+to read as its own opposite.** `display: block` plus a **definite** height is the opt-in for a
+*contained* map: it draws inside that box, in its own stacking context, the header above it
+survives, and it is never asked the compact-card question at all. Unsized, the map is
+`position: fixed; inset: 0` and covers whatever is on the page — which is why the atlas page shipped
+headerless until #170. `assets/atlas-page.css` is where the page's element gets its height, in a
+stylesheet rather than inline so a host can override it without `!important`. `min-height` is not a
+height: the widget fills its element with `height: 100%`, which needs a definite one to resolve
+against.
 
 ### In-content embeds — the route shapes
 
