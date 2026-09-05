@@ -1,15 +1,19 @@
 <?php
 /**
- * Integration tests — a real WordPress, booted by `@wp-playground/cli`, with the plugin active.
+ * Integration tests: a real WordPress, booted by `@wp-playground/cli`, with the plugin active.
  *
- * ⚠ **These are not unit tests and deliberately so.** Everything worth testing here is an agreement
- * with WordPress: whether `parse_request` fires for a deep URL, whether a page template survives
- * `template_include`, whether `add_query_arg` escapes what we hand it. A mock of WordPress would
- * only assert the mock. The three things covered are the plan's list — route matching (the one
- * piece of real logic, and it 404s silently in production), attribute escaping (security-relevant
- * and cheap), and that the plugin loads at all.
+ * ⚠ These are not unit tests, on purpose. Everything worth testing here is an agreement with
+ * WordPress itself:
  *
- *   npm test
+ * - Does `parse_request` fire for a deep URL.
+ * - Does a page template survive `template_include`.
+ * - Does `add_query_arg` escape what this plugin hands it.
+ *
+ * A mock of WordPress would only assert the mock. This suite covers three things: route matching
+ * (the one piece of real logic here, and it fails silently in production), attribute escaping
+ * (cheap, and security-relevant), and whether the plugin loads at all.
+ *
+ *   pnpm test
  */
 
 /** @var int */
@@ -68,8 +72,9 @@ sahaj_ok( 'registered the block', WP_Block_Type_Registry::get_instance()->is_reg
 sahaj_group( 'A route the widget would refuse never reaches an attribute' );
 
 // Each of these is a shape the widget's own `safePath` rejects. `/\evil.com` matters because a
-// browser normalises the backslash to a slash; the tab/LF/CR forms matter because the WHATWG URL
-// parser strips those characters *before* parsing, so `/<TAB>/evil.com` is read as `//evil.com`.
+// browser normalizes the backslash to a slash. The tab, LF, and CR forms matter because the
+// WHATWG URL parser strips those characters before parsing. So `/<TAB>/evil.com` parses as
+// `//evil.com`.
 foreach ( array(
 	'//evil.com',
 	'/\\evil.com',
@@ -110,8 +115,8 @@ sahaj_ok( 'sends map=false when the map is off', false !== strpos( $off, 'map=fa
 sahaj_ok( 'sends the route', false !== strpos( $off, 'atlas=' ) );
 sahaj_ok( 'never claims path routing for an in-content embed', false === strpos( $off, 'routing=path' ) );
 
-// A key is sanitised on save, but the URL builder is a sink in its own right: this asserts the
-// escaping rather than the sanitiser, so removing either one shows up here.
+// A key is sanitized on save, but the URL builder is its own sink too. This test checks the
+// escaping, not the sanitizer. Removing either one makes this test fail.
 update_option( SAHAJ_ATLAS_OPTION_KEY, 'a"b<c>&d' );
 
 $nasty = sahaj_atlas_script_url( array( 'map' => true, 'atlas' => '', 'source' => 'page' ) );
@@ -135,14 +140,17 @@ $markup = sahaj_atlas_element_markup( $GLOBALS['sahaj_atlas_active'] );
 sahaj_ok( 'renders one element', 1 === substr_count( $markup, '<sahaj-atlas' ) );
 
 /*
- * ⚠ **`height`, never `min-height`, and both halves of this are the assertion.** The widget fills
- * its element with `height: 100%`, which needs a DEFINITE height to resolve against: `min-height`
- * sizes the element on screen and leaves the widget nothing to fill, so it refuses the box and
- * falls back to covering the browser window (SahajAtlasWeb#170). The plugin shipped `min-height`,
- * and this spec asserted it — the test was pinning the defect.
+ * ⚠ This assertion has two halves: `height`, never `min-height`, and `display: block`.
  *
- * `display: block` matters as much: a custom element is `display: inline` by default and cannot
- * take a height at all, so a height rule without it is not a size.
+ * The widget fills its element with `height: 100%`, which needs a definite height to resolve
+ * against. `min-height` sizes the element on screen but leaves the widget nothing to fill. So the
+ * widget refuses the box and falls back to covering the whole browser window
+ * (SahajAtlasWeb#170). The plugin once shipped `min-height`, and this same assertion passed
+ * against it. The test was pinning the defect, not catching it.
+ *
+ * `display: block` matters just as much. A custom element defaults to `display: inline`, and an
+ * inline element cannot take a height at all. A height rule with no `display: block` is not a
+ * size.
  */
 sahaj_ok( 'a map-less embed is given a definite height', (bool) preg_match( '/[^-]height:\s*\d/', $markup ) );
 sahaj_ok( 'and not merely a min-height', false === strpos( $markup, 'min-height' ) );
@@ -153,9 +161,9 @@ sahaj_is( 'and never a second one for the same request', '', sahaj_atlas_element
 $GLOBALS['sahaj_atlas_printed'] = false;
 $GLOBALS['sahaj_atlas_active']  = array( 'map' => true, 'atlas' => '', 'source' => 'shortcode' );
 
-// An in-content MAP embed is sized too, which is what makes it a *contained* map rather than a
-// takeover of the article it sits in. Before #170 the only way to have a map was to cover the
-// window, so this element deliberately carried no CSS at all.
+// An in-content map embed is sized too. That sizing is what makes it a contained map, not a
+// takeover of the article around it. Before #170, a map could only cover the whole window. So
+// this element deliberately carried no CSS at all.
 sahaj_ok(
 	'an in-content map embed is contained, not a takeover',
 	(bool) preg_match( '/[^-]height:\s*\d/', sahaj_atlas_element_markup( $GLOBALS['sahaj_atlas_active'] ) )
@@ -165,10 +173,10 @@ $GLOBALS['sahaj_atlas_printed'] = false;
 $GLOBALS['sahaj_atlas_active']  = array( 'map' => true, 'atlas' => '', 'source' => 'page' );
 
 /*
- * ⚠ The Atlas page's element carries NO inline style, and that is not a leftover of the old rule —
- * it is sized by `assets/atlas-page.css` so a host can override the height with ordinary CSS. An
- * inline style would need `!important` to beat, on the one property that decides whether the map
- * is contained at all.
+ * ⚠ The Atlas page's element carries no inline style. That is not a leftover of the old rule.
+ * `assets/atlas-page.css` sizes it instead, so a host can override the height with ordinary CSS.
+ * An inline style would need `!important` to beat, on the one property that decides whether the
+ * map is contained at all.
  */
 sahaj_is( 'the Atlas page element is sized by the stylesheet, not inline', '<sahaj-atlas></sahaj-atlas>', sahaj_atlas_page_element_markup() );
 
@@ -185,7 +193,7 @@ sahaj_ok( 'is recognised as ours', sahaj_atlas_is_atlas_page( $page_id ) );
 sahaj_is( 'carries our template', SAHAJ_ATLAS_TEMPLATE . '.php', get_post_meta( $page_id, '_wp_page_template', true ) );
 sahaj_is( 'is the only one', array(), sahaj_atlas_stray_pages() );
 
-// `body_class` is filtered globally, so it must add the class on our page and on no other.
+// `body_class` is filtered globally. It must add the class on our page, and on no other.
 $GLOBALS['wp_query'] = new WP_Query( array( 'page_id' => $page_id ) );
 $GLOBALS['wp_query']->the_post();
 
@@ -196,7 +204,7 @@ $GLOBALS['wp_query'] = new WP_Query( array( 'post_type' => 'page', 'post__not_in
 
 sahaj_ok( 'and not on any other page', ! in_array( 'sahaj-atlas-page', sahaj_atlas_body_class( array( 'page' ) ), true ) );
 
-// Creating twice must not make a second page — a volunteer will press the button again.
+// Creating the page twice must not make a second page. A volunteer will press the button again.
 $again = sahaj_atlas_create_page();
 
 sahaj_is( 'pressing create twice reuses the page', $page_id, is_wp_error( $again ) ? $page_id : $again );

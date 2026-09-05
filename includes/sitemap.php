@@ -3,30 +3,30 @@
  * Telling search engines the atlas pages exist.
  *
  * `includes/seo.php` makes every atlas route render correctly once a crawler asks for it. Nothing
- * tells a crawler to ask: the routes live behind a JavaScript widget, so there is no `<a href>`
+ * tells a crawler to ask, because the routes live behind a JavaScript widget, with no `<a href>`
  * trail into them from anywhere on the site. A sitemap is the entire discovery path.
  *
- * ⚠ **`loc` is read, never composed.** `GET /api/atlas/sitemap` (SahajCloud#651) returns the same
- * `webUrl` that `/api/atlas/seo` returns as each page's `canonical` — byte-identical, and asserted
- * so upstream. Composing these URLs here, from the routes plus the page permalink plus the routing
- * mode, would be a second implementation of that rule, in PHP, free to disagree about mount
- * joining, trailing slashes and query-vs-path. A sitemap is the one artefact whose entire job is
- * publishing URLs a crawler will fetch, so a disagreement there is a set of 404s submitted on
- * purpose.
+ * ⚠ This reads `loc`, and never composes it. `GET /api/atlas/sitemap` (SahajCloud#651) returns the
+ * same `webUrl` that `/api/atlas/seo` returns as each page's `canonical` — byte-identical, and
+ * asserted upstream. Composing these URLs here, from the route plus the page permalink plus the
+ * routing mode, would be a second implementation of that rule, in PHP, free to disagree about
+ * mount joining, trailing slashes, and query-vs-path. A sitemap's whole job is publishing URLs a
+ * crawler will fetch, so a disagreement here means a set of 404s submitted on purpose.
  *
  * ## Why the plugin serves its own file
  *
- * The obvious design is an adapter per SEO plugin, each feeding URLs into that plugin's sitemap.
- * ⚠ **Rejected: it is four renderer APIs, of which we can verify none.** Yoast wants a registered
- * callback that writes XML through a global; AIOSEO wants `stdClass` rows; Rank Math wants its own
- * shape; core wants a `WP_Sitemaps_Provider` subclass. Three of those cannot be tested here, and
- * integration code written from memory against an API nobody has to hand is the kind that looks
- * right and 500s on somebody's live site.
+ * The obvious design is one adapter per SEO plugin, each feeding URLs into that plugin's own
+ * sitemap. ⚠ This plugin rejects that design, because it means four renderer APIs, and it can
+ * verify none of them. Yoast wants a registered callback that writes XML through a global. AIOSEO
+ * wants `stdClass` rows. Rank Math wants its own shape. Core wants a `WP_Sitemaps_Provider`
+ * subclass. Three of those cannot be tested here, and integration code written from memory
+ * against an API nobody has to hand is the kind that looks right and returns a 500 on somebody's
+ * live site.
  *
- * So the plugin serves **one** sitemap, at `/sahaj-atlas-sitemap.xml`, built by code that is fully
- * covered — and then only has to make each system *point* at it, which is a string in every case.
- * `robots.txt` alone would very nearly do: every crawler reads the `Sitemap:` line, and that line is
- * one documented filter that works with each SEO plugin and with none.
+ * So the plugin serves one sitemap, at `/sahaj-atlas-sitemap.xml`, built by code that is fully
+ * covered. Each SEO system then only has to point at it, which is a string in every case.
+ * `robots.txt` alone would very nearly do this job: every crawler reads the `Sitemap:` line, and
+ * that line is one documented filter that works with each SEO plugin, and with none.
  *
  * @package SahajAtlas
  */
@@ -36,14 +36,14 @@ defined( 'ABSPATH' ) || exit;
 /** The path our sitemap is served at, relative to the site root. */
 define( 'SAHAJ_ATLAS_SITEMAP_PATH', 'sahaj-atlas-sitemap.xml' );
 
-/** How long the fetched URL set is cached. Long: ownership changes are a CMS edit, not traffic. */
+/** How long the fetched URL set is cached. Long, because ownership changes are a CMS edit, not traffic. */
 define( 'SAHAJ_ATLAS_SITEMAP_TTL', 6 * HOUR_IN_SECONDS );
 
 /** Transient holding the last fetched URL set. */
 define( 'SAHAJ_ATLAS_SITEMAP_TRANSIENT', 'sahaj_atlas_sitemap_urls' );
 
 /**
- * Wire it up. Called from `init`.
+ * Runs on `init`.
  */
 function sahaj_atlas_register_sitemap() {
 	// Every `loc` points into the Atlas page, and the fetch needs a key.
@@ -56,11 +56,6 @@ function sahaj_atlas_register_sitemap() {
 	add_filter( 'rank_math/sitemap/index', 'sahaj_atlas_rank_math_sitemap_index' );
 }
 
-/**
- * The sitemap's own URL.
- *
- * @return string
- */
 function sahaj_atlas_sitemap_url() {
 	return home_url( '/' . SAHAJ_ATLAS_SITEMAP_PATH );
 }
@@ -83,10 +78,10 @@ function sahaj_atlas_maybe_serve_sitemap( $wp ) {
 	$urls = sahaj_atlas_sitemap_urls();
 
 	/*
-	 * ⚠ An empty set is a 404, not an empty `<urlset>`. Empty means the fetch failed or this client
-	 * owns nothing — both temporary, and a valid-but-empty sitemap tells a crawler we have
-	 * affirmatively nothing, which is a claim we do not want to make about a subtree that usually
-	 * has hundreds of pages. Letting it 404 means the crawler comes back.
+	 * ⚠ An empty set returns a 404, never an empty `<urlset>`. Empty means the fetch failed, or
+	 * this client owns nothing — both are temporary states. A valid but empty sitemap tells a
+	 * crawler this plugin has affirmatively nothing, and that is not a claim to make about a
+	 * subtree that usually holds hundreds of pages. A 404 brings the crawler back later.
 	 */
 	if ( ! $urls ) {
 		return false;
@@ -101,8 +96,6 @@ function sahaj_atlas_maybe_serve_sitemap( $wp ) {
 }
 
 /**
- * Build the sitemap document.
- *
  * @param array<int, array{loc:string, lastmod:string}> $urls The URLs.
  * @return string
  */
@@ -149,9 +142,10 @@ function sahaj_atlas_sitemap_urls( $force = false ) {
 
 	if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
 		/*
-		 * ⚠ Cache the failure BRIEFLY, never for the full window. A sitemap is fetched by crawlers,
-		 * which retry — without any caching a flapping upstream is hit once per request; with the
-		 * full window, one bad minute leaves the sitemap dead for six hours after the fix.
+		 * ⚠ Cache the failure briefly, never for the full window. Crawlers fetch a sitemap and
+		 * retry it. With no caching, every request here becomes a new request to a flapping
+		 * upstream. With the full window instead, one bad minute leaves the sitemap dead for six
+		 * hours after the fix.
 		 */
 		set_transient( SAHAJ_ATLAS_SITEMAP_TRANSIENT, array(), 5 * MINUTE_IN_SECONDS );
 
@@ -168,8 +162,8 @@ function sahaj_atlas_sitemap_urls( $force = false ) {
 /**
  * Turn the endpoint's body into the rows we publish.
  *
- * Separated from the fetch so the rules below are testable without a network — they are the whole
- * of what this plugin decides about the answer.
+ * This is separated from the fetch, so the rules below are testable with no network. They are the
+ * whole of what this plugin decides about the answer.
  *
  * @param mixed $body Decoded response body.
  * @return array<int, array{loc:string, lastmod:string}>
@@ -184,10 +178,11 @@ function sahaj_atlas_sitemap_rows( $body ) {
 		}
 
 		/*
-		 * ⚠ Only URLs on THIS site. The endpoint answers what the CLIENT owns, and an owned subtree
-		 * is not by definition served from the domain asking: a mis-set `canonical.embed`, or one
-		 * key shared between two sites, would otherwise have us publish somebody else's URLs. A
-		 * sitemap listing another domain is a cross-site claim, and search engines treat it as one.
+		 * ⚠ This publishes only URLs on this site. The endpoint answers what the client owns, and
+		 * an owned subtree is not necessarily served from the domain asking. A mis-set
+		 * `canonical.embed`, or one key shared between two sites, would otherwise publish somebody
+		 * else's URLs. A sitemap that lists another domain is a cross-site claim, and search
+		 * engines treat it as one.
 		 */
 		if ( ! sahaj_atlas_is_local_url( $row['loc'] ) ) {
 			continue;
@@ -225,9 +220,9 @@ function sahaj_atlas_flush_sitemap_cache() {
 /**
  * Announce the sitemap in `robots.txt`.
  *
- * ⚠ **This is the load-bearing one.** Every crawler reads the `Sitemap:` line, so it is what makes
- * the atlas discoverable on a site with no SEO plugin *and* on one with any of them — the two index
- * filters below are a convenience for site owners who read their SEO plugin's report, not the
+ * ⚠ This is the load-bearing line. Every crawler reads the `Sitemap:` line, so it makes the atlas
+ * discoverable on a site with no SEO plugin, and on a site with any of them. The two index filters
+ * below are a convenience for site owners who read their SEO plugin's report — they are not the
  * discovery path.
  *
  * @param string $output The robots.txt body.
@@ -246,8 +241,8 @@ function sahaj_atlas_robots_txt( $output, $public ) {
 /**
  * Add a line to Yoast's sitemap index pointing at ours.
  *
- * `wpseo_sitemap_index` appends raw XML to the index — a documented filter whose contract is a
- * string, which is why this adapter exists and a Yoast *renderer* does not.
+ * `wpseo_sitemap_index` appends raw XML to the index. Its documented contract is a string, and
+ * that is why this adapter exists instead of a Yoast renderer.
  *
  * @param string $index The index XML so far.
  * @return string

@@ -1,15 +1,15 @@
 /**
- * Tell the stylesheet how much room the theme's header took.
+ * Tells the stylesheet how tall the theme's header is.
  *
- * ⚠ **This exists because the height cannot be written in CSS.** The atlas should fill the screen
- * below the site header, and no theme tells us how tall its header is — it differs per theme, per
- * breakpoint, and changes when a menu wraps to a second line. A flex or grid layout would express
- * it, but only if the element and the header were siblings we controlled, and on a block theme the
- * element sits inside the theme's own `.wp-site-blocks` wrapper.
+ * ⚠ CSS alone cannot measure this. The atlas must fill the screen below the site header. No theme
+ * states its own header height. Header height varies by theme, by breakpoint, and when a menu
+ * wraps to a second line. A flex or grid layout could solve this if the atlas element and the
+ * header were sibling elements under this plugin's control. On a block theme, the atlas element
+ * sits inside the theme's own `.wp-site-blocks` wrapper instead.
  *
- * Deliberately small and dependency-free: read the element's offset, write it as a custom property,
- * repeat on resize. If this file never loads, `assets/atlas-page.css` falls back to the full
- * viewport height — a usable page, with the header scrolled above the map.
+ * This script stays small and has no dependencies. It reads the element's offset, writes it to a
+ * custom property, and repeats this on resize. If this file fails to load, `assets/atlas-page.css`
+ * falls back to full viewport height. The page still works. The header then scrolls above the map.
  */
 ( function () {
 	var root = document.documentElement
@@ -26,18 +26,19 @@
 		}
 
 		/*
-		 * ⚠ The element's own box, not the header's — we do not know which element the header is,
-		 * and a theme may have several things above the atlas (an admin bar, a notice, a breadcrumb
-		 * strip). Measuring from below covers all of them at once.
+		 * ⚠ This measures the atlas element's own box, not the header's box. This script does not
+		 * know which element is the header. A theme may stack several things above the atlas: an
+		 * admin bar, a notice, a breadcrumb strip. Measuring from below the atlas element covers all
+		 * of them at once.
 		 *
-		 * A `position: fixed` header is out of flow and measures zero here, so the map would sit
-		 * under it. That is rare, it is visible immediately, and detecting it would mean guessing
-		 * which element the header is — the thing this approach exists to avoid.
+		 * A `position: fixed` header sits out of flow and measures as zero height here. The map then
+		 * sits under that header. This case is rare and visible right away. Detecting it would mean
+		 * guessing which element is the header — the exact guess this approach avoids.
 		 */
 		var top = Math.max( 0, Math.round( element.getBoundingClientRect().top + window.scrollY ) )
 
-		// Writing unconditionally would re-enter through the observer below, since changing the
-		// element's height changes the document's.
+		// Writing this value on every call would re-trigger the observer below. Changing the
+		// element's height also changes the document's height.
 		if ( top === last ) {
 			return
 		}
@@ -61,8 +62,8 @@
 	window.addEventListener( 'load', measure )
 	window.addEventListener( 'resize', schedule )
 
-	// A header that grows later — a lazily-loaded logo, a cookie banner, a wrapping menu — moves the
-	// atlas down without a resize event.
+	// A header can grow later: a lazy-loaded logo, a cookie banner, or a menu that wraps. This
+	// moves the atlas down. No resize event fires for this change.
 	if ( window.ResizeObserver && document.body ) {
 		new window.ResizeObserver( schedule ).observe( document.body )
 	}

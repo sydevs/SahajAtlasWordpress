@@ -1,19 +1,19 @@
 <?php
 /**
- * The `allowedDomains` check, against SahajCloud's actual rules.
+ * Checks `allowedDomains` against SahajCloud's actual rules.
  *
- * ⚠ Every case here is one the first version of this check got WRONG, because it was written from a
- * design note rather than from `src/plugins/usage/originEnforcement.ts`. The panel is what a
- * volunteer trusts instead of emailing us, so a confident wrong red is worse than no check at all.
+ * ⚠ The first version of this check got every case here wrong. It was written from a design
+ * note, not from `src/plugins/usage/originEnforcement.ts`. A volunteer trusts this panel instead
+ * of emailing us. A confident wrong red result is worse than no check at all.
  *
  * @package SahajAtlas
  */
 
 sahaj_group( 'allowedDomains is newline-separated, not comma-separated' );
 
-// The field is a textarea and this is the real shape — client 32 in production is
-// `sahajayoga.fr\nyogaessonne.fr`. Splitting on commas alone read that as one impossible domain
-// and told a working site it was unregistered.
+// The field is a textarea, so this is its real shape. Client 32 in production holds
+// `sahajayoga.fr\nyogaessonne.fr`. Splitting on commas alone read that as one impossible domain.
+// It told a working site that it was unregistered.
 sahaj_is(
 	'a two-line list parses as two domains',
 	array( 'sahajayoga.fr', 'yogaessonne.fr' ),
@@ -44,10 +44,11 @@ sahaj_is( 'and a bare star is nothing', '', sahaj_atlas_normalize_host( '*' ) );
 sahaj_group( 'An EMPTY list allows every origin' );
 
 /*
- * ⚠ This is the documented backward-compatible default upstream, and the check used to claim the
- * exact opposite — a red "the server will refuse every page, ask the maintainers to add this site"
- * for a configuration that works. The programme notes proposed inverting it; that was a proposal,
- * never implemented, and this check was written against it.
+ * ⚠ An empty list is the documented, backward-compatible default upstream. An earlier version of
+ * this check claimed the exact opposite: a red "the server will refuse every page, ask the
+ * maintainers to add this site" message for a configuration that actually works. Some programme
+ * notes had proposed inverting the default. That proposal was never implemented, but this check
+ * was written against it anyway.
  */
 sahaj_is( 'an empty value yields no patterns', array(), sahaj_atlas_parse_allowed_domains( '' ) );
 sahaj_is( 'and so does whitespace', array(), sahaj_atlas_parse_allowed_domains( "  \n " ) );
@@ -63,18 +64,18 @@ $sahaj_star = array( '*.example.org' );
 
 sahaj_ok( 'a bare host matches itself', sahaj_atlas_is_host_allowed( 'example.org', $sahaj_apex ) );
 
-// ⚠ The old check suffix-matched EVERY entry, so a bare apex entry silently admitted every
-// subdomain — it treated `example.org` as if the operator had written `*.example.org`, which is a
-// different and broader permission than the one they granted. (It did dot-prefix the suffix, so
-// the lookalike below was never open; only the widening was real. Both are asserted, because the
-// next rewrite of this matcher will not know which half was the bug.)
+// ⚠ The old check suffix-matched every entry. A bare apex entry then silently admitted every
+// subdomain, as if the operator had written `*.example.org` instead of `example.org` — a wider
+// permission than they granted. The old check did dot-prefix the suffix, so the lookalike below
+// was never open. Only the widening was a real bug. Both cases are asserted here, because the
+// next rewrite of this matcher will not know which half was the bug.
 sahaj_ok( 'but not a subdomain of it', ! sahaj_atlas_is_host_allowed( 'sub.example.org', $sahaj_apex ) );
 sahaj_ok( 'and not a lookalike', ! sahaj_atlas_is_host_allowed( 'evil-example.org', $sahaj_apex ) );
 
 sahaj_ok( 'a wildcard matches a subdomain', sahaj_atlas_is_host_allowed( 'sub.example.org', $sahaj_star ) );
 sahaj_ok( 'and a deeper one', sahaj_atlas_is_host_allowed( 'a.b.example.org', $sahaj_star ) );
 
-// The leading dot in the suffix is what makes this hold; without it `evil-example.org` ends with
+// The leading dot in the suffix makes this hold. Without it, `evil-example.org` ends with
 // `example.org` and passes.
 sahaj_ok( 'but never a lookalike', ! sahaj_atlas_is_host_allowed( 'evil-example.org', $sahaj_star ) );
 sahaj_ok( 'and not the apex itself', ! sahaj_atlas_is_host_allowed( 'example.org', $sahaj_star ) );

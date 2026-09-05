@@ -1,16 +1,16 @@
 <?php
 /**
- * The shared canonical-Atlas-URL contract, asserted from the serving side.
+ * Asserts the shared canonical Atlas URL contract, from the serving side.
  *
- * `tests/atlas-url-contract.json` is byte-identical in SahajCloud (which BUILDS these URLs) and
- * SahajAtlasWeb (which parses them back into a view). This plugin is the third consumer, and its
- * relationship to the file is the inverse of theirs: it never composes a canonical — `includes/seo.php`
- * emits the server's verbatim, deliberately — but it is what has to **answer** the URLs the other two
- * agree on. A canonical SahajCloud publishes and this plugin 404s is the same defect as a canonical
- * built wrong, arriving from the other direction.
+ * `tests/atlas-url-contract.json` is byte-identical across three repos. SahajCloud builds these
+ * URLs. SahajAtlasWeb parses them back into a view. This plugin is the third consumer, with the
+ * opposite job: it never builds a canonical URL. `includes/seo.php` emits the server's own value,
+ * unchanged, on purpose. But this plugin must answer the URLs the other two agree on. A canonical
+ * URL that SahajCloud publishes and this plugin 404s is the same defect as a wrong canonical URL,
+ * seen from the other side.
  *
- * So every `routing: "path"` case with a URL is replayed as a request, and every case the contract
- * refuses is asserted never to be claimed.
+ * Every `routing: "path"` case with a URL is replayed here as a request. Every case the contract
+ * refuses is asserted to stay unclaimed.
  *
  * @package SahajAtlas
  */
@@ -48,8 +48,9 @@ foreach ( $sahaj_contract['cases'] as $case ) {
 	$target  = isset( $case['target'] ) ? $case['target'] : array();
 	$routing = isset( $target['routing'] ) ? $target['routing'] : '';
 
-	// Query-routing cases put the route in `?atlas=`, which never reaches the server as a path —
-	// there is nothing for this plugin to serve, and the widget's own suite covers the parsing.
+	// Query-routing cases put the route in `?atlas=`. That value never reaches the server as a
+	// path, so this plugin has nothing to serve here. The widget's own test suite covers the
+	// parsing.
 	if ( 'path' !== $routing ) {
 		continue;
 	}
@@ -57,7 +58,8 @@ foreach ( $sahaj_contract['cases'] as $case ) {
 	$mount = isset( $target['mount'] ) ? (string) $target['mount'] : '';
 	$slug  = trim( $mount, '/' );
 
-	// A root mount is the one path case this plugin does not serve. Asserted below, on its own.
+	// A root mount is the one path case this plugin does not serve. The assertion below covers
+	// it separately.
 	if ( '' === $slug ) {
 		continue;
 	}
@@ -74,16 +76,19 @@ foreach ( $sahaj_contract['cases'] as $case ) {
 
 	if ( null === $expected ) {
 		/*
-		 * ⚠ **Not every refusal is this plugin's to mirror, and asserting that they all are was
-		 * wrong.** The contract refuses for two different reasons. Some are about the URL's SHAPE
-		 * (`/nl//amsterdam` has a blank segment) — those survive into a request a crawler could
-		 * really send, and refusing them is ours. The rest are about the OWNER RECORD being
-		 * incomplete (no origin) or the input not being slash-prefixed — upstream data problems
-		 * that never produce a malformed request, because the request would be the perfectly
-		 * ordinary `/map/nl/amsterdam`. Refusing to SERVE that would 404 a page that is fine.
+		 * ⚠ Not every refusal is this plugin's to mirror. An earlier version wrongly asserted
+		 * that all of them were. The contract refuses cases for two different reasons.
 		 *
-		 * So the test is whether the malformation survives into the request path, judged by the
-		 * contract's own `slugPattern` rather than by a second opinion written here.
+		 * The first reason is the URL's shape. `/nl//amsterdam` has a blank segment. A crawler
+		 * could really send a request like that, so refusing it is this plugin's job.
+		 *
+		 * The second reason is the owner record: it has no origin, or its input lacks a leading
+		 * slash. Both are upstream data problems. Neither produces a malformed request, because
+		 * the real request would be the ordinary `/map/nl/amsterdam`. Refusing to serve that
+		 * would 404 a page that is fine.
+		 *
+		 * So this test checks only whether the malformation survives into the request path. It
+		 * judges that with the contract's own `slugPattern`, not a second opinion written here.
 		 */
 		$bad = isset( $case['webPath'] ) ? (string) $case['webPath'] : '';
 
@@ -123,17 +128,18 @@ sahaj_ok( 'and the ones it refuses', $sahaj_refused >= 1 );
 sahaj_group( 'A root mount is refused, not mis-served' );
 
 /*
- * ⚠ The contract publishes `https://sahajayoga.nl/nl/amsterdam` for a root mount — an atlas that IS
- * the site's front page. This plugin deliberately does not serve that, and the reason is that
- * serving it correctly is indistinguishable from serving it catastrophically: with no path prefix,
- * "everything below the atlas page" is every URL on the site, so the matcher would have to claim
- * each one that no post, page, category, tag, feed or archive answered. Half of those are resolved
- * *after* `parse_request`, so the plugin cannot know — it would turn the site's 404 page into the
- * atlas.
+ * ⚠ The contract publishes `https://sahajayoga.nl/nl/amsterdam` for a root mount: an atlas that
+ * IS the site's front page. This plugin deliberately refuses to serve that case.
  *
- * Refusing is therefore correct, but only if it is VISIBLE: silently falling back to query routing
- * while SahajCloud publishes path canonicals means every canonical 404s. The diagnostics panel says
- * so, which is the half that makes this a supported limitation rather than a bug.
+ * The reason: serving it correctly is impossible to tell apart from serving it catastrophically.
+ * With no path prefix, "everything below the atlas page" means every URL on the site. The route
+ * matcher would have to claim every URL that no post, page, category, tag, feed, or archive
+ * answers. WordPress resolves half of those only after `parse_request`, so the plugin cannot
+ * know about them in time. It would turn the site's own 404 page into the atlas.
+ *
+ * Refusing is correct, but only if it is visible. A silent fallback to query routing, while
+ * SahajCloud still publishes path canonicals, makes every canonical URL 404. The diagnostics
+ * panel reports this, which turns it from a bug into a supported limitation.
  */
 sahaj_mount_atlas_page_at( 'find-a-class' );
 
@@ -145,10 +151,10 @@ clean_post_cache( sahaj_atlas_page_id() );
 
 sahaj_is( 'a front-page atlas claims no route at the site root', null, sahaj_route_for( 'nl/amsterdam' ) );
 
-// ⚠ And not under its old slug either. WordPress serves a front page at `/` and redirects its
-// permalink there, so a deep link under the slug is dead whichever end refuses it — but only this
-// assertion distinguishes "the front-page check fired" from "the prefix simply did not match",
-// which is what the line above passes on with no front-page handling at all.
+// ⚠ Not under its old slug either. WordPress serves the front page at `/` and redirects the old
+// permalink there, so a deep link under the old slug is dead either way. But only this assertion
+// tells "the front-page check fired" apart from "the prefix simply did not match" — the line
+// above would pass that second case too, even with no front-page handling at all.
 sahaj_is( 'nor under the slug it still has', null, sahaj_route_for( 'find-a-class/nl/amsterdam' ) );
 sahaj_ok( 'and path routing reports itself unavailable', ! sahaj_atlas_path_routing_viable() );
 

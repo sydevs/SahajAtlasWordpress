@@ -1,12 +1,14 @@
 /**
- * The block's editor UI — hand-written ES5, no build step.
+ * The block's editor UI. Hand-written ES5, with no build step.
  *
- * ⚠ There is deliberately no live preview. WordPress renders the editor canvas in an iframe, and
- * `customElements` registries are per-document, so a custom element defined by a script in the
- * parent admin document never upgrades inside the canvas. The widget would sit there as an inert
- * unknown element forever. Booting it inside the iframe is possible via `enqueue_block_assets`, but
- * that means running a third-party widget — network calls, global state, analytics — on every
- * editor load. A placeholder is the honest answer.
+ * ⚠ This block shows no live preview, on purpose. WordPress renders the editor canvas inside an
+ * iframe. `customElements` registries are per document, so a custom element the parent admin
+ * document defines never upgrades inside that iframe. The widget would sit there forever as an
+ * inert, unknown element.
+ *
+ * `enqueue_block_assets` could boot the widget inside the iframe instead. That approach runs a
+ * third-party widget on every editor load: its own network calls, global state, and analytics. A
+ * placeholder is the honest choice.
  */
 ( function ( blocks, element, blockEditor, components, i18n ) {
 	'use strict';
@@ -66,7 +68,8 @@
 			);
 		},
 
-		// Dynamic: the server renders it, so nothing is saved into post content.
+		// This is a dynamic block. The server renders its output. The editor saves nothing into
+		// post content.
 		save: function () {
 			return null;
 		}

@@ -19,11 +19,11 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * ⚠ This file holds NOTHING but the header, constants, requires and one `init` hook.
+ * ⚠ This file holds only the header, constants, requires, and one `init` hook.
  *
- * WordPress 6.7 made just-in-time textdomain loading raise `_doing_it_wrong`, so no translated
- * string may be produced before `init` — not at file scope, not in an activation hook, not on
- * `plugins_loaded`. Every module below therefore registers its hooks from `sahaj_atlas_init()`.
+ * WordPress 6.7 raises `_doing_it_wrong` for just-in-time textdomain loading. This means no
+ * translated string may run before `init`. This rule applies at file scope, in an activation hook,
+ * and on `plugins_loaded`. Every module below registers its hooks from `sahaj_atlas_init()` instead.
  */
 
 define( 'SAHAJ_ATLAS_VERSION', '0.1.0' );
@@ -32,16 +32,16 @@ define( 'SAHAJ_ATLAS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SAHAJ_ATLAS_URL', plugin_dir_url( __FILE__ ) );
 
 /**
- * The two origins the plugin talks to.
+ * The two origins this plugin talks to.
  *
- * Overridable by constant for local development, deliberately NOT by a setting: a host who can
- * point the widget at another origin can be pointed at anyone's, and there is no case for it that
- * a `wp-config.php` line does not serve better.
+ * A constant can override these for local development. A setting cannot, on purpose. A host that
+ * can point the widget at another origin can be pointed at any origin. A `wp-config.php` line
+ * always serves this need better than a setting does.
  */
 defined( 'SAHAJ_ATLAS_WIDGET_ORIGIN' ) || define( 'SAHAJ_ATLAS_WIDGET_ORIGIN', 'https://sahajatlas.com' );
 defined( 'SAHAJ_ATLAS_API_ORIGIN' ) || define( 'SAHAJ_ATLAS_API_ORIGIN', 'https://cloud.sydevelopers.com' );
 
-/** Option names. Plain `get_option`, never `get_site_option` — at least one target site is multisite. */
+/** Option names. Always use `get_option`, never `get_site_option`. At least one target site is multisite. */
 define( 'SAHAJ_ATLAS_OPTION_KEY', 'sahaj_atlas_api_key' );
 define( 'SAHAJ_ATLAS_OPTION_PAGE', 'sahaj_atlas_page_id' );
 
@@ -77,12 +77,14 @@ function sahaj_atlas_init() {
 add_action( 'parse_request', 'sahaj_atlas_parse_request' );
 add_filter( 'redirect_canonical', 'sahaj_atlas_suppress_canonical_redirect' );
 add_action( 'template_redirect', 'sahaj_atlas_resolve_and_enqueue' );
-// ⚠ After the embed is resolved (priority 10): the SEO takeover only runs on a page that actually
-// carries the widget, and it reads the route the resolver has already validated.
+// ⚠ This hook runs at priority 11, after the embed resolves at priority 10. This means the SEO
+// takeover runs only on a page that already carries the widget. It also reads the route that the
+// resolver already validated.
 add_action( 'template_redirect', 'sahaj_atlas_seo_boot', 11 );
-// ⚠ `wp_footer`, not `wp_body_open` — a LAST-RESORT fallback now that both templates print the
-// element in the flow (a contained map draws where its element sits, so it must come after the
-// header). It no-ops when the flow print already happened.
+// ⚠ This uses `wp_footer`, not `wp_body_open`. Both templates now print the element in the normal
+// page flow. A contained map draws where its element sits, so the element must come after the
+// header. This hook is only a last-resort fallback. It does nothing if the flow print already
+// happened.
 add_action( 'wp_footer', 'sahaj_atlas_render_element_once', 1 );
 add_action( 'wp_enqueue_scripts', 'sahaj_atlas_enqueue_page_assets' );
 add_filter( 'body_class', 'sahaj_atlas_body_class' );

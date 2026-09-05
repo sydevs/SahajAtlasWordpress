@@ -1,25 +1,26 @@
 <?php
 /**
- * The Atlas page, on a classic theme.
+ * The Atlas page, for a classic theme.
  *
- * The site header, then the atlas filling the rest of the screen, then nothing — no footer markup.
+ * This prints the site header, then the atlas filling the rest of the screen, then nothing more.
+ * It prints no footer markup.
  *
- * ⚠ **`get_footer()` is absent and `wp_footer()` is not.** They are different functions and only
- * the first is optional here: `get_footer()` loads the theme's `footer.php` (the visible markup we
- * are dropping), while `wp_footer()` fires the hook that prints the admin bar, every other
- * plugin's scripts, and — on a classic theme — the widget's own script module, which core queues
- * for the footer. Skipping it would leave the atlas not loading at all.
+ * ⚠ `get_footer()` is absent here, but `wp_footer()` is not. These are different functions.
+ * `get_footer()` only loads the theme's visible `footer.php` markup, which this page skips on
+ * purpose. `wp_footer()` fires the hook that prints the admin bar, other plugins' scripts, and —
+ * on a classic theme — the widget's own script module. Skipping `wp_footer()` would stop the
+ * atlas from loading at all.
  *
- * ⚠ **This file is never reached on a block theme** — `sahaj_atlas_template_include()` returns
- * early there — and that guard is what keeps `get_header()` away from one. On a block theme it
- * finds no `header.php`, falls through to `wp-includes/theme-compat/header.php`, and emits a whole
- * second 2010-era `<!DOCTYPE html><html><head>` plus a deprecation notice: silently malformed
- * rather than loudly broken. `tests/render.mjs` counts doctypes for exactly this.
+ * ⚠ This file never runs on a block theme: `sahaj_atlas_template_include()` returns early there.
+ * That guard keeps `get_header()` away from a block theme. A block theme has no `header.php`.
+ * `get_header()` would then fall through to `wp-includes/theme-compat/header.php`. It would print
+ * a second, 2010-era `<!DOCTYPE html>`. That failure is silent, not loud. `tests/render.mjs`
+ * counts doctypes to catch it.
  *
- * ⚠ **The theme's `header.php` usually opens wrappers it never gets to close**, because we skip
- * `footer.php`. Browsers close them at `</body>` and it has no visible effect — and unlike before
- * SahajAtlasWeb#170 it cannot hurt the map either, since a contained map establishes its own
- * containing block and is unaffected by a `transform` or `contain` on an ancestor.
+ * ⚠ The theme's `header.php` usually opens wrappers. This page never closes them, since it skips
+ * `footer.php`. Browsers close them at `</body>` with no visible effect. This also cannot harm the
+ * map. A contained map sets its own containing block. A `transform` or `contain` style on an
+ * ancestor cannot affect it.
  *
  * @package SahajAtlas
  */
@@ -27,9 +28,9 @@
 defined( 'ABSPATH' ) || exit;
 
 /*
- * ⚠ A classic theme with no `header.php` at all would hit the same theme-compat fallback as a block
- * theme, so it gets our own minimal document instead. Rare, but the failure is a malformed page
- * rather than an error anybody would notice.
+ * ⚠ A classic theme with no `header.php` at all would hit the same theme-compat fallback as a
+ * block theme. This page then prints its own minimal document instead. This case is rare. Its
+ * failure mode is a malformed page, not an error anyone would notice.
  */
 $sahaj_atlas_has_header = '' !== locate_template( array( 'header.php' ) );
 

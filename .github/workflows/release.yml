@@ -13,12 +13,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ⚠ **The zip's top-level directory must be `sahaj-atlas`, and this is the only reason this
-      # workflow exists.** GitHub's own "Source code (zip)" wraps everything in
-      # `SahajAtlasWordpress-<tag>/`, and WordPress installs an update into the directory the zip
-      # names — so that archive installs a SECOND plugin beside the first on every update, and the
-      # site then runs two copies which each refuse the other's <sahaj-atlas> element. The same slug
-      # appears in `includes/updates.php` (`SAHAJ_ATLAS_SLUG`) and must never diverge from this.
+      # ⚠ This workflow exists for one reason: the zip's top folder must be named `sahaj-atlas`.
+      # GitHub's own "Source code (zip)" names that folder `SahajAtlasWordpress-<tag>` instead.
+      # WordPress installs an update into the folder the zip names. A wrong folder name installs a
+      # second, separate plugin next to the first. Both copies then run. Each one refuses the
+      # other's `<sahaj-atlas>` element.
+      #
+      # The slug must match `SAHAJ_ATLAS_SLUG` in `includes/updates.php`. Never let the two values
+      # diverge.
       - name: Build the plugin zip
         run: |
           VERSION="${GITHUB_REF_NAME#v}"

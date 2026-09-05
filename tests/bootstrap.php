@@ -1,13 +1,13 @@
 <?php
 /**
- * Boot WordPress, activate the plugin, run the suite — and get the output back out.
+ * Boots WordPress. Activates the plugin. Runs the suite. Recovers the output.
  *
- * ⚠ **`run-blueprint`'s `runPHP` step discards stdout.** Verified: a blueprint whose entire body is
- * `echo 'HELLO';` prints nothing, and a fatal surfaces only as `exit code 255` with both stdout and
- * stderr empty. So everything is buffered here and written into the mounted plugin directory, which
- * IS bidirectional, and `tests/report.php` reads it back on the host. Without this the suite is
- * unreadable whether it passes or fails, and a fatal during plugin load is indistinguishable from a
- * fatal in an assertion.
+ * ⚠ The `run-blueprint` `runPHP` step discards stdout. A test blueprint with only
+ * `echo 'HELLO';` prints nothing. A fatal error shows only as `exit code 255`, with stdout and
+ * stderr both empty. So this file buffers all output and writes it into the mounted plugin
+ * directory instead. That mount is bidirectional. `tests/report.php` reads the file back on the
+ * host. Without this step, the suite output is unreadable, pass or fail. A fatal during plugin
+ * load looks the same as a fatal inside an assertion.
  *
  * @package SahajAtlas
  */
@@ -21,7 +21,7 @@ ini_set( 'error_reporting', (string) E_ALL );
 
 ob_start();
 
-// A fatal never reaches the end of this file, so the flush has to hang off shutdown.
+// A fatal error never reaches the end of this file. The shutdown handler flushes output instead.
 register_shutdown_function(
 	function () {
 		$output = ob_get_level() ? (string) ob_get_clean() : '';
@@ -39,11 +39,12 @@ require_once '/wordpress/wp-load.php';
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
 
 /*
- * ⚠ The plugin is activated by the blueprint's own `activatePlugin` step, NOT here. Calling
- * `activate_plugin()` after `wp-load.php` loads the plugin's file when `init` has already fired,
- * so `sahaj_atlas_init()` never runs and every registration — the shortcode, the block, the
- * settings — is silently absent. The suite then tests a half-loaded plugin. Activating in an
- * earlier step means this request boots it the way a real page load does.
+ * ⚠ The blueprint's own `activatePlugin` step activates the plugin, not this file. By the time
+ * `wp-load.php` finishes, WordPress has already fired the `init` hook. A call to
+ * `activate_plugin()` after that point comes too late. `sahaj_atlas_init()` never runs, and the
+ * shortcode, block, and settings registration all stay silently absent. The suite then tests a
+ * half-loaded plugin. Activation in an earlier blueprint step boots the plugin the way a real
+ * page load does.
  */
 if ( ! is_plugin_active( 'sahaj-atlas/sahaj-atlas.php' ) ) {
 	echo "The plugin is not active — the blueprint's activatePlugin step did not run.\n";

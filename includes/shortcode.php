@@ -2,8 +2,8 @@
 /**
  * `[sahaj_atlas]` — the in-content embed.
  *
- * The universal entry point: every page builder in the fleet can insert a shortcode, where none of
- * them shows a Gutenberg block. The block in `blocks/embed/` shares this renderer.
+ * This is the universal entry point. Every page builder in the fleet can insert a shortcode, and
+ * none of them can insert a Gutenberg block. The block in `blocks/embed/` shares this renderer.
  *
  * @package SahajAtlas
  */

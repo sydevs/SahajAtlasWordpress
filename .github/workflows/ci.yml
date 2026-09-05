@@ -21,17 +21,17 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # Both run PHP in WebAssembly via @wp-playground/cli — no system PHP, no Docker, and the
-      # same versions a client site runs: the fleet's floor is WordPress 6.7 on PHP 7.4.
+      # Both steps run PHP in WebAssembly through @wp-playground/cli. This needs no system PHP or
+      # Docker. It also matches the oldest client versions: WordPress 6.7 and PHP 7.4.
       - name: Syntax check
         run: pnpm lint
 
       - name: Integration tests (WordPress 6.7, PHP 7.4)
         run: pnpm test
 
-      # Boots a real server per theme kind. The plugin takes a genuinely different code path for
-      # each — `register_block_template()` vs `template_include` — so one of them passing says
-      # nothing about the other.
+      # This step starts a real server for each theme kind. The plugin uses a different code path
+      # for each kind: `register_block_template()` for block themes, `template_include` for classic
+      # themes. A pass on one kind does not test the other.
       - name: Render checks (block and classic themes)
         run: pnpm test:render
 
@@ -41,21 +41,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # `atlas-url-contract.json` is byte-identical in SahajCloud (which builds these URLs),
-      # SahajAtlasWeb (which parses them) and here (which serves them). A copy that drifts is worse
-      # than no copy: the suite keeps passing against a contract the rest of the system has moved
-      # on from.
+      # `atlas-url-contract.json` must stay byte-identical across three repos: SahajCloud (builds
+      # these URLs), SahajAtlasWeb (parses them), and here (serves them). A stale copy is worse than
+      # no copy. The suite keeps passing while the contract drifts from the system it describes.
       #
-      # ⚠ **No token, and no skip branch.** An earlier version of this job read the file through
-      # `gh api` with a `SAHAJCLOUD_READ_TOKEN` secret, and warned-and-passed when the secret was
-      # absent — on the stated premise that SahajCloud is private. **It is public.** That premise
-      # was written without checking, and it cost the check its teeth: the secret was never added,
-      # so every run took the warn branch and the contract was never actually compared. A gate that
-      # cannot run is worth less than one that does not exist, because it reads green.
+      # ⚠ TRAP: this job once read the file through `gh api` with a `SAHAJCLOUD_READ_TOKEN` secret.
+      # If the secret was missing, the job warned and passed anyway. That design assumed SahajCloud
+      # is private. SahajCloud is public. Nobody ever added the secret, so every run took the warn
+      # branch and never compared the files. The check stayed green for months without diffing
+      # anything. A green check on this job does not by itself prove the diff ran — confirm the
+      # "Compare with SahajCloud" step below actually executed the diff.
       #
-      # The raw URL is the same one `pnpm sync:atlas-contract` uses in SahajAtlasWeb, unauthenticated
-      # there too. If SahajCloud ever does go private this step fails loudly, which is the correct
-      # way to find out.
+      # This step uses no token, on purpose: it fetches the same public raw URL that
+      # `pnpm sync:atlas-contract` uses in SahajAtlasWeb. If SahajCloud ever goes private, this step
+      # fails loudly. That failure is the correct way to find out.
       - name: Compare with SahajCloud
         run: |
           curl -fsSL --retry 3 \
