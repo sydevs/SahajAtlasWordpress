@@ -1,9 +1,9 @@
 <?php
 /**
- * Print the suite's captured output on the host and exit with its status.
+ * Prints the suite's captured output on the host, and exits with its status.
  *
- * Run by `npm test` immediately after the blueprint, because `run-blueprint` discards the guest's
- * stdout — see `tests/bootstrap.php`.
+ * `pnpm test` runs this file immediately after the blueprint. `run-blueprint` discards the
+ * guest's stdout — see `tests/bootstrap.php`.
  *
  * @package SahajAtlas
  */

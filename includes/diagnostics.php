@@ -2,28 +2,29 @@
 /**
  * The status panel.
  *
- * ⚠ **This is the feature that decides whether the plugin is self-service or thirteen support
- * emails.** Every failure mode below is silent from the volunteer's side: a rejected key renders an
- * empty box, a mismatched canonical prefix degrades path routing to query routing with a console
- * message nobody opens, and an empty `allowedDomains` list *refuses* the embed report rather than
- * allowing everything. None of them produce a WordPress error. So the panel says out loud what the
- * browser only whispers.
+ * ⚠ This panel decides whether the plugin is self-service, or needs support emails from all
+ * thirteen sites. Every failure below is silent to the volunteer, and none of them raises a
+ * WordPress error.
+ *
+ * - A rejected key renders an empty box.
+ * - A mismatched canonical prefix silently degrades path routing to query routing, with a console
+ *   message nobody reads.
+ * - An empty `allowedDomains` list refuses the embed report. It does not allow every origin.
+ *
+ * The panel makes these problems visible. The browser hides them silently.
  *
  * @package SahajAtlas
  */
 
 defined( 'ABSPATH' ) || exit;
 
-/** How long a `clients/me` answer is cached. Long enough to survive a page refresh, short enough
- * that fixing a key shows up while the volunteer is still looking at the screen. */
+/** How long the plugin caches a `clients/me` answer. Long enough to survive a page refresh, and
+ * short enough that a key fix appears while the volunteer still watches the screen. */
 define( 'SAHAJ_ATLAS_CHECK_TTL', 5 * MINUTE_IN_SECONDS );
 
 /** Transient holding the last client record fetched. Keyed by the key, so changing it re-checks. */
 define( 'SAHAJ_ATLAS_CHECK_TRANSIENT', 'sahaj_atlas_client_check' );
 
-/**
- * Render the whole panel.
- */
 function sahaj_atlas_render_diagnostics() {
 	echo '<table class="widefat striped" style="max-width:60rem"><tbody>';
 
@@ -40,8 +41,8 @@ function sahaj_atlas_render_diagnostics() {
 }
 
 /**
- * A glyph per status. Text, not colour — the panel has to work for a colour-blind reader and in a
- * pasted support email.
+ * One glyph per status. The panel uses text, not colour, so it works for a colour-blind reader and
+ * in a pasted support email.
  *
  * @param string $status One of ok|warn|fail|idle.
  * @return string
@@ -58,7 +59,7 @@ function sahaj_atlas_status_glyph( $status ) {
 }
 
 /**
- * The four checks, in the order a volunteer hits them.
+ * The four checks, in the order a volunteer reaches them.
  *
  * @return array<int, array{status:string, label:string, detail:string}>
  */
@@ -187,10 +188,9 @@ function sahaj_atlas_check_page() {
 }
 
 /**
- * Check 3 — is path routing actually live?
- *
- * Three conditions, and the plugin owns only the first two. Reported separately because "I turned
- * it on and nothing changed" is otherwise the whole experience.
+ * Check 3: is path routing live? Three conditions decide this, and the plugin controls only the
+ * first two. The check reports each condition on its own, so a volunteer never just sees silence
+ * after turning the setting on.
  *
  * @param array|WP_Error|null $client Result of the client read.
  * @return array{status:string, label:string, detail:string}
@@ -259,22 +259,23 @@ function sahaj_atlas_check_path_routing( $client ) {
 /**
  * Check 4 — will this site's own domain be accepted?
  *
- * ⚠ **Mirrors `parseAllowedDomains()` + `isHostAllowed()` in SahajCloud
- * (`src/plugins/usage/originEnforcement.ts`).** The first version of this check guessed at all
- * three rules and got all three wrong, which is worse than not checking: the panel is what a
- * volunteer trusts instead of emailing, so a confident wrong red sends them to the maintainers
- * about a site that works.
+ * ⚠ This mirrors `parseAllowedDomains()` and `isHostAllowed()` in SahajCloud
+ * (`src/plugins/usage/originEnforcement.ts`). Do not rederive these rules.
  *
- * - **The list is newline-separated** (it is a textarea), commas merely tolerated. Splitting on
- *   commas alone read a real two-domain client as one impossible domain and reported it unusable.
- * - **An empty list ALLOWS every origin** — the documented backward-compatible default. The old
- *   text said it refuses everything and told the volunteer to contact us. (An earlier design note
- *   in the programme proposed inverting that; it was never implemented, and this check was written
- *   against the proposal rather than the server.)
- * - **`*.example.org` is a wildcard and matches subdomains only, not the apex** — while a bare
- *   `example.org` matches that host exactly and nothing below it. The old check treated every entry
- *   as a suffix, so a bare apex entry silently admitted every subdomain: it granted `*.example.org`
- *   where the operator had written `example.org`.
+ * The first version of this check guessed at all three rules, and got all three wrong. A wrong
+ * check is worse than no check. A volunteer trusts this panel instead of emailing us, so a
+ * confident wrong red sends them to us about a site that already works.
+ *
+ * - The list is newline-separated. It is a textarea, and a comma alone is not a separator. An
+ *   earlier version split on commas only, read one real two-domain client as one impossible
+ *   domain, and reported it unusable.
+ * - An empty list allows every origin. This is the documented default, for backward compatibility.
+ *   An earlier version refused everything instead, and told the volunteer to contact us. A design
+ *   note once proposed that opposite behaviour, but nobody built it — the old check matched the
+ *   unbuilt proposal, not the real server.
+ * - `*.example.org` is a wildcard. It matches only subdomains, never the apex. A bare `example.org`
+ *   matches only that exact host. An earlier version treated every entry as a suffix, so a bare
+ *   apex entry silently allowed every subdomain too.
  *
  * @param array|WP_Error|null $client Result of the client read.
  * @return array{status:string, label:string, detail:string}
@@ -340,14 +341,14 @@ function sahaj_atlas_normalize_host( $value ) {
 		$value = substr( $value, 2 );
 	}
 
-	// An entry may be written as a URL. Everything after the authority is not a host.
+	// An entry may be a full URL. This strips everything after the authority.
 	$value = preg_replace( '#^[a-z][a-z0-9+.-]*://#', '', $value );
 	$value = preg_replace( '#[/?\#].*$#', '', (string) $value );
 
-	// Ports are stripped: the server compares port-stripped hostnames.
+	// This strips the port. The server compares hostnames with no port.
 	$value = preg_replace( '#:\d+$#', '', (string) $value );
 
-	// The trailing-dot fully-qualified form.
+	// This removes a trailing dot from a fully qualified domain.
 	$value = rtrim( (string) $value, '.' );
 
 	if ( '' === $value || false !== strpos( $value, '*' ) ) {
@@ -383,8 +384,6 @@ function sahaj_atlas_parse_allowed_domains( $raw ) {
 }
 
 /**
- * Does a host match one of the patterns?
- *
  * @param string   $host     A normalized bare host.
  * @param string[] $patterns Normalized patterns.
  * @return bool
@@ -396,8 +395,8 @@ function sahaj_atlas_is_host_allowed( $host, $patterns ) {
 
 	foreach ( $patterns as $pattern ) {
 		if ( 0 === strpos( $pattern, '*.' ) ) {
-			// ⚠ The leading dot is what stops suffix injection: `evil-example.org` must not match
-			// `*.example.org`. The apex itself does not match a wildcard either.
+			// ⚠ The leading dot stops suffix injection. `evil-example.org` must not match
+			// `*.example.org`. The apex itself never matches a wildcard.
 			$suffix = substr( $pattern, 1 );
 
 			if ( strlen( $host ) > strlen( $suffix ) && substr( $host, -strlen( $suffix ) ) === $suffix ) {
@@ -494,8 +493,9 @@ function sahaj_atlas_client_record( $force = false ) {
 	);
 
 	if ( is_wp_error( $response ) ) {
-		// A transport failure is this site's network, not a verdict on the key — don't cache it as
-		// one, or a blip pins "refused" on the panel for five minutes.
+		// A transport failure means a problem with this site's network. It is not a verdict on the
+		// key. Do not cache it as a refusal, or a single blip pins "refused" on the panel for five
+		// minutes.
 		return $response;
 	}
 
@@ -513,7 +513,7 @@ function sahaj_atlas_client_record( $force = false ) {
 		return new WP_Error( 'sahaj_atlas_client', $message );
 	}
 
-	// `clients/me` answers `{ user: {...} }`; older shapes returned the record directly.
+	// `clients/me` answers `{ user: {...} }`. Older shapes returned the record directly.
 	$record = is_array( $body ) && isset( $body['user'] ) && is_array( $body['user'] ) ? $body['user'] : $body;
 
 	if ( ! is_array( $record ) ) {

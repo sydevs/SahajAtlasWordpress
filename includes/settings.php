@@ -2,10 +2,11 @@
 /**
  * The settings screen: one field, one button, and the status panel.
  *
- * ⚠ **One setting is the whole permitted surface.** Every option is something to document,
- * migrate, support and get wrong, and this plugin is installed by one non-technical volunteer per
- * site. Locale comes from the page's `<html lang>`, the routing prefix and the brand come from the
- * client record, and the map flag is per-embed. Adding a setting needs a use case somebody hit.
+ * ⚠ One setting is the whole permitted surface. Every option is something to document, migrate,
+ * support, and get wrong, and one non-technical volunteer installs this plugin per site. The
+ * locale comes from the page's `<html lang>` attribute. The routing prefix and the brand come from
+ * the client record. The map flag is set per embed. Adding a setting needs a use case somebody
+ * actually encountered.
  *
  * @package SahajAtlas
  */
@@ -24,8 +25,8 @@ function sahaj_atlas_register_settings() {
 			'label'             => __( 'Sahaj Atlas API key', 'sahaj-atlas' ),
 			'sanitize_callback' => 'sahaj_atlas_sanitize_key',
 			'default'           => '',
-			// ⚠ `get_option`, never `get_site_option`: at least one target site is multisite, and
-			// two sites sharing one key would report as one embed.
+			// ⚠ Use `get_option`, never `get_site_option`. At least one target site is multisite,
+			// and two sites sharing one key would report as one embed.
 			'show_in_rest'      => false,
 		)
 	);
@@ -54,9 +55,6 @@ function sahaj_atlas_admin_menu() {
 	);
 }
 
-/**
- * Render the settings screen.
- */
 function sahaj_atlas_settings_page() {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		return;
@@ -163,10 +161,10 @@ function sahaj_atlas_handle_create_page() {
 }
 
 /**
- * Nudge an admin who has installed the plugin and stopped there.
+ * Nudge an admin who installed the plugin and stopped there.
  *
- * Deliberately quiet: only on the plugin's own screens and the Plugins list, and only for the one
- * failure that makes everything else pointless.
+ * This stays deliberately quiet. It shows only on the plugin's own screens and the Plugins list,
+ * and only for the one failure that makes everything else pointless.
  */
 function sahaj_atlas_admin_notices() {
 	if ( ! current_user_can( 'manage_options' ) ) {

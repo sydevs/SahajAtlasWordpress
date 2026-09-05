@@ -12,51 +12,53 @@ Add the Sahaj Atlas — a searchable map of free meditation classes — to your 
 
 == Description ==
 
-This plugin embeds the Sahaj Atlas on your site: a searchable map and directory of free meditation
-classes, with pages for each country, city, venue and class.
+This plugin embeds the Sahaj Atlas: a searchable map and directory of free meditation classes,
+with pages for each country, city, venue, and class.
 
-It creates one "Find a class" page for you and keeps it working. You do not need to paste any code.
+It creates and maintains one "Find a class" page for you. You do not need to paste any code.
 
-**You will need an API key.** Ask the Sahaj Atlas maintainers for one — it is free, it is not a
-secret, and one key covers your whole site.
+**You need an API key.** Ask the Sahaj Atlas maintainers for one. The key is free, not secret,
+and covers your whole site.
 
 = What it adds to your site =
 
-* A single Atlas page, created for you from the plugin's settings screen — your site's own header
-  at the top, the atlas filling the rest of the screen, and no footer.
-* A shortcode and a block for showing one class, or one class's registration form, inside your own
+* One Atlas page, created from the plugin's settings screen. It shows your site's header at the
+  top and the atlas below it, with no footer.
+* A shortcode and a block. Use them to show one class, or its registration form, inside your own
   pages.
-* A status panel that tells you whether your key works and whether everything is set up correctly.
-* A sitemap of every atlas page, announced in your `robots.txt`, so search engines can find them.
+* A status panel. It shows whether your key works and whether setup is correct.
+* A sitemap of every atlas page, listed in your `robots.txt` file, so search engines can find
+  them.
 
 = Services this plugin uses =
 
-This plugin is an interface to the Sahaj Atlas service, which is operated by Sahaja Yoga
-International. Using it means your visitors' browsers contact:
+This plugin connects to the Sahaj Atlas service, operated by Sahaja Yoga International. When
+visitors use the atlas, their browsers contact:
 
-* `sahajatlas.com` — the atlas widget itself and its translations.
-* `cloud.sydevelopers.com` — the class and location data.
+* `sahajatlas.com` — the atlas widget and its translations.
+* `cloud.sydevelopers.com` — class and location data.
 
-Your site also contacts `cloud.sydevelopers.com` from the server to read page metadata.
-Full details of every request, and what leaves a visitor's browser, are documented at
+Your server also contacts `cloud.sydevelopers.com` to read page metadata. Full details of every
+request are documented at
 https://github.com/sydevs/SahajAtlasWeb/blob/main/docs/embedding.md
 
 == Installation ==
 
-⚠ **If your site already shows the Sahaj Atlas** — an older embed, an iframe, or a pasted script —
+⚠ **If your site already shows the Sahaj Atlas** — an old embed, an iframe, or a pasted script —
 **remove it first.** Two atlases on one page will not work.
 
-1. On the Releases page, download the newest `sahaj-atlas-<version>.zip` (the version number changes with every release). Do **not** use "Source code (zip)".
-2. In WordPress, go to Plugins → Add New Plugin → Upload Plugin, choose the file, and install it.
+1. On the Releases page, download the newest `sahaj-atlas-<version>.zip` file. The version number
+   changes with every release. Do **not** use "Source code (zip)".
+2. In WordPress, go to Plugins → Add New Plugin → Upload Plugin. Choose the file, and install it.
 3. Activate the plugin.
-4. Go to Settings → Sahaj Atlas, paste your API key, and press "Create the Atlas page".
+4. Go to Settings → Sahaj Atlas. Paste your API key, and press "Create the Atlas page".
 5. Add the new page to your site's menu.
 
 == Frequently Asked Questions ==
 
 = Where do I get an API key? =
 
-Ask the Sahaj Atlas maintainers. Keys are issued by hand, one per site.
+Ask the Sahaj Atlas maintainers. They issue one key per site by hand.
 
 = The page is blank / the map does not appear =
 
@@ -64,38 +66,36 @@ Open Settings → Sahaj Atlas. The status panel names the problem.
 
 = What are "clean URLs"? =
 
-With them on, a link to a city looks like `yoursite.org/find-a-class/gb/london`. Search engines can
-index those, and visitors can share them. With them off the same place is
-`yoursite.org/find-a-class/?atlas=/gb/london`, which still works but is less shareable.
+With clean URLs on, a city link looks like `yoursite.org/find-a-class/gb/london` — easy for
+search engines to index and visitors to share. Off, the same page is
+`yoursite.org/find-a-class/?atlas=/gb/london`, which still works but is harder to share.
 
-They need two things: your site must use any permalink setting other than "Plain", and the Sahaj
-Atlas maintainers must have your page's address on file. The status panel tells you which is
-missing and shows you the address to send them.
+Clean URLs need two things: a permalink setting other than "Plain", and your page's address on
+file with the Sahaj Atlas maintainers. The status panel names what is missing and shows the
+address to send.
 
 = Can the atlas be my site's front page? =
 
-Not with clean URLs. The atlas would have to answer every address on your site, including the ones
-that should show "not found". Give it a page of its own and link to it from your menu.
+Not with clean URLs on. The atlas would then have to answer every address on your site, including
+addresses that should show "not found". Give the atlas its own page, and link to it from your
+menu.
 
 = I use Elementor / WPBakery / Beaver Builder =
 
-That is fine — the Atlas page does not use them, and the shortcode works inside all of them. If
-your page builder takes over the Atlas page's layout, set that page to the builder's blank or
-canvas template and place the `[sahaj_atlas]` shortcode on it.
+That is fine. The Atlas page does not use a page builder, and the shortcode works inside all
+three. If your page builder takes over the Atlas page's layout, set that page to the builder's
+blank or canvas template, and place the `[sahaj_atlas]` shortcode on it.
 
 == Changelog ==
 
 = 0.1.0 =
 * First release.
-* Creates and owns one Atlas page per site: your site's header, then the atlas, no footer.
-* Serves deep atlas links as real URLs (`/find-a-class/gb/london`) when the site uses pretty
-  permalinks and the maintainers have registered the page.
-* Server-rendered page titles, descriptions, canonicals, hreflang, Open Graph and structured data
-  for every atlas link, replacing whatever Yoast, All in One SEO or Rank Math would emit there.
-* A `[sahaj_atlas]` shortcode and a block for showing one class, or its registration form, inside
-  your own pages.
-* A sitemap at `/sahaj-atlas-sitemap.xml`, announced in `robots.txt` and added to Yoast's and Rank
-  Math's sitemap indexes. Nothing on your site links into the atlas pages, so this is how search
-  engines find them at all.
-* A status panel covering the four things that otherwise fail silently: the API key, the Atlas
-  page, clean URLs, and whether this domain is registered.
+* Creates one Atlas page per site, with your site's header and no footer.
+* Serves deep atlas links as real URLs, for example `/find-a-class/gb/london`, given pretty
+  permalinks and a page registered with the maintainers.
+* Renders page titles, descriptions, canonicals, hreflang, Open Graph tags, and structured data
+  for every atlas link, replacing any output from Yoast, All in One SEO, or Rank Math.
+* Adds a `[sahaj_atlas]` shortcode and a block, for one class or its registration form.
+* Adds a sitemap at `/sahaj-atlas-sitemap.xml`, listed in `robots.txt` and in the sitemap indexes
+  of Yoast and Rank Math.
+* Adds a status panel for the API key, the Atlas page, clean URLs, and domain registration.

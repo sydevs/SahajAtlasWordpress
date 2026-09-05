@@ -1,17 +1,17 @@
 <?php
 /**
- * Syntax check every PHP file in the plugin.
+ * Runs a syntax check on every PHP file in the plugin.
  *
- * `@wp-playground/cli` runs PHP in WebAssembly and exposes no `php -l`, so this is the equivalent:
- * `token_get_all()` with `TOKEN_PARSE` runs the real parser and throws `ParseError` on invalid
- * syntax, without executing a line.
+ * `@wp-playground/cli` runs PHP in WebAssembly and exposes no `php -l`. This file is the
+ * equivalent. `token_get_all()` with `TOKEN_PARSE` runs the real parser. It throws a
+ * `ParseError` on invalid syntax, without executing a single line.
  *
- * ⚠ An earlier version wrapped each file in `if (false) { ?> … <?php }` and eval'd it. That passed
- * everything, including files with deliberate syntax errors, because the wrapper left the body in
- * HTML mode where it is inert text. Verify this tool still fails on a broken file before trusting a
- * green run — `tests/lint-self-test.php` does exactly that.
+ * ⚠ An earlier version wrapped each file in `if (false) { ?> … <?php }` and used `eval()`. That
+ * passed every file, including files with real syntax errors, because the wrapper left the file
+ * body in HTML mode, where PHP treats it as inert text. Before you trust a green run, break one
+ * file on purpose and confirm this tool then fails.
  *
- *   npm run lint
+ *   pnpm lint
  */
 $root = '/plugin';
 $skip = array( '/tests/', '/vendor/', '/node_modules/' );

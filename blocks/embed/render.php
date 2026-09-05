@@ -1,9 +1,10 @@
 <?php
 /**
- * Front-end output for the block. Shares `sahaj_atlas_render_embed()` with the shortcode.
+ * This file renders the block's front-end output. It shares `sahaj_atlas_render_embed()` with the
+ * shortcode.
  *
- * Referenced from `block.json` as `"render": "file:./render.php"` (WP 6.1+), which is why there is
- * no `render_callback` to wire up.
+ * `block.json` references this file as `"render": "file:./render.php"` (WP 6.1+). This is why the
+ * block needs no `render_callback`.
  *
  * @package SahajAtlas
  *
@@ -24,21 +25,20 @@ if ( '' === $sahaj_atlas_markup ) {
 }
 
 /*
- * ⚠ **The markup is NOT passed through `wp_kses`, and running it through one silently broke the
- * block.** `wp_kses` filters a `style` attribute with `safecss_filter_attr()`, whose property
- * allowlist does not include `display` — so `display:block;height:520px` came out as
- * `height:520px`, and a custom element defaults to `display: inline`, which cannot take a height.
- * The block therefore rendered an unsized element: collapsed for a map-less embed, and a
- * window-covering takeover for a map one. The shortcode, which does not sanitize, was fine — so
- * the two paths disagreed and only the block was wrong.
+ * ⚠ This markup does NOT pass through `wp_kses`. Passing it through once broke the block silently.
+ * `wp_kses` filters the `style` attribute with `safecss_filter_attr()`. That function's allowlist
+ * has no `display` property. It turned `display:block;height:520px` into `height:520px`. A custom
+ * element defaults to `display: inline`, which cannot take a height. The block then rendered an
+ * unsized element: collapsed with no map, and a window-covering takeover with one. The shortcode
+ * does not sanitize, so it stayed correct. Only the block broke.
  *
- * Sanitizing here was never buying anything either. `sahaj_atlas_element_markup()` builds a fixed
- * string from one boolean; no attribute value comes from a caller, and the route rides on the
- * script URL rather than on the element. `wp_kses` belongs on content somebody else authored.
+ * Sanitizing here buys nothing anyway. `sahaj_atlas_element_markup()` builds a fixed string from
+ * one boolean. No attribute value comes from a caller. The route rides on the script URL, not on
+ * the element. `wp_kses` belongs on content someone else authored.
  */
 printf(
 	'<div %s>%s</div>',
-	// `get_block_wrapper_attributes()` is what applies the alignment and any theme block styles.
+	// `get_block_wrapper_attributes()` applies alignment and theme block styles.
 	wp_kses_data( get_block_wrapper_attributes() ),
-	$sahaj_atlas_markup // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built entirely by sahaj_atlas_element_markup(); see above.
+	$sahaj_atlas_markup // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- sahaj_atlas_element_markup() builds this string. See the comment above.
 );

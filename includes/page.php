@@ -2,11 +2,11 @@
 /**
  * The Atlas page: creating it, recognising it, and rendering it.
  *
- * The plugin owns exactly one page per site. That is not a simplification of a block-based design,
- * it is the design: the atlas wants the viewport, and four of the nine surveyed client sites build
- * their pages with Elementor, WPBakery or Beaver Builder, where a Gutenberg block never appears.
- * Owning the page means no block to place, no builder to fight, one widget per page by
- * construction, and an unambiguous target for the path router.
+ * The plugin owns exactly one page per site. This is the design, not a simplified version of a
+ * block-based one: the atlas needs the whole viewport, and four of the nine surveyed client sites
+ * build pages with Elementor, WPBakery or Beaver Builder, where a Gutenberg block never appears.
+ * Owning the page means no block to place, no page builder to fight, one widget per page by
+ * design, and one clear target for the path router.
  *
  * @package SahajAtlas
  */
@@ -17,9 +17,7 @@ defined( 'ABSPATH' ) || exit;
 define( 'SAHAJ_ATLAS_TEMPLATE', 'sahaj-atlas-page' );
 
 /**
- * The Atlas page's id, or 0.
- *
- * @return int
+ * @return int The Atlas page's id, or 0 when no page exists yet.
  */
 function sahaj_atlas_page_id() {
 	return (int) get_option( SAHAJ_ATLAS_OPTION_PAGE, 0 );
@@ -28,9 +26,9 @@ function sahaj_atlas_page_id() {
 /**
  * Is this request the Atlas page?
  *
- * ⚠ Compares the id, not the template. A volunteer who duplicates the page produces a second post
- * carrying the same template meta; only one of them is *the* Atlas page, and the duplicate must not
- * enqueue a second widget. Diagnostics reports duplicates separately.
+ * ⚠ This compares the id, not the template. A volunteer who duplicates the page creates a second
+ * post with the same template meta. Only one of them is the real Atlas page, and the duplicate
+ * must not enqueue a second widget. Diagnostics reports duplicates on its own.
  *
  * @param int|null $post_id Optional post to test instead of the current one.
  * @return bool
@@ -79,18 +77,18 @@ function sahaj_atlas_register_page_template() {
 	if ( wp_is_block_theme() && function_exists( 'register_block_template' ) ) {
 		/*
 		 * Block themes (WP 6.7+). Core renders this through `template-canvas.php`, which already
-		 * emits the doctype and calls `wp_head()`, `wp_body_open()` and `wp_footer()` — so listing
-		 * the header part and omitting the footer one is the entire page, with every hook intact and
-		 * not one line of hand-written HTML.
+		 * emits the doctype and calls `wp_head()`, `wp_body_open()` and `wp_footer()`. So listing
+		 * the header part, and leaving out the footer part, is the whole page — every hook stays
+		 * intact, with no hand-written HTML.
 		 *
-		 * ⚠ The header part is here because SahajAtlasWeb#170 landed. Before it, the map was
-		 * `position: fixed; inset: 0` with no `z-index`, so a site header either vanished under it
-		 * or floated over the widget's own controls; the page shipped headerless rather than
-		 * broken. What makes it work now is `assets/atlas-page.css` giving the element a height —
-		 * the opt-in for a *contained* map. Remove that stylesheet and this header goes back to
-		 * being painted over.
+		 * ⚠ The header part exists because SahajAtlasWeb#170 landed. Before it, the map was
+		 * `position: fixed; inset: 0` with no `z-index`. A site header either vanished under it, or
+		 * floated over the widget's own controls, so the page shipped with no header instead of a
+		 * broken one. `assets/atlas-page.css` now gives the element a height, the opt-in for a
+		 * contained map, and that is what makes the header work. Remove that stylesheet, and this
+		 * header reverts to being painted over.
 		 *
-		 * A theme with no `header` part renders nothing for it, which is the pre-#170 page.
+		 * A theme with no `header` part renders nothing for it. That is the pre-#170 page.
 		 */
 		register_block_template(
 			'sahaj-atlas//' . SAHAJ_ATLAS_TEMPLATE,
@@ -124,9 +122,9 @@ function sahaj_atlas_offer_page_template( $templates ) {
 /**
  * Swap in the plugin's template for the Atlas page on a classic theme.
  *
- * `locate_template()` will not find our file in the theme, so core falls through to `page.php`;
- * this replaces it. Block themes are handled by `register_block_template()` above and fall through
- * here untouched.
+ * `locate_template()` will not find our file in the theme, so core falls through to `page.php`.
+ * This function replaces that. Block themes are handled by `register_block_template()` above, and
+ * pass through here untouched.
  *
  * @param string $template The template core resolved.
  * @return string
@@ -160,10 +158,10 @@ function sahaj_atlas_body_class( $classes ) {
 /**
  * Create the Atlas page, from the settings screen's button.
  *
- * ⚠ **Never on activation.** Two reasons, and the first is a hard rule: activation runs before
- * `init`, and WordPress 6.7 raises `_doing_it_wrong` for a translated string produced that early —
- * so a page with a translated title cannot be created there at all. The second is manners: a plugin
- * that silently creates content on activation leaves the admin something to find and undo.
+ * ⚠ Never create this page on activation. Two reasons apply. First, a hard rule: activation runs
+ * before `init`, and WordPress 6.7 raises `_doing_it_wrong` for a translated string produced that
+ * early, so a page with a translated title cannot be created there at all. Second, manners: a
+ * plugin that silently creates content on activation leaves the admin something to find and undo.
  *
  * @return int|WP_Error The page id.
  */
@@ -190,14 +188,15 @@ function sahaj_atlas_create_page() {
 	}
 
 	/*
-	 * ⚠ **One meta value serves BOTH theme kinds, and it reads like it should not.** A classic theme
-	 * needs the `.php` filename, which is what `theme_page_templates` offers; a block theme matches
-	 * by template SLUG, which has no suffix. Core reconciles them: `resolve_block_template()` runs
-	 * every candidate through `_strip_template_file_suffix()` before comparing, so
-	 * `sahaj-atlas-page.php` matches the registered `sahaj-atlas//sahaj-atlas-page`. Verified in the
-	 * core source and end to end on both WordPress 6.7 (the fleet's floor) and current — see
-	 * `tests/render.mjs`, which asserts the block run renders `wp-site-blocks` with no template parts
-	 * rather than the classic file. Storing the suffix-less slug instead would break classic themes.
+	 * ⚠ One meta value serves both theme kinds, though it reads like it should not. A classic theme
+	 * needs the `.php` filename, which is what `theme_page_templates` offers. A block theme matches
+	 * by template slug, which has no suffix. Core reconciles the two: `resolve_block_template()`
+	 * runs every candidate through `_strip_template_file_suffix()` before comparing, so
+	 * `sahaj-atlas-page.php` matches the registered `sahaj-atlas//sahaj-atlas-page`. This is
+	 * verified in the core source, and end to end on both WordPress 6.7 (the fleet's floor) and the
+	 * current version — see `tests/render.mjs`, which asserts the block run renders `wp-site-blocks`
+	 * with no template parts, not the classic file. Storing the suffix-less slug instead would break
+	 * classic themes. Do not branch to "fix" this.
 	 */
 	update_post_meta( $id, '_wp_page_template', SAHAJ_ATLAS_TEMPLATE . '.php' );
 	update_option( SAHAJ_ATLAS_OPTION_PAGE, (int) $id );

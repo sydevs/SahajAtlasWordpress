@@ -20,10 +20,10 @@ $GLOBALS['sahaj_atlas_printed'] = false;
 /**
  * Decide the page's one embed and enqueue the widget for it.
  *
- * ⚠ **Decided server-side, once, and on `template_redirect`.** The widget refuses a second copy
- * (`resolveElement()` in the loader), so two embeds on a page means one of them silently does
- * nothing. Choosing here — before `wp_head`, before any render callback runs — means the decision is
- * made once from the whole post rather than by whichever block happens to render first.
+ * ⚠ This runs once, server-side, on `template_redirect`. The widget refuses a second copy
+ * (`resolveElement()` in the loader), so two embeds on one page means one of them silently does
+ * nothing. Deciding here, before `wp_head` and before any render callback runs, means the choice
+ * comes from the whole post, not from whichever block happens to render first.
  */
 function sahaj_atlas_resolve_and_enqueue() {
 	if ( is_admin() || ! is_singular() ) {
@@ -45,13 +45,13 @@ function sahaj_atlas_resolve_and_enqueue() {
 	$GLOBALS['sahaj_atlas_active'] = $active;
 
 	/*
-	 * ⚠ `wp_enqueue_script_module`, never `wp_enqueue_script`. `auto.js` is a real ES module — its
-	 * first statement is a top-level `import`, which is a SyntaxError in a classic script — so
-	 * `'strategy' => 'defer'` is not a fallback, it is a hard break.
+	 * ⚠ Use `wp_enqueue_script_module`, never `wp_enqueue_script`. `auto.js` is a real ES module. Its
+	 * first statement is a top-level `import`, which is a SyntaxError in a classic script. So
+	 * `'strategy' => 'defer'` is not a fallback — it is a hard break.
 	 *
-	 * The version argument is `null` on purpose: `false` would make core append `?ver=<wp version>`
-	 * to a URL whose query string is the widget's entire configuration surface. The widget origin
-	 * serves these files `must-revalidate`, so cache-busting is already handled there.
+	 * The version argument is `null` on purpose. `false` would make core append `?ver=<wp version>`
+	 * to a URL whose query string is the widget's whole configuration. The widget origin already
+	 * serves these files `must-revalidate`, so cache-busting is handled there.
 	 */
 	wp_enqueue_script_module( 'sahaj-atlas', sahaj_atlas_script_url( $active ), array(), null );
 }
@@ -87,7 +87,7 @@ function sahaj_atlas_resolve_embed() {
 	}
 
 	if ( has_shortcode( (string) $post->post_content, 'sahaj_atlas' ) ) {
-		// The attributes are read again when the shortcode renders; this only settles that one
+		// The attributes are read again when the shortcode renders. This only confirms that one
 		// exists, so the script is enqueued before `wp_head`.
 		return sahaj_atlas_embed_from_shortcode( (string) $post->post_content );
 	}
@@ -142,8 +142,8 @@ function sahaj_atlas_embed_from_shortcode( $content ) {
 /**
  * One shape for block attributes and shortcode attributes alike.
  *
- * In-content embeds default to `map=false`: the map always fills the whole viewport, so a map
- * embed sitting inside an article covers the article. The Atlas page is the place for a map.
+ * In-content embeds default to `map=false`. An unbounded map fills the whole viewport, so a map
+ * embed inside an article would cover the article. The Atlas page is the place for a map.
  *
  * @param array  $attrs  Raw attributes.
  * @param string $source Where they came from.
@@ -168,9 +168,9 @@ function sahaj_atlas_normalize_attrs( $attrs, $source ) {
 /**
  * A route the widget will accept, or an empty string.
  *
- * The widget refuses anything that is not site-relative — its own `safePath` rejects
- * protocol-relative `//evil.com` and the tab/LF/CR forms that the URL parser strips before
- * parsing. Rejecting the same shapes here means a bad value in a shortcode never reaches an
+ * The widget refuses anything that is not site-relative. Its own `safePath` rejects
+ * protocol-relative `//evil.com`, and the tab, LF and CR forms the URL parser strips before
+ * parsing. This function rejects the same shapes, so a bad value in a shortcode never reaches an
  * attribute at all.
  *
  * @param string $route Candidate route.
@@ -208,9 +208,9 @@ function sahaj_atlas_script_url( $embed ) {
 	$args = array( 'key' => sahaj_atlas_api_key() );
 
 	/*
-	 * ⚠ Only ever send `map=false`, never `map=true`. The widget's spelling rule is that only the
-	 * exact strings `false` and `0` switch a boolean off — anything else, including the parameter
-	 * being absent, leaves it on. Sending the default back is noise on a URL a host can read.
+	 * ⚠ Send `map=false`, never `map=true`. The widget's spelling rule turns a boolean off only for
+	 * the exact strings `false` or `0`. Any other value, including a missing parameter, leaves it
+	 * on. Sending the default back only adds noise to a URL a host can read.
 	 */
 	if ( empty( $embed['map'] ) ) {
 		$args['map'] = 'false';
@@ -225,9 +225,9 @@ function sahaj_atlas_script_url( $embed ) {
 	}
 
 	/*
-	 * `locale` is deliberately absent. The widget reads the page's `<html lang>`, which WordPress
-	 * already sets from the site language — a second source of truth here could only disagree with
-	 * the page it is on.
+	 * `locale` is deliberately absent. The widget reads the page's `<html lang>` attribute, which
+	 * WordPress already sets from the site language. A second source of truth here could only
+	 * disagree with the page it sits on.
 	 */
 	return add_query_arg( $args, SAHAJ_ATLAS_WIDGET_ORIGIN . '/auto.js' );
 }
@@ -235,30 +235,30 @@ function sahaj_atlas_script_url( $embed ) {
 /**
  * Print `<sahaj-atlas></sahaj-atlas>` for the Atlas page, in the flow after the header.
  *
- * ⚠ **Printing an explicit element is what makes the placement of core's script tag stop
- * mattering.** Core prints script modules at `wp_footer` on a classic theme and in `<head>` on a
- * block theme (`WP_Script_Modules::add_hooks()`). The Atlas page's template omits the footer
- * *markup*, and the loader outright refuses `<head>` — it logs "could not find a place to render"
- * rather than guess. An element that already exists is adopted wherever it is.
+ * ⚠ Printing an explicit element stops the placement of core's script tag from mattering. Core
+ * prints script modules at `wp_footer` on a classic theme, and in `<head>` on a block theme
+ * (`WP_Script_Modules::add_hooks()`). The Atlas page template omits the footer markup, and the
+ * loader refuses `<head>` outright — it logs "could not find a place to render" instead of
+ * guessing. An element that already exists gets adopted wherever it sits.
  *
- * ⚠ **Where the element sits is itself load-bearing now, and it did not used to be.** A contained
- * map draws in its element's box (SahajAtlasWeb#170), so both templates print it *after* the
- * header rather than at `wp_body_open`, which would put the atlas above it. Only the classic
- * template calls this function (`templates/atlas-page.php:52`); the block template renders
+ * ⚠ Element placement is now load-bearing, though it was not before. A contained map draws inside
+ * its own element box (SahajAtlasWeb#170), so both templates print it after the header, not at
+ * `wp_body_open` — that would place the atlas above the header. Only the classic template calls
+ * this function (`templates/atlas-page.php:52`). The block template instead renders
  * `wp:sahaj-atlas/page`, whose callback is `sahaj_atlas_render_page_block()`. `sahaj-atlas.php`
- * keeps a `wp_footer` hook at priority 1 as a last-resort fallback for a theme that runs neither
- * template; it no-ops once the flow print has happened. (The transform-ancestor argument that used
- * to justify `wp_body_open` retired with the fixed overlay it protected — `AGENTS.md`, "Traps
- * already paid for", carries that inversion.)
+ * keeps a `wp_footer` hook at priority 1 as a last-resort fallback, for a theme that runs neither
+ * template — it no-ops once the flow print has already happened. (The old transform-ancestor
+ * argument for `wp_body_open` retired with the fixed overlay it protected. `AGENTS.md`, "Traps
+ * already paid for", covers that inversion.)
  *
- * ⚠ **The element is SIZED, and that is load-bearing** — the inverse of what this docblock said
- * before #170. `display: block` plus a *definite* height is the opt-in for a contained map. Take
- * the sizing away and the map reverts to `position: fixed; inset: 0`, covering the header this page
- * renders — which is why it shipped without one until #170. **Which sizer applies is the path, and
- * the split is deliberate:** the Atlas page's element carries no inline style and is sized by
- * `assets/atlas-page.css` (`body.sahaj-atlas-page sahaj-atlas`), so a host can override the height
- * with ordinary CSS rather than `!important`; only in-content embeds are sized inline, by
- * `sahaj_atlas_element_markup()`. `min-height` is not a height — see that builder's note.
+ * ⚠ The element is sized, and that is load-bearing — the opposite of what this file said before
+ * #170. `display: block` plus a definite height opts into a contained map. Remove the sizing, and
+ * the map reverts to `position: fixed; inset: 0`, covering the header this page renders. That is
+ * why the page shipped with no header until #170. Which sizer applies depends on the path, and the
+ * split is deliberate. The Atlas page's element carries no inline style. `assets/atlas-page.css`
+ * sizes it instead (`body.sahaj-atlas-page sahaj-atlas`), so a host can override the height with
+ * ordinary CSS, not `!important`. Only in-content embeds are sized inline, by
+ * `sahaj_atlas_element_markup()`. `min-height` is not a height — see that function's note.
  */
 function sahaj_atlas_render_element_once() {
 	echo sahaj_atlas_page_element_markup(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built below; children escaped in includes/seo.php.
@@ -267,13 +267,13 @@ function sahaj_atlas_render_element_once() {
 /**
  * Render the Atlas page's element as a block, for the block-theme template.
  *
- * ⚠ **Registered in PHP with no `block.json` and no editor script, so it never appears in the
- * inserter** — it is an implementation detail of the registered page template, not something a
- * volunteer places. It exists because the template's markup has to go through
- * `sahaj_atlas_page_element_markup()` rather than being literal `<sahaj-atlas></sahaj-atlas>`: the
- * SEO takeover renders the crawlable content as the element's CHILDREN, and static template markup
- * cannot carry those. A literal element would also miss the printed-once flag and let the
- * `wp_footer` fallback emit a second one, which the widget refuses.
+ * ⚠ This block is registered in PHP, with no `block.json` and no editor script, so it never
+ * appears in the inserter. It is an implementation detail of the registered page template, not
+ * something a volunteer places. It exists because the template markup must go through
+ * `sahaj_atlas_page_element_markup()`, not a literal `<sahaj-atlas></sahaj-atlas>` tag. The SEO
+ * takeover renders crawlable content as the element's children, and static template markup cannot
+ * carry that. A literal element would also miss the printed-once flag, and let the `wp_footer`
+ * fallback print a second element, which the widget refuses.
  *
  * @return string
  */
@@ -296,10 +296,10 @@ function sahaj_atlas_page_element_markup() {
 	$GLOBALS['sahaj_atlas_printed'] = true;
 
 	/*
-	 * ⚠ **No inline style, and that is still deliberate — it is `assets/atlas-page.css` that sizes
-	 * this element.** The rule lives in a stylesheet so a host can override it (a taller header, a
-	 * fixed height, their own layout) with ordinary CSS. An inline style would be unoverridable
-	 * without `!important`, on the one property that decides whether the map is contained at all.
+	 * ⚠ No inline style here, and that is deliberate. `assets/atlas-page.css` sizes this element
+	 * instead. The rule lives in a stylesheet, so a host can override it — a taller header, a fixed
+	 * height, their own layout — with ordinary CSS. An inline style would need `!important` to
+	 * override, on the one property that decides whether the map is contained at all.
 	 */
 	return '<sahaj-atlas>' . sahaj_atlas_element_children() . '</sahaj-atlas>';
 }
@@ -307,13 +307,13 @@ function sahaj_atlas_page_element_markup() {
 /**
  * The crawlable content rendered inside the element, or an empty string.
  *
- * The widget replaces its own children the moment it boots, so this is what a crawler — and a
- * visitor whose JavaScript failed — sees, and nothing else ever renders it. A filter rather than a
- * direct call because Phase 1 ships without it: an install with no SEO takeover prints an empty
- * element, exactly as before.
+ * The widget replaces its own children the moment it boots. So this is what a crawler sees, and
+ * what a visitor with no JavaScript sees, and nothing else ever renders it. This is a filter, not
+ * a direct call, because Phase 1 ships without one: an install with no SEO takeover prints an
+ * empty element, exactly as before.
  *
- * ⚠ Everything the filter returns is markup **that does not pass through `wp_kses`**. Escaping
- * is the producer's job, and `includes/seo.php` does it per value; nothing here can check it.
+ * ⚠ Everything the filter returns is markup that never passes through `wp_kses`. Escaping is the
+ * producer's job. `includes/seo.php` escapes each value itself, and nothing here can check that.
  *
  * @return string
  */
@@ -330,8 +330,8 @@ function sahaj_atlas_element_children() {
 function sahaj_atlas_element_markup( $embed ) {
 	$active = $GLOBALS['sahaj_atlas_active'];
 
-	// Not the embed that won, or one already rendered: print nothing. The widget would refuse a
-	// second element anyway, and an empty box is less confusing than a broken one.
+	// Print nothing if this is not the embed that won, or one is already rendered. The widget
+	// would refuse a second element anyway, and an empty box confuses people less than a broken one.
 	if ( null === $active || $GLOBALS['sahaj_atlas_printed'] || $active['source'] !== $embed['source'] ) {
 		return '';
 	}
@@ -339,16 +339,16 @@ function sahaj_atlas_element_markup( $embed ) {
 	$GLOBALS['sahaj_atlas_printed'] = true;
 
 	/*
-	 * ⚠ **`height`, not `min-height` — and this was a real defect until SahajAtlasWeb#170 wrote the
-	 * rule down.** The widget fills its element with `height: 100%`, which needs a *definite*
-	 * height to resolve against. `min-height: 640px` sizes the element on screen and leaves the
-	 * widget nothing to fill, so it refuses the box, says so in the console, and **falls back to
-	 * covering the browser window** — an in-content embed taking over the article it sits in. The
-	 * comment here used to justify `min-height` as letting a theme grow the box; it bought that for
-	 * a takeover.
+	 * ⚠ Use `height`, not `min-height`. This was a real defect until SahajAtlasWeb#170 wrote the
+	 * rule down. The widget fills its element with `height: 100%`, which needs a definite height
+	 * to resolve against. `min-height: 640px` sizes the element on screen, but leaves the widget
+	 * nothing to fill. So the widget refuses the box, logs a console message, and reverts to
+	 * covering the whole browser window — an in-content embed then overtakes the article it sits
+	 * in. The old comment here justified `min-height` as a way to let a theme grow the box. That
+	 * choice bought a takeover instead.
 	 *
-	 * Both modes are sized now. A map embed with a height is a *contained* map: it lives in this
-	 * box, inside its own stacking context, and is never asked the compact-card question at all.
+	 * Both modes are sized now. A map embed with a height is a contained map. It lives inside this
+	 * box, in its own stacking context, and is never asked the compact-card question at all.
 	 */
 	$style = ' style="display:block;height:' . ( empty( $embed['map'] ) ? '640px' : '520px' ) . '"';
 
@@ -358,9 +358,9 @@ function sahaj_atlas_element_markup( $embed ) {
 /**
  * Load the Atlas page's layout, and only there.
  *
- * ⚠ Registered on `wp_enqueue_scripts`, gated on the page. The stylesheet gives `<sahaj-atlas>` a
- * height, which is what makes the map a *contained* one — so loading it anywhere else would box a
- * map that is meant to take the window.
+ * ⚠ This runs on `wp_enqueue_scripts`, gated to the Atlas page only. The stylesheet gives
+ * `<sahaj-atlas>` a height, which makes the map a contained one. Loading it anywhere else would
+ * box in a map that should fill the window.
  */
 function sahaj_atlas_enqueue_page_assets() {
 	if ( ! sahaj_atlas_is_atlas_page() ) {
@@ -371,11 +371,6 @@ function sahaj_atlas_enqueue_page_assets() {
 	wp_enqueue_script( 'sahaj-atlas-page', SAHAJ_ATLAS_URL . 'assets/atlas-page.js', array(), SAHAJ_ATLAS_VERSION, false );
 }
 
-/**
- * The site's API key.
- *
- * @return string
- */
 function sahaj_atlas_api_key() {
 	return trim( (string) get_option( SAHAJ_ATLAS_OPTION_KEY, '' ) );
 }
@@ -383,12 +378,12 @@ function sahaj_atlas_api_key() {
 /**
  * Register the block, and the editor assets it names.
  *
- * ⚠ The script is registered in PHP and referenced from `block.json` by **handle**, not as a
- * `file:` path. With a `file:` path core looks for an `index.asset.php` dependency manifest — the
- * artefact a webpack build exists to produce — and when it is absent silently registers the script
- * with **no dependencies**, so the editor JS can run before `wp-blocks` exists. Naming a handle we
- * registered ourselves is what lets this plugin ship without a build step and still declare what it
- * needs.
+ * ⚠ `block.json` references the script by handle, not by a `file:` path. The script itself is
+ * registered here, in PHP. With a `file:` path, core looks for an `index.asset.php` dependency
+ * manifest — the file a webpack build normally produces. When that file is missing, core silently
+ * registers the script with no dependencies, so the editor script can run before `wp-blocks`
+ * exists. Naming a handle we registered ourselves lets this plugin ship with no build step, and
+ * still declare what it needs.
  */
 function sahaj_atlas_register_block() {
 	wp_register_script(

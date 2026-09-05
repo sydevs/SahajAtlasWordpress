@@ -1,22 +1,24 @@
 /**
- * End-to-end render checks: boot a real WordPress, fetch the Atlas page, assert the markup.
+ * End-to-end render checks: boot a real WordPress, fetch the Atlas page, and check the markup.
  *
- * The PHP suite (`npm test`) covers every decision the plugin makes. This covers the one thing it
- * cannot: whether those decisions produce a working page once WordPress, a theme and core's script
- * loader have all had their say. Both theme kinds run, because the plugin takes a **different code
- * path for each** — `register_block_template()` on a block theme, `template_include` on a classic
- * one — and the classic path has a specific silent failure mode worth pinning: `get_header()` on a
- * block theme falls through to `wp-includes/theme-compat/header.php`, which emits a complete second
- * `<!DOCTYPE html><html><head>` with 2010-era markup and no error a reader would notice. Counting
- * doctypes is what catches it.
+ * The PHP suite (`pnpm test`) covers every decision the plugin makes. This file covers the one
+ * thing that suite cannot: whether those decisions add up to a working page, once WordPress, a
+ * theme, and core's script loader have all had their say.
  *
- *   npm run test:render
+ * Both theme kinds run here, because the plugin takes a different code path for each:
+ * `register_block_template()` on a block theme, `template_include` on a classic one. The classic
+ * path has one specific silent failure mode worth pinning down. `get_header()` on a block theme
+ * falls through to `wp-includes/theme-compat/header.php`, which prints a complete second
+ * `<!DOCTYPE html><html><head>` with 2010-era markup and no visible error. Counting doctypes is
+ * what catches it.
+ *
+ *   pnpm test:render
  */
 
 import { spawn } from 'node:child_process'
 import { setTimeout as sleep } from 'node:timers/promises'
 
-/** Ports are fixed per theme so a failed run leaves nothing to guess about. */
+/** Each theme run uses a fixed port. A failed run then leaves nothing to guess about. */
 const RUNS = [
   { theme: 'block', port: 8801, blueprint: 'tests/render-blueprint.json', mounts: [] },
   {
@@ -48,11 +50,11 @@ function ok(label, condition, detail = '') {
 }
 
 /**
- * Wait for the ATLAS page, not for `/`.
+ * Waits for the Atlas page, not for `/`.
  *
- * ⚠ WordPress answers `/` the moment the server is up, which is *before* the blueprint has created
- * the page — so polling `/` reports ready and every assertion then runs against a 404. That cost a
- * debugging round on the classic run; the readiness signal has to be the thing under test.
+ * ⚠ WordPress answers `/` the moment the server starts, before the blueprint creates the page.
+ * So polling `/` reports ready too early, and every assertion then runs against a 404. This cost
+ * a debugging round on the classic run. The readiness signal has to be the thing under test.
  *
  * @param {number} port
  */
@@ -80,8 +82,8 @@ async function check(run) {
     'server',
     '--blueprint',
     run.blueprint,
-    // Pinned to the fleet's floor. ⚠ `preferredVersions` inside a blueprint is IGNORED by the
-    // `server` command — it booted PHP 8.3 / WordPress latest until these flags were passed.
+    // Pinned to the fleet's floor. ⚠ The `server` command ignores `preferredVersions` inside a
+    // blueprint. Without these flags, it boots PHP 8.3 and the latest WordPress instead.
     '--php',
     '7.4',
     '--wp',
@@ -109,24 +111,24 @@ async function check(run) {
     ok('no site footer', !/site-footer|wp-block-template-part[^"]*footer/.test(html))
 
     // ── The contained map (SahajAtlasWeb#170) ──────────────────────────────────────────────────
-    // The header is only safe to render because the element is SIZED: an unsized map embed is
-    // `position: fixed; inset: 0` and paints straight over it. The two assertions belong together
-    // — either alone passes on the broken page.
+    // The header is safe to render only because the element is sized. An unsized map embed
+    // becomes `position: fixed; inset: 0` and paints straight over the header. These two
+    // assertions belong together. Either one alone would pass on the broken page.
     ok('the site header renders', run.theme === 'classic' ? html.includes('site-header') : /<header/.test(html))
     ok('the sizing stylesheet is loaded', html.includes('assets/atlas-page.css'))
     ok('and the measurement script', html.includes('assets/atlas-page.js'))
 
-    // ⚠ The element must come AFTER the header in the flow. A contained map draws where its
-    // element sits, so printing it at `wp_body_open` — which is what the plugin used to do — puts
-    // the atlas above the header instead of below it.
+    // ⚠ The element must come after the header in the page flow. A contained map draws wherever
+    // its element sits. Printing the element at `wp_body_open`, which the plugin used to do,
+    // puts the atlas above the header instead of below it.
     const headerAt = html.search(/<header/)
     const elementAt = html.search(/<sahaj-atlas[\s>]/)
 
     ok('with the element below the header', headerAt >= 0 && elementAt > headerAt, `header ${headerAt}, element ${elementAt}`)
 
-    // The loader is a real ES module — its first statement is a top-level `import`, which is a
-    // SyntaxError in a classic script. A `<script>` without `type="module"` is a hard break, not a
-    // degraded experience.
+    // The loader is a real ES module. Its first statement is a top-level `import`, which is a
+    // SyntaxError in a classic script. A `<script>` tag without `type="module"` breaks the page
+    // completely. It does not just degrade the experience.
     const script = html.match(/<script[^>]*src="([^"]*auto\.js[^"]*)"[^>]*>/)
 
     ok('the loader is enqueued', Boolean(script), html.includes('auto.js') ? 'found, but not as a script src' : 'absent')
@@ -145,40 +147,40 @@ async function check(run) {
     ok('a deep link is served', deep.status === 200, `status ${deep.status}`)
     ok('by the same page', (deepHtml.match(/<sahaj-atlas[\s>]/g) ?? []).length === 1)
 
-    // The plugin claims a subtree, not the site. If this regresses, every typo on the site becomes
-    // the atlas and the host loses their 404 page.
+    // The plugin claims a subtree, not the whole site. If this regresses, every typo on the site
+    // becomes the atlas, and the host loses their 404 page.
     const missing = await fetch(base + MISSING)
 
     ok('an unrelated missing URL still 404s', missing.status === 404, `status ${missing.status}`)
 
     // ── The sitemap ────────────────────────────────────────────────────────────────────────────
-    // The cache is seeded by the blueprint, so this exercises the serving path — `parse_request`
-    // interception, the headers and the document — without a real API key. The fetch itself is
-    // `wp_remote_get` and a transient, and is covered by the PHP suite's rules for the answer.
+    // The blueprint seeds the cache, so this exercises the serving path: `parse_request`
+    // interception, the headers, and the document, all without a real API key. The fetch itself
+    // is `wp_remote_get` and a transient. The PHP suite's rules for the answer cover that part.
     const sitemap = await fetch(`${base}/sahaj-atlas-sitemap.xml`)
     const xml = await sitemap.text()
 
     ok('the sitemap is served', sitemap.status === 200, `status ${sitemap.status}`)
     ok('as XML', (sitemap.headers.get('content-type') ?? '').includes('xml'), sitemap.headers.get('content-type') ?? '')
 
-    // ⚠ A sitemap must not itself be indexed — it is a machine file, and one that turns up in
-    // results is a page of raw XML with the site's name on it.
+    // ⚠ A sitemap must never be indexed itself. It is a machine file. One that turns up in
+    // search results is a page of raw XML with the site's name on it.
     ok('and not itself indexed', (sitemap.headers.get('x-robots-tag') ?? '').includes('noindex'), sitemap.headers.get('x-robots-tag') ?? '')
 
     ok('listing the atlas URLs', (xml.match(/<loc>/g) ?? []).length === 2, xml.slice(0, 200))
     ok('with no WordPress page markup in it', !xml.includes('<html') && !xml.includes('<!doctype'), xml.slice(0, 120))
 
-    // ⚠ The whole discovery path for the atlas: nothing on the site links into these routes, so a
-    // crawler learns they exist here or not at all.
+    // ⚠ This is the whole discovery path for the atlas. Nothing on the site links into these
+    // routes. A crawler learns they exist here, or not at all.
     const robots = await (await fetch(`${base}/robots.txt`)).text()
 
     ok('robots.txt points at it', /Sitemap:\s*\S*sahaj-atlas-sitemap\.xml/.test(robots), robots.trim())
 
     // ── In-content embeds ──────────────────────────────────────────────────────────────────────
-    // A shortcode and a block are two different resolution paths (`sahaj_atlas_embed_from_shortcode`
-    // scans the raw content; `sahaj_atlas_find_block` walks the parsed block tree), so one working
-    // says nothing about the other. Neither is reachable from the PHP suite, which never renders a
-    // post.
+    // A shortcode and a block use two different resolution paths.
+    // `sahaj_atlas_embed_from_shortcode` scans the raw content. `sahaj_atlas_find_block` walks
+    // the parsed block tree. So one working says nothing about the other. Neither path is
+    // reachable from the PHP suite, because that suite never renders a post.
     for (const [kind, slug] of [
       ['shortcode', '/shortcode-host/'],
       ['block', '/block-host/'],
@@ -191,12 +193,12 @@ async function check(run) {
       ok(`${kind}: the page renders`, page.status === 200, `status ${page.status}`)
       ok(`${kind}: exactly one element`, (body.match(/<sahaj-atlas[\s>]/g) ?? []).length === 1)
 
-      // An in-content embed is map-LESS, so unlike the Atlas page it needs a height: an unsized
-      // custom element is an inline box of zero height and looks like it did not render at all.
+      // An in-content embed has no map, so unlike the Atlas page it needs a height. An unsized
+      // custom element is an inline box of zero height, and looks like it did not render at all.
       // ⚠ `height`, never `min-height`. The widget fills its element with `height: 100%`, which
-      // needs a definite height to resolve against — `min-height` leaves it nothing to fill, so it
-      // refuses the box and covers the browser window instead. The plugin shipped `min-height`
-      // until SahajAtlasWeb#170 wrote the rule down.
+      // needs a definite height to resolve against. `min-height` leaves nothing to fill, so the
+      // widget refuses the box and covers the browser window instead. The plugin shipped
+      // `min-height` until SahajAtlasWeb#170 wrote this rule down.
       const style = tag?.[0] ?? ''
 
       ok(`${kind}: the element is sized`, /[^-]height:\s*\d/.test(style), style || 'no element')
@@ -205,11 +207,11 @@ async function check(run) {
       ok(`${kind}: the loader asks for no map`, loader.includes('map=false'), loader)
       ok(`${kind}: and carries the route`, loader.includes('atlas=%2Fgb%2Flondon%2F1204') || loader.includes('atlas=/gb/london/1204'), loader)
 
-      // ⚠ An in-content embed must NEVER claim path routing: the server only serves the subtree
-      // under the Atlas page, so a deep link from a widget on an article would 404.
+      // ⚠ An in-content embed must never claim path routing. The server only serves the subtree
+      // under the Atlas page. A deep link from a widget on an article would 404.
       ok(`${kind}: and never claims path routing`, !loader.includes('routing=path'), loader)
 
-      // The surrounding content still has to be there — a render callback that swallowed the post
+      // The surrounding content still has to render. A render callback that swallowed the post
       // would pass every assertion above.
       if (kind === 'shortcode') {
         ok('shortcode: the rest of the content survives', body.includes('Before.') && body.includes('After.'))

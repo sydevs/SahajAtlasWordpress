@@ -2,24 +2,24 @@
 /**
  * Server-rendered metadata and body content for atlas routes.
  *
- * A deep atlas link — `/find-a-class/gb/london` — is a real URL that a crawler will fetch, and
- * without this it returns the site's generic page title, the site's generic description, and an
- * empty `<sahaj-atlas>` element. Everything a search engine could index about a meditation class in
- * London arrives later, from JavaScript, under a URL the crawler has already judged.
+ * A deep atlas link, such as `/find-a-class/gb/london`, is a real URL that a crawler fetches.
+ * Without this file, it returns the site's generic page title, the site's generic description,
+ * and an empty `<sahaj-atlas>` element. Everything a search engine could index about a class in
+ * London arrives later, from JavaScript, under a URL the crawler already judged.
  *
- * **Strategy: take over, do not feed.** On atlas routes only, whichever SEO plugin is active is
- * suppressed and one code path emits everything.
+ * Strategy: take over, do not feed. On atlas routes only, this suppresses whichever SEO plugin is
+ * active, and one code path emits everything instead.
  *
- * ⚠ The reasoning is not preference, and it does not survive being "simplified" into three adapters.
- * Feeding needs a different shape per plugin — Yoast's dozen per-property filters, AIOSEO's single
- * array filter, Rank Math's dynamic filter names — and **none of the three emits `hreflang` at all**,
- * so we would print that ourselves regardless. Three of the nine surveyed client sites run no SEO
- * plugin, so the standalone emitter has to exist anyway. Override is one emitter plus three
- * one-line suppressions.
+ * ⚠ This reasoning is not a preference, and it does not survive a "simplified" version with three
+ * adapters. Feeding needs a different shape per plugin: Yoast's dozen per-property filters,
+ * AIOSEO's single array filter, Rank Math's dynamic filter names. None of the three plugins emits
+ * `hreflang` at all, so this plugin must print that itself regardless. Three of the nine surveyed
+ * client sites run no SEO plugin, so the standalone emitter must exist anyway. The override costs
+ * one emitter plus three one-line suppressions.
  *
- * ⚠ **Known cost, accepted:** the SEO plugin's own metabox and social preview will show its stale
- * idea of these pages. That is cosmetic and only an administrator ever sees it; the alternative is
- * three adapters that still cannot carry hreflang.
+ * ⚠ Known cost, accepted: the SEO plugin's own metabox and social preview show its stale idea of
+ * these pages. That is cosmetic, and only an administrator ever sees it. The alternative is three
+ * adapters that still cannot carry hreflang.
  *
  * @package SahajAtlas
  */
@@ -39,10 +39,10 @@ $GLOBALS['sahaj_atlas_seo'] = null;
 /**
  * Fetch the answer and, if there is one, take the page over.
  *
- * ⚠ **Suppression happens only after a successful fetch.** Suppressing first and discovering the
- * endpoint is unreachable would leave the page with no metadata at all — strictly worse than the
- * generic metadata we were replacing. A failed fetch here is a no-op, and the site's own SEO plugin
- * carries on as though this plugin were not installed.
+ * ⚠ Suppression happens only after a successful fetch. Suppressing first, then finding the
+ * endpoint unreachable, would leave the page with no metadata at all — strictly worse than the
+ * generic metadata it replaces. A failed fetch is a no-op here, and the site's own SEO plugin
+ * continues as if this plugin were not installed.
  */
 function sahaj_atlas_seo_boot() {
 	if ( is_admin() || ! sahaj_atlas_is_atlas_page() ) {
@@ -52,10 +52,10 @@ function sahaj_atlas_seo_boot() {
 	$route = sahaj_atlas_current_route();
 
 	/*
-	 * ⚠ The atlas ROOT is deliberately excluded. The endpoint 404s an unresolvable route and names
-	 * the root as one: a site's landing page is its own to describe, in its own language, and
-	 * nothing in the atlas is localized — a sentence composed upstream would be English in a Dutch
-	 * site's `<head>`, in the one place a visitor cannot skip.
+	 * ⚠ This deliberately excludes the atlas root. The endpoint 404s an unresolvable route, and
+	 * treats the root as one. A site's landing page is its own to describe, in its own language,
+	 * and nothing in the atlas is localized. A sentence composed upstream would show English in a
+	 * Dutch site's `<head>` — the one place a visitor cannot skip.
 	 */
 	if ( '' === $route || '/' === $route ) {
 		return;
@@ -82,8 +82,8 @@ function sahaj_atlas_seo_boot() {
  * All four are the vendors' own documented switches.
  */
 function sahaj_atlas_seo_suppress_others() {
-	// Yoast. ⚠ The priority is part of the API: Yoast adds `present_head` at -9999, and
-	// `remove_action` only matches an identical callback AND priority.
+	// Yoast. ⚠ The priority is part of the API. Yoast adds `present_head` at -9999, and
+	// `remove_action` matches only an identical callback and priority together.
 	if ( class_exists( 'WPSEO_Frontend' ) || defined( 'WPSEO_VERSION' ) ) {
 		add_action(
 			'wp_head',
@@ -104,7 +104,7 @@ function sahaj_atlas_seo_suppress_others() {
 	add_filter( 'aioseo_disable', '__return_true' );
 	add_filter( 'aioseo_disable_schema', '__return_true' );
 
-	// Rank Math. Absent from all nine surveyed sites; one line is cheaper than finding out.
+	// Rank Math. Absent from all nine surveyed sites. One line is cheaper than finding out.
 	add_action( 'wp_head', function () { remove_all_actions( 'rank_math/head' ); }, 0 );
 
 	// Core.
@@ -142,10 +142,10 @@ function sahaj_atlas_seo_emit() {
 	}
 
 	/*
-	 * ⚠ `canonical` is emitted verbatim. It is the document's own `webUrl`, read from the CMS and
-	 * never recomputed — a canonical composed here would be a second implementation free to
-	 * disagree with the one the rest of the system publishes, on the one tag whose entire job is
-	 * to be the single agreed address.
+	 * ⚠ This emits `canonical` verbatim. It is the document's own `webUrl`, read from the CMS and
+	 * never recomputed. A canonical composed here would be a second implementation, free to
+	 * disagree with the one the rest of the system publishes — on the one tag whose only job is to
+	 * be the single agreed address.
 	 */
 	if ( ! empty( $seo['canonical'] ) ) {
 		printf( '<link rel="canonical" href="%s" />' . "\n", esc_url( (string) $seo['canonical'] ) );
@@ -171,8 +171,8 @@ function sahaj_atlas_seo_emit() {
 				continue;
 			}
 
-			// `og:*` and `article:*` are `property`; `twitter:*` is `name`. Emitting the wrong
-			// attribute is silently ignored by every consumer, which is the worst kind of wrong.
+			// `og:*` and `article:*` use the `property` attribute. `twitter:*` uses `name`. Every
+			// consumer silently ignores the wrong attribute, which is the worst kind of wrong.
 			$attribute = 0 === strpos( (string) $property, 'twitter:' ) ? 'name' : 'property';
 
 			printf(
@@ -185,13 +185,13 @@ function sahaj_atlas_seo_emit() {
 	}
 
 	/*
-	 * ⚠ **`jsonLd` arrives pre-escaped and is echoed RAW — do not wrap this in `esc_html`,
-	 * `wp_json_encode` or `wp_kses`.** The producer escapes `<`, `>` and `&` as `<` etc.
-	 * precisely because this lands inside a `<script>` element on a page nothing sanitizes, where
-	 * an HTML parser ends the element at the first `</script` and starts a comment at `<!--`. Those
-	 * escapes are valid JSON for the same characters, so the block still parses to the same value;
-	 * re-encoding here would double-escape it into invalid structured data, and `esc_html` would
-	 * turn it into `&quot;`-laden text a crawler cannot read.
+	 * ⚠ `jsonLd` arrives pre-escaped, and this echoes it raw. Do not wrap it in `esc_html`,
+	 * `wp_json_encode`, or `wp_kses`. The producer escapes `<`, `>` and `&` as `<` and so on,
+	 * because this value lands inside a `<script>` element on a page nothing else sanitizes. An
+	 * HTML parser ends that element at the first `</script`, and starts a comment at `<!--`. Those
+	 * escapes are valid JSON for the same characters, so the block still parses to the same value.
+	 * Re-encoding here would double-escape it into invalid structured data. `esc_html` would turn
+	 * it into `&quot;`-laden text a crawler cannot read.
 	 */
 	if ( ! empty( $seo['jsonLd'] ) ) {
 		echo '<script type="application/ld+json">' . $seo['jsonLd'] . "</script>\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped by the producer for this exact sink; see above.
@@ -203,9 +203,10 @@ function sahaj_atlas_seo_emit() {
 /**
  * The crawlable body content, rendered as children of `<sahaj-atlas>`.
  *
- * The widget replaces its own children when it boots, so this is what a crawler and a visitor with
- * no JavaScript see, and nothing else ever renders it. **No HTML crosses the wire** — the endpoint
- * sends plain text per block — which matters because this output does not pass through `wp_kses`.
+ * The widget replaces its own children when it boots. So this is what a crawler sees, and what a
+ * visitor with no JavaScript sees, and nothing else ever renders it. No HTML crosses the wire — the
+ * endpoint sends plain text per block. That matters, because this output never passes through
+ * `wp_kses`.
  *
  * @param string $children Existing children.
  * @return string
@@ -359,16 +360,17 @@ function sahaj_atlas_seo_fetch( $route ) {
 	$answer = sahaj_atlas_seo_request( $route, $locale );
 
 	// ⚠ A 400 means the locale was refused, not the route. SahajCloud validates `locale` against
-	// its own list, which this plugin deliberately does not carry a copy of — a hard-coded list
-	// here would drift the day a language is added there. One retry without it is cheaper than the
-	// list and cannot go stale.
+	// its own list. This plugin deliberately keeps no copy of that list — a hard-coded copy here
+	// would drift the day a language is added there. One retry with no locale is cheaper than a
+	// list, and it cannot go stale.
 	if ( 400 === $answer['status'] && '' !== $locale ) {
 		$answer = sahaj_atlas_seo_request( $route, '' );
 	}
 
 	if ( ! is_array( $answer['body'] ) ) {
-		// Cache the miss too. A 404 is a permanent answer for a route that does not resolve, and
-		// without this every crawler hit on a dead deep link is a fresh upstream request.
+		// Cache the miss too. A 404 is a permanent answer for a route that does not resolve.
+		// Without this cache, every crawler hit on a dead deep link becomes a fresh upstream
+		// request.
 		set_transient( $slot, array( 'miss' => true ), SAHAJ_ATLAS_SEO_TTL );
 
 		return null;
@@ -418,10 +420,11 @@ function sahaj_atlas_seo_request( $route, $locale ) {
 }
 
 /**
- * The locale to ask for: the page's own language, in the shape SahajCloud spells locales.
+ * The locale to request: the page's own language, in the shape SahajCloud uses.
  *
- * WordPress spells them `en_US` / `pt_BR`; SahajCloud spells them `en-AU` / `pt-BR`. An unknown one
- * is refused with a 400, which `sahaj_atlas_seo_fetch()` retries without.
+ * WordPress writes locales as `en_US` or `pt_BR`. SahajCloud writes them as `en-AU` or `pt-BR`. An
+ * unknown locale gets refused with a 400, and `sahaj_atlas_seo_fetch()` retries the request
+ * without one.
  *
  * @return string
  */
@@ -432,7 +435,8 @@ function sahaj_atlas_seo_locale() {
 		return '';
 	}
 
-	// A bare language is always safe to send; a regional tag is sent as-is and retried without on a
-	// 400, which is how `en-GB` degrades to the server's default rather than to a wrong language.
+	// A bare language code is always safe to send. A regional tag is sent as-is, and retried with
+	// no tag on a 400. This is how `en-GB` degrades to the server's default, instead of to the
+	// wrong language.
 	return isset( $parts[2] ) ? $parts[1] . '-' . strtoupper( $parts[2] ) : $parts[1];
 }

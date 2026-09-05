@@ -2,10 +2,10 @@
 /**
  * Path routing: serving the Atlas page for everything beneath it.
  *
- * With `routing=path` the widget puts its route in the pathname —
- * `/find-a-class/gb/london` rather than `/find-a-class/?atlas=/gb/london`. In-widget clicks are
- * `pushState` and never reach the server, but a reload, a bookmark or a shared link does, and that
- * URL has to return the Atlas page.
+ * With `routing=path`, the widget puts its route in the pathname — `/find-a-class/gb/london`, not
+ * `/find-a-class/?atlas=/gb/london`. A click inside the widget uses `pushState` and never reaches
+ * the server. But a reload, a bookmark, or a shared link does reach the server, and that URL must
+ * return the Atlas page.
  *
  * @package SahajAtlas
  */
@@ -29,26 +29,26 @@ function sahaj_atlas_register_route_var() {
 /**
  * Route `/{atlas page}/anything/below` to the Atlas page.
  *
- * ⚠ **Deliberately not `add_rewrite_rule()`.** A rewrite rule bakes the page's slug into a
+ * ⚠ This deliberately avoids `add_rewrite_rule()`. A rewrite rule bakes the page's slug into a
  * serialised blob in `wp_options`, so it needs flushing on activation, on a slug change, on
- * re-parenting and on a permalink-structure change — and between those moments it is stale, which
- * shows up as a 404 on every deep link. Reading `get_page_uri()` per request removes the problem
- * rather than managing it. The audience is non-technical volunteers who will rename a page and have
- * no reason to know that "re-save your permalinks" is a thing.
+ * re-parenting, and on a permalink-structure change. Between those moments it is stale, and a
+ * stale rule appears as a 404 on every deep link. Reading `get_page_uri()` on each request
+ * removes this problem, rather than managing it. The audience is non-technical volunteers, who
+ * rename a page with no reason to know that "re-save your permalinks" is a thing.
  *
- * ⚠ **`$wp->request`, not the `pagename` query var.** Under `/%postname%/` permalinks WordPress
- * uses verbose page rules, fails `get_page_by_path()` on a deep atlas URL and falls through to a
- * *post* rule — so the query var present is `name`, not `pagename`. Matching on `$wp->request`
- * is the same on every permalink structure.
+ * ⚠ This matches on `$wp->request`, not the `pagename` query var. Under `/%postname%/`
+ * permalinks, WordPress uses verbose page rules. It fails `get_page_by_path()` on a deep atlas
+ * URL, and falls through to a post rule instead — so the query var present is `name`, not
+ * `pagename`. Matching on `$wp->request` works the same way on every permalink structure.
  *
  * @param WP $wp The request, by reference.
  */
 function sahaj_atlas_parse_request( $wp ) {
 	/*
-	 * ⚠ Before everything, and before the healthy-page check reads the same request: the sitemap
-	 * lives at the site ROOT, not under the Atlas page, so it must not be filtered by rules about
-	 * the atlas subtree. `sahaj_atlas_maybe_serve_sitemap()` sends its own response and returns
-	 * true; there is nothing left for WordPress to route.
+	 * ⚠ This runs before everything else, including the healthy-page check that reads the same
+	 * request. The sitemap lives at the site root, not under the Atlas page, so rules about the
+	 * atlas subtree must not filter it. `sahaj_atlas_maybe_serve_sitemap()` sends its own response
+	 * and returns true. Nothing is left for WordPress to route.
 	 */
 	if ( sahaj_atlas_maybe_serve_sitemap( $wp ) ) {
 		exit;
@@ -58,8 +58,8 @@ function sahaj_atlas_parse_request( $wp ) {
 		return;
 	}
 
-	// Plain permalinks (`?p=123`) have no path to route into. The widget is told not to try, in
-	// `sahaj_atlas_path_routing_viable()`; this is the matching half.
+	// Plain permalinks (`?p=123`) have no path to route into. `sahaj_atlas_path_routing_viable()`
+	// tells the widget not to try. This is the matching half of that rule.
 	if ( ! get_option( 'permalink_structure' ) ) {
 		return;
 	}
@@ -78,7 +78,7 @@ function sahaj_atlas_parse_request( $wp ) {
 	$path = trim( (string) $wp->request, '/' );
 	$base = trim( $base, '/' );
 
-	// The page itself is served by WordPress as usual; only what is *below* it is ours.
+	// WordPress serves the page itself as usual. Only what is below it belongs to this plugin.
 	if ( 0 !== strpos( $path, $base . '/' ) ) {
 		return;
 	}
@@ -91,11 +91,11 @@ function sahaj_atlas_parse_request( $wp ) {
 	$route = '/' . substr( $path, strlen( $base ) + 1 );
 
 	/*
-	 * ⚠ An empty segment (`/nl//amsterdam`) is refused rather than passed on. The shared URL
-	 * contract declines to PUBLISH such a URL — a blank region slug is a known data defect
-	 * upstream — so claiming one here would serve the atlas at an address nothing points at, under
-	 * a route the widget then cannot resolve. A 404 is the honest answer and is what the rest of
-	 * the system already assumes.
+	 * ⚠ This refuses an empty segment (`/nl//amsterdam`) rather than pass it on. The shared URL
+	 * contract never publishes such a URL — a blank region slug is a known data defect upstream.
+	 * Claiming one here would serve the atlas at an address nothing points at, under a route the
+	 * widget cannot resolve. A 404 is the honest answer, and the rest of the system already assumes
+	 * it.
 	 */
 	if ( false !== strpos( $route, '//' ) ) {
 		return;
@@ -110,10 +110,10 @@ function sahaj_atlas_parse_request( $wp ) {
 /**
  * Stop WordPress redirecting a deep atlas URL back to the page root.
  *
- * ⚠ Without this, path routing looks like it works and then does not: `redirect_canonical()` sees
- * `is_page()` with a URL that is not the page's permalink and issues a 301 to the permalink, so
- * every shared deep link lands on the root view. It costs one filter and is invisible until
- * somebody follows a link.
+ * ⚠ Without this, path routing looks like it works, then fails. `redirect_canonical()` sees
+ * `is_page()` with a URL that is not the page's permalink, and issues a 301 back to the permalink.
+ * So every shared deep link lands on the root view instead. This costs one filter, and stays
+ * invisible until somebody follows a link.
  *
  * @param string|false $redirect The URL core wants to redirect to.
  * @return string|false
@@ -134,20 +134,20 @@ function sahaj_atlas_current_route() {
 }
 
 /**
- * Should the widget be told to use path routing?
+ * Should the widget use path routing?
  *
- * Two things must hold, and the plugin only owns one of them:
+ * Two conditions must hold, and this plugin controls only the first:
  *
- * 1. **The server serves the subtree** — that is `sahaj_atlas_parse_request()` above, and it needs
+ * 1. The server serves the subtree. That is `sahaj_atlas_parse_request()` above, and it needs
  *    pretty permalinks to have a path to work with.
- * 2. **The client record names this page** as its canonical embed, in SahajCloud. The prefix comes
- *    from there rather than from here, deliberately: it is the same value canonical URLs are
- *    composed from, and a second copy on a script tag could disagree with the one a canonical was
- *    built from.
+ * 2. The client record in SahajCloud names this page as its canonical embed. The prefix comes from
+ *    there on purpose, since canonical URLs are composed from that same value — a second copy on a
+ *    script tag could disagree with it.
  *
- * The widget checks the second itself and falls back to query routing with a console message when
- * it is missing. This function only asks whether it is worth claiming — sending `routing=path` from
- * a site with plain permalinks would advertise a mode we cannot serve.
+ * The widget checks the second condition itself, and defaults to query routing with a console
+ * message when the condition fails. This function only asks whether path routing is worth
+ * claiming. Sending `routing=path` from a site with plain permalinks would advertise a mode this
+ * plugin cannot serve.
  *
  * @return bool
  */
@@ -160,16 +160,15 @@ function sahaj_atlas_path_routing_viable() {
 /**
  * Is the Atlas page this site's front page?
  *
- * ⚠ **The one path-routing configuration this plugin refuses, and refusing is correct.** The shared
- * URL contract happily publishes `https://example.org/nl/amsterdam` for a root mount, so this is a
- * shape SahajCloud can be configured to emit. Serving it would mean claiming every URL on the site
- * that no post, page, category, tag, feed or archive answered — and half of those are resolved
- * *after* `parse_request`, so the plugin cannot know which. It would turn the site's 404 page into
- * the atlas.
+ * ⚠ This is the one path-routing setup this plugin refuses, and refusing is correct. The shared
+ * URL contract can publish `https://example.org/nl/amsterdam` for a root mount, so SahajCloud can
+ * be configured to emit this shape. Serving it would mean claiming every URL on the site that no
+ * post, page, category, tag, feed or archive answers. Half of those resolve after `parse_request`,
+ * so the plugin cannot know which ones. It would turn the site's own 404 page into the atlas.
  *
- * Refusing is only safe because it is VISIBLE: the widget falls back to query routing, and the
- * diagnostics panel says why. A silent fallback here would leave every canonical SahajCloud
- * publishes pointing at a 404.
+ * Refusing is safe only because it is visible. The widget defaults to query routing, and the
+ * diagnostics panel explains why. A silent fallback here would leave every canonical URL that
+ * SahajCloud publishes pointing at a 404.
  *
  * @return bool
  */
