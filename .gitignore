@@ -28,3 +28,6 @@ build/
 
 # Per-user Claude config (the other three repos ignore this too)
 .claude/settings.local.json
+
+# Worktrees from /implement-issue — a second checkout of this repo, never source
+.claude/worktrees/
