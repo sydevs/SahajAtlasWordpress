@@ -10,11 +10,11 @@ jobs:
     name: Lint & test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version-file: .node-version
           cache: pnpm
@@ -39,7 +39,7 @@ jobs:
     name: URL contract in sync
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # `atlas-url-contract.json` must stay byte-identical across three repos: SahajCloud (builds
       # these URLs), SahajAtlasWeb (parses them), and here (serves them). A stale copy is worse than
