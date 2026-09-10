@@ -11,7 +11,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # ⚠ This workflow exists for one reason: the zip's top folder must be named `sahaj-atlas`.
       # GitHub's own "Source code (zip)" names that folder `SahajAtlasWordpress-<tag>` instead.
