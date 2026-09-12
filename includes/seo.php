@@ -52,18 +52,35 @@ function sahaj_atlas_seo_boot() {
 	$route = sahaj_atlas_current_route();
 
 	/*
-	 * ⚠ This deliberately excludes the atlas root. The endpoint 404s an unresolvable route, and
-	 * treats the root as one. A site's landing page is its own to describe, in its own language,
-	 * and nothing in the atlas is localized. A sentence composed upstream would show English in a
-	 * Dutch site's `<head>` — the one place a visitor cannot skip.
+	 * The page itself is the atlas root view. It used to be excluded here, because the endpoint
+	 * 404d the root and treated it as unresolvable. SahajCloud#739 answers it: the title and
+	 * description are operator-written per locale on `sy-atlas-translations`, so nothing is
+	 * composed here and no English sentence lands in a Dutch site's `<head>`.
 	 */
-	if ( '' === $route || '/' === $route ) {
+	if ( '' === $route ) {
+		$route = '/';
+	}
+
+	// ⚠ The one route a host's own SEO plugin can describe is this page, so the opt-out is checked
+	// before the request rather than after it. A host that said "leave my description alone" must
+	// not pay an upstream round trip on their busiest page to be told so.
+	if ( '/' === $route && sahaj_atlas_seo_host_describes_root() ) {
 		return;
 	}
 
 	$answer = sahaj_atlas_seo_fetch( $route );
 
 	if ( ! is_array( $answer ) ) {
+		return;
+	}
+
+	/*
+	 * ⚠ A bare view route — `/search`, `/calendar`, `/filters`, `/online`, `/share` — is a view of
+	 * the root, and the endpoint answers it with the root document. This reads `type` off the
+	 * answer rather than keeping a copy of that segment list, which would drift the day a view is
+	 * added there. The same reason `sahaj_atlas_seo_locale()` keeps no copy of the locale list.
+	 */
+	if ( 'root' === sahaj_atlas_seo_get( $answer, 'type' ) && sahaj_atlas_seo_host_describes_root() ) {
 		return;
 	}
 
@@ -74,6 +91,24 @@ function sahaj_atlas_seo_boot() {
 	add_action( 'wp_head', 'sahaj_atlas_seo_emit', 1 );
 	add_filter( 'pre_get_document_title', 'sahaj_atlas_seo_title' );
 	add_filter( 'sahaj_atlas_element_children', 'sahaj_atlas_seo_children' );
+}
+
+/**
+ * Has this site said its own SEO plugin describes the Atlas page?
+ *
+ * ⚠ This is the plugin's second setting, and principle 4 says a setting needs a use case somebody
+ * actually hit. This one has it: a host that deliberately wrote its own description for the Atlas
+ * page had no way to keep it, because the takeover is silent and the volunteer who notices it is
+ * the one person on the site who cannot debug it.
+ *
+ * It governs the root view alone. Every other atlas route is a URL the host's SEO plugin has never
+ * heard of — it emits the Atlas page's own metadata there, for a page about London. There is no
+ * host-written description to preserve on those, so there is nothing to opt out of.
+ *
+ * @return bool
+ */
+function sahaj_atlas_seo_host_describes_root() {
+	return '1' === (string) get_option( SAHAJ_ATLAS_OPTION_SEO_ROOT_OPT_OUT, '' );
 }
 
 /**
@@ -218,9 +253,37 @@ function sahaj_atlas_seo_children( $children ) {
 		return $children;
 	}
 
-	return 'event' === ( isset( $seo['type'] ) ? $seo['type'] : '' )
-		? sahaj_atlas_seo_event_children( $seo['content'] )
-		: sahaj_atlas_seo_region_children( $seo['content'] );
+	switch ( sahaj_atlas_seo_get( $seo, 'type' ) ) {
+		case 'event':
+			return sahaj_atlas_seo_event_children( $seo['content'] );
+		case 'root':
+			return sahaj_atlas_seo_root_children( $seo );
+		default:
+			return sahaj_atlas_seo_region_children( $seo['content'] );
+	}
+}
+
+/**
+ * The root view's crawlable content.
+ *
+ * ⚠ This one takes the whole answer, not just `content`. The root names no document, so it has no
+ * name of its own to render — its heading is the page title the operator wrote, which lives at the
+ * top level beside every other route's. `content.paragraphs` carries the description, already
+ * plain text, one entry per block, and is empty in a locale nobody has written one for.
+ *
+ * @param array $seo An `AtlasSeoResponse` of `type: root`.
+ * @return string
+ */
+function sahaj_atlas_seo_root_children( $seo ) {
+	$out = '<section>';
+
+	$out .= '<h1>' . esc_html( sahaj_atlas_seo_get( $seo, 'title' ) ) . '</h1>';
+
+	foreach ( sahaj_atlas_seo_list( $seo['content'], 'paragraphs' ) as $paragraph ) {
+		$out .= '<p>' . esc_html( (string) $paragraph ) . '</p>';
+	}
+
+	return $out . '</section>';
 }
 
 /**
@@ -350,7 +413,7 @@ function sahaj_atlas_seo_fetch( $route ) {
 	}
 
 	$locale = sahaj_atlas_seo_locale();
-	$slot   = 'sahaj_atlas_seo_' . substr( md5( $route . '|' . $locale . '|' . $key ), 0, 20 );
+	$slot   = sahaj_atlas_seo_cache_key( $route, $locale );
 	$cached = get_transient( $slot );
 
 	if ( is_array( $cached ) ) {
@@ -379,6 +442,25 @@ function sahaj_atlas_seo_fetch( $route ) {
 	set_transient( $slot, $answer['body'], SAHAJ_ATLAS_SEO_TTL );
 
 	return $answer['body'];
+}
+
+/**
+ * The transient name holding one route's answer.
+ *
+ * Keyed by the key as well as the route and locale, so changing the key re-reads rather than
+ * serving another client's answer. Separated from the fetch so a test can seed a route's answer
+ * without a network, the same way the sitemap suite seeds its own.
+ *
+ * @param string      $route  The atlas route, e.g. `/gb/london` or `/`.
+ * @param string|null $locale Locale, or null to use this request's.
+ * @return string
+ */
+function sahaj_atlas_seo_cache_key( $route, $locale = null ) {
+	if ( null === $locale ) {
+		$locale = sahaj_atlas_seo_locale();
+	}
+
+	return 'sahaj_atlas_seo_' . substr( md5( $route . '|' . $locale . '|' . sahaj_atlas_api_key() ), 0, 20 );
 }
 
 /**

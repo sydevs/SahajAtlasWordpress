@@ -33,7 +33,9 @@ function sahaj_atlas_render_diagnostics() {
 			'<tr><td style="width:1.5rem">%s</td><td style="width:14rem"><strong>%s</strong></td><td>%s</td></tr>',
 			esc_html( sahaj_atlas_status_glyph( $check['status'] ) ),
 			esc_html( $check['label'] ),
-			wp_kses( $check['detail'], array( 'code' => array(), 'a' => array( 'href' => array() ), 'em' => array() ) )
+			// ⚠ `strong` belongs here. Two checks emit it around a name the volunteer is meant to
+			// read, and without it `wp_kses` strips the tag and nothing says why the text is plain.
+			wp_kses( $check['detail'], array( 'code' => array(), 'a' => array( 'href' => array() ), 'em' => array(), 'strong' => array() ) )
 		);
 	}
 
@@ -59,7 +61,7 @@ function sahaj_atlas_status_glyph( $status ) {
 }
 
 /**
- * The four checks, in the order a volunteer reaches them.
+ * The five checks, in the order a volunteer reaches them.
  *
  * @return array<int, array{status:string, label:string, detail:string}>
  */
@@ -71,6 +73,7 @@ function sahaj_atlas_checks() {
 		sahaj_atlas_check_page(),
 		sahaj_atlas_check_path_routing( $client ),
 		sahaj_atlas_check_allowed_domains( $client ),
+		sahaj_atlas_check_page_description( $client ),
 	);
 }
 
@@ -318,6 +321,72 @@ function sahaj_atlas_check_allowed_domains( $client ) {
 			esc_html__( 'The Atlas server does not have %1$s registered. It has %2$s. Ask the maintainers to add this one.', 'sahaj-atlas' ),
 			'<code>' . esc_html( $host ) . '</code>',
 			'<code>' . esc_html( implode( ', ', $patterns ) ) . '</code>'
+		),
+	);
+}
+
+/**
+ * Check 5 — which side describes the Atlas page?
+ *
+ * ⚠ A silent takeover is the shape that generates a support request nobody local can answer: a
+ * volunteer sees their own description replaced, and the plugin that replaced it says nothing. So
+ * this check names the side that owns it, either way, and shows the title a visitor would get.
+ *
+ * ⚠ The read is `sahaj_atlas_seo_fetch()`, the same call the front end makes, so a failure here is
+ * the same failure a visitor gets, and the answer lands in the cache both share. It asks in the
+ * admin's own language, which is not always the site's — the panel is for the person reading it.
+ *
+ * @param array|WP_Error|null $client Result of the client read.
+ * @return array{status:string, label:string, detail:string}
+ */
+function sahaj_atlas_check_page_description( $client ) {
+	$label = __( 'Page description', 'sahaj-atlas' );
+
+	if ( sahaj_atlas_seo_host_describes_root() ) {
+		return array(
+			'status' => 'idle',
+			'label'  => $label,
+			'detail' => esc_html__(
+				'Your own SEO plugin describes the Atlas page, because you ticked the box above. Pages for a country, a city or a class are still described by Sahaj Atlas.',
+				'sahaj-atlas'
+			),
+		);
+	}
+
+	if ( ! is_array( $client ) ) {
+		return array(
+			'status' => 'idle',
+			'label'  => $label,
+			'detail' => esc_html__( 'Not checked — the API key has to work first.', 'sahaj-atlas' ),
+		);
+	}
+
+	$answer = sahaj_atlas_seo_fetch( '/' );
+	$title  = is_array( $answer ) && ! empty( $answer['title'] ) ? (string) $answer['title'] : '';
+
+	if ( '' === $title ) {
+		/*
+		 * ⚠ This is a warning, not a failure. Nothing is broken or missing: the plugin suppresses
+		 * the host's SEO plugin only after a successful fetch, so a page nobody upstream describes
+		 * keeps whatever described it before this plugin was installed.
+		 */
+		return array(
+			'status' => 'warn',
+			'label'  => $label,
+			'detail' => esc_html__(
+				'The Atlas server has nothing to say about this page yet, so whatever describes your pages now stays in place. Nothing is broken. Tell the Sahaj Atlas maintainers if it stays this way.',
+				'sahaj-atlas'
+			),
+		);
+	}
+
+	return array(
+		'status' => 'ok',
+		'label'  => $label,
+		'detail' => sprintf(
+			/* translators: %s: the page title the Atlas server supplies. */
+			esc_html__( 'Sahaj Atlas describes it, in each visitor\'s own language, as %s.', 'sahaj-atlas' ),
+			'<strong>' . esc_html( $title ) . '</strong>'
 		),
 	);
 }
