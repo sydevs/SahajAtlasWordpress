@@ -115,6 +115,9 @@ foreach ( array( $sahaj_seo_fixture['rootRoute'], '/search' ) as $sahaj_seo_root
 	set_transient( sahaj_atlas_seo_slot( $sahaj_seo_root_route ), $sahaj_seo_root, MINUTE_IN_SECONDS );
 }
 
+/** Every route this file seeds or stubs, so the stub clears exactly what the fixture wrote. */
+$GLOBALS['sahaj_seo_slots'] = array( $sahaj_seo_route, $sahaj_seo_fixture['rootRoute'], '/search' );
+
 // ---------------------------------------------------------------------------------------------
 
 sahaj_group( 'A query-routed deep link is an atlas route' );
@@ -144,9 +147,7 @@ sahaj_ok( 'core\'s rel_canonical is silenced', false === has_action( 'wp_head', 
 sahaj_ok( 'and its shortlink with it', false === has_action( 'wp_head', 'wp_shortlink_wp_head' ) );
 sahaj_ok( 'and Yoast is told to emit none', false !== has_filter( 'wpseo_canonical', '__return_false' ) );
 
-ob_start();
-sahaj_atlas_seo_emit();
-$sahaj_seo_head = (string) ob_get_clean();
+$sahaj_seo_head = sahaj_seo_head();
 
 sahaj_is( 'exactly one canonical is emitted', 1, substr_count( $sahaj_seo_head, '<link rel="canonical"' ) );
 sahaj_ok( 'and it is the one SahajCloud published', false !== strpos( $sahaj_seo_head, 'href="' . esc_url( $sahaj_seo_canonical ) . '"' ), $sahaj_seo_head );
@@ -158,7 +159,7 @@ sahaj_ok( 'og:* uses property, twitter:* uses name', false !== strpos( $sahaj_se
 // structured data no crawler can read.
 sahaj_ok( 'the JSON-LD block is emitted verbatim', false !== strpos( $sahaj_seo_head, '{"@context":"https://schema.org","@type":"Place","name":"Amsterdam"}' ) );
 
-$sahaj_seo_children = apply_filters( 'sahaj_atlas_element_children', '' );
+$sahaj_seo_children = sahaj_atlas_element_children();
 
 sahaj_ok( 'the crawlable body names the region', false !== strpos( $sahaj_seo_children, '<h1>Amsterdam</h1>' ), $sahaj_seo_children );
 sahaj_ok( 'and lists its classes', false !== strpos( $sahaj_seo_children, 'Tuesday evening class' ), $sahaj_seo_children );
@@ -374,7 +375,7 @@ function sahaj_seo_stub( $body, $status = 200 ) {
 	$GLOBALS['sahaj_seo_requests'] = array();
 	$GLOBALS['sahaj_seo_answer']   = array( 'status' => $status, 'body' => $body );
 
-	foreach ( array( '/', '/search', '/nl/amsterdam' ) as $slot ) {
+	foreach ( $GLOBALS['sahaj_seo_slots'] as $slot ) {
 		delete_transient( sahaj_atlas_seo_slot( $slot ) );
 	}
 }
@@ -422,6 +423,19 @@ sahaj_atlas_seo_boot();
 // description alone" must not pay an upstream round trip on it to be told so again.
 sahaj_is( 'nothing is fetched for a page the host describes', array(), $GLOBALS['sahaj_seo_requests'] );
 
+/*
+ * ⚠ A bare view route still asks. Only the answer names which routes resolve to the root, so the
+ * saving is the root spelling alone — and the answer is discarded without taking the page over.
+ * Pinning both halves keeps the comment in `sahaj_atlas_seo_boot()` honest about its own scope.
+ */
+sahaj_seo_reset();
+sahaj_seo_stub( $sahaj_seo_root );
+sahaj_set_query_route( '/search' );
+sahaj_atlas_seo_boot();
+
+sahaj_is( 'a bare view route does ask', 1, count( $GLOBALS['sahaj_seo_requests'] ) );
+sahaj_seo_untouched( 'and the answer is discarded, not rendered' );
+
 update_option( SAHAJ_ATLAS_OPTION_SEO_ROOT_OPT_OUT, '' );
 
 // ---------------------------------------------------------------------------------------------
@@ -459,6 +473,15 @@ $sahaj_seo_bare = sahaj_atlas_element_children();
 sahaj_ok( 'a description-less root still renders its heading', false !== strpos( $sahaj_seo_bare, '<h1>Free meditation classes near you</h1>' ) );
 sahaj_is( 'and no empty paragraph', 0, substr_count( $sahaj_seo_bare, '<p>' ) );
 sahaj_is( 'and emits no empty description tag', 0, substr_count( sahaj_seo_head(), 'name="description"' ) );
+
+// ⚠ The root's heading is its top-level title, so it renders with no `content` key at all. A gate
+// that gave every type the same "no content, no children" guard would drop the one element a
+// crawler reads on the page this ticket exists for.
+sahaj_seo_reset();
+sahaj_seo_stub( array_diff_key( $sahaj_seo_root, array( 'content' => null ) ) );
+sahaj_atlas_seo_boot();
+
+sahaj_ok( 'a root answer carrying no content at all still renders its heading', false !== strpos( sahaj_atlas_element_children(), '<h1>Free meditation classes near you</h1>' ) );
 
 // ⚠ `jsonLd` arrives escaped for a `<script>` element nothing downstream sanitizes — `<` on the
 // wire is `<`. Re-encoding it here double-escapes it into structured data no crawler reads,
@@ -546,6 +569,11 @@ sahaj_is( 'and nothing at all, until the key works', 'idle', $sahaj_seo_check['s
 
 // ---------------------------------------------------------------------------------------------
 
+// Leave nothing behind: no hooks from the last boot, no stub, and no cached answer for a later
+// suite to read as its own.
 sahaj_seo_reset();
-sahaj_seo_stub( array( 'errors' => array() ), 404 );
 remove_filter( 'pre_http_request', 'sahaj_seo_http_stub', 10 );
+
+foreach ( $GLOBALS['sahaj_seo_slots'] as $sahaj_seo_leftover ) {
+	delete_transient( sahaj_atlas_seo_slot( $sahaj_seo_leftover ) );
+}

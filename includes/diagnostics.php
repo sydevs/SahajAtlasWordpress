@@ -61,6 +61,23 @@ function sahaj_atlas_status_glyph( $status ) {
 }
 
 /**
+ * The row a check shows before the key works.
+ *
+ * Two checks read the client record, and neither can say anything until it arrives. One spelling,
+ * so a third one does not invent a second way of saying "ask me again later".
+ *
+ * @param string $label The check's own label.
+ * @return array{status:string, label:string, detail:string}
+ */
+function sahaj_atlas_check_idle( $label ) {
+	return array(
+		'status' => 'idle',
+		'label'  => $label,
+		'detail' => esc_html__( 'Not checked — the API key has to work first.', 'sahaj-atlas' ),
+	);
+}
+
+/**
  * The five checks, in the order a volunteer reaches them.
  *
  * @return array<int, array{status:string, label:string, detail:string}>
@@ -288,11 +305,7 @@ function sahaj_atlas_check_allowed_domains( $client ) {
 	$host  = sahaj_atlas_normalize_host( (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
 
 	if ( ! is_array( $client ) ) {
-		return array(
-			'status' => 'idle',
-			'label'  => $label,
-			'detail' => esc_html__( 'Not checked — the API key has to work first.', 'sahaj-atlas' ),
-		);
+		return sahaj_atlas_check_idle( $label );
 	}
 
 	$patterns = sahaj_atlas_parse_allowed_domains( isset( $client['allowedDomains'] ) ? $client['allowedDomains'] : '' );
@@ -333,8 +346,9 @@ function sahaj_atlas_check_allowed_domains( $client ) {
  * this check names the side that owns it, either way, and shows the title a visitor would get.
  *
  * ⚠ The read is `sahaj_atlas_seo_fetch()`, the same call the front end makes, so a failure here is
- * the same failure a visitor gets, and the answer lands in the cache both share. It asks in the
- * admin's own language, which is not always the site's — the panel is for the person reading it.
+ * the failure a visitor gets rather than a second opinion about it. It asks in the admin's own
+ * language, which is not always the site's — the panel is for the person reading it, and the cache
+ * slot is keyed per locale, so this warms the admin's own slot rather than the visitor's.
  *
  * @param array|WP_Error|null $client Result of the client read.
  * @return array{status:string, label:string, detail:string}
@@ -354,15 +368,11 @@ function sahaj_atlas_check_page_description( $client ) {
 	}
 
 	if ( ! is_array( $client ) ) {
-		return array(
-			'status' => 'idle',
-			'label'  => $label,
-			'detail' => esc_html__( 'Not checked — the API key has to work first.', 'sahaj-atlas' ),
-		);
+		return sahaj_atlas_check_idle( $label );
 	}
 
 	$answer = sahaj_atlas_seo_fetch( '/' );
-	$title  = is_array( $answer ) && ! empty( $answer['title'] ) ? (string) $answer['title'] : '';
+	$title  = is_array( $answer ) ? sahaj_atlas_seo_get( $answer, 'title' ) : '';
 
 	if ( '' === $title ) {
 		/*

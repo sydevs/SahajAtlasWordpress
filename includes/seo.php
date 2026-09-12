@@ -61,10 +61,12 @@ function sahaj_atlas_seo_boot() {
 		$route = '/';
 	}
 
-	// ⚠ The one route a host's own SEO plugin can describe is this page, so the opt-out is checked
-	// before the request rather than after it. A host that said "leave my description alone" must
-	// not pay an upstream round trip on their busiest page to be told so.
-	if ( '/' === $route && sahaj_atlas_seo_host_describes_root() ) {
+	$their_seo = sahaj_atlas_seo_host_describes_root();
+
+	// ⚠ One decision, consulted twice. The root spelled as `/` is checked before the request, so an
+	// opted-out host pays no round trip on the page their own nav links to. A bare view route still
+	// asks, because only the answer names which routes resolve to the root — it is discarded below.
+	if ( '/' === $route && $their_seo ) {
 		return;
 	}
 
@@ -80,7 +82,7 @@ function sahaj_atlas_seo_boot() {
 	 * answer rather than keeping a copy of that segment list, which would drift the day a view is
 	 * added there. The same reason `sahaj_atlas_seo_locale()` keeps no copy of the locale list.
 	 */
-	if ( 'root' === sahaj_atlas_seo_get( $answer, 'type' ) && sahaj_atlas_seo_host_describes_root() ) {
+	if ( 'root' === sahaj_atlas_seo_get( $answer, 'type' ) && $their_seo ) {
 		return;
 	}
 
@@ -249,18 +251,24 @@ function sahaj_atlas_seo_emit() {
 function sahaj_atlas_seo_children( $children ) {
 	$seo = $GLOBALS['sahaj_atlas_seo'];
 
-	if ( ! is_array( $seo ) || empty( $seo['content'] ) || ! is_array( $seo['content'] ) ) {
+	if ( ! is_array( $seo ) ) {
 		return $children;
 	}
 
-	switch ( sahaj_atlas_seo_get( $seo, 'type' ) ) {
-		case 'event':
-			return sahaj_atlas_seo_event_children( $seo['content'] );
-		case 'root':
-			return sahaj_atlas_seo_root_children( $seo );
-		default:
-			return sahaj_atlas_seo_region_children( $seo['content'] );
+	// ⚠ The root is decided before the `content` guard below, not after it. Its heading is the
+	// top-level title, so it renders with no content at all — and a locale nobody has written copy
+	// for answers exactly that. A region and an event have nothing to show without `content`.
+	if ( 'root' === sahaj_atlas_seo_get( $seo, 'type' ) ) {
+		return sahaj_atlas_seo_root_children( $seo );
 	}
+
+	if ( empty( $seo['content'] ) || ! is_array( $seo['content'] ) ) {
+		return $children;
+	}
+
+	return 'event' === sahaj_atlas_seo_get( $seo, 'type' )
+		? sahaj_atlas_seo_event_children( $seo['content'] )
+		: sahaj_atlas_seo_region_children( $seo['content'] );
 }
 
 /**
@@ -275,15 +283,10 @@ function sahaj_atlas_seo_children( $children ) {
  * @return string
  */
 function sahaj_atlas_seo_root_children( $seo ) {
-	$out = '<section>';
+	$content = ( isset( $seo['content'] ) && is_array( $seo['content'] ) ) ? $seo['content'] : array();
 
-	$out .= '<h1>' . esc_html( sahaj_atlas_seo_get( $seo, 'title' ) ) . '</h1>';
-
-	foreach ( sahaj_atlas_seo_list( $seo['content'], 'paragraphs' ) as $paragraph ) {
-		$out .= '<p>' . esc_html( (string) $paragraph ) . '</p>';
-	}
-
-	return $out . '</section>';
+	return '<section><h1>' . esc_html( sahaj_atlas_seo_get( $seo, 'title' ) ) . '</h1>'
+		. sahaj_atlas_seo_paragraphs( $content ) . '</section>';
 }
 
 /**
@@ -307,9 +310,7 @@ function sahaj_atlas_seo_event_children( $content ) {
 		$out .= '<address>' . esc_html( (string) $address['oneLine'] ) . '</address>';
 	}
 
-	foreach ( sahaj_atlas_seo_list( $content, 'paragraphs' ) as $paragraph ) {
-		$out .= '<p>' . esc_html( (string) $paragraph ) . '</p>';
-	}
+	$out .= sahaj_atlas_seo_paragraphs( $content );
 
 	foreach ( sahaj_atlas_seo_list( $content, 'images' ) as $image ) {
 		if ( empty( $image['url'] ) ) {
@@ -397,6 +398,25 @@ function sahaj_atlas_seo_get( $source, $key ) {
  */
 function sahaj_atlas_seo_list( $source, $key ) {
 	return ( isset( $source[ $key ] ) && is_array( $source[ $key ] ) ) ? $source[ $key ] : array();
+}
+
+/**
+ * One `<p>` per block of plain text the operator wrote, escaped.
+ *
+ * Both the root and an event render the same list from the same key, so the escaping rule lives in
+ * one place rather than once per renderer.
+ *
+ * @param array $content The answer's `content` object.
+ * @return string
+ */
+function sahaj_atlas_seo_paragraphs( $content ) {
+	$out = '';
+
+	foreach ( sahaj_atlas_seo_list( $content, 'paragraphs' ) as $paragraph ) {
+		$out .= '<p>' . esc_html( (string) $paragraph ) . '</p>';
+	}
+
+	return $out;
 }
 
 /**

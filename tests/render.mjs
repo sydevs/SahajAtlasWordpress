@@ -169,6 +169,12 @@ async function check(run) {
       /<sahaj-atlas><section><h1>Free meditation classes near you<\/h1><p>Every class is free/.test(html),
     )
 
+    // ⚠ The root is described as the root, never as a region. A gate keyed on "is there a route"
+    // rather than on the answer's own `type` would hand the landing page the last deep link's
+    // document, and the page would still return 200 with a full `<head>`.
+    ok('the root is not described as a region', !html.includes('Weekly Sahaja Yoga meditation classes'))
+    ok('and carries exactly one canonical, ours', (html.match(/<link[^>]+rel=["']canonical["'][^>]*>/gi) ?? []).length === 1)
+
     const deep = await fetch(base + DEEP)
     const deepHtml = await deep.text()
 
@@ -203,12 +209,6 @@ async function check(run) {
       /<sahaj-atlas[^>]*>[\s\S]*?<h1>Amsterdam<\/h1>[\s\S]*?Tuesday evening class/.test(queriedHtml),
       queriedHtml.slice(queriedHtml.search(/<sahaj-atlas[\s>]/), queriedHtml.search(/<sahaj-atlas[\s>]/) + 200),
     )
-
-    // ⚠ The root is described as the root, never as a region. A gate keyed on "is there a route"
-    // rather than on the answer's own `type` would hand the landing page the last deep link's
-    // document, and the page would still return 200 with a full `<head>`.
-    ok('the atlas root is not described as a region', !html.includes('Weekly Sahaja Yoga meditation classes'))
-    ok('and carries exactly one canonical, ours', (html.match(/<link[^>]+rel=["']canonical["'][^>]*>/gi) ?? []).length === 1)
 
     // The plugin claims a subtree, not the whole site. If this regresses, every typo on the site
     // becomes the atlas, and the host loses their 404 page.

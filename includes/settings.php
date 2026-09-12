@@ -37,7 +37,7 @@ function sahaj_atlas_register_settings() {
 		SAHAJ_ATLAS_OPTION_SEO_ROOT_OPT_OUT,
 		array(
 			'type'              => 'string',
-			'label'             => __( 'Let this site\'s SEO plugin describe the Atlas page', 'sahaj-atlas' ),
+			'label'             => __( 'Let my SEO plugin describe the Atlas page', 'sahaj-atlas' ),
 			'sanitize_callback' => 'sahaj_atlas_sanitize_checkbox',
 			'default'           => '',
 			// ⚠ Per site, like the key. On a multisite network one site may write its own atlas

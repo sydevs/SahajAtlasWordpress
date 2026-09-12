@@ -189,7 +189,8 @@ function sahaj_atlas_query_route() {
 	}
 
 	// The same sanitiser the block and shortcode attribute uses. A value it refuses leaves the route
-	// empty, so the page falls back to the host's own metadata rather than emitting a wrong one.
+	// empty, and an empty route on the Atlas page is its root view — so the page describes itself,
+	// never the crafted value. The refused string reaches neither the endpoint nor the canonical.
 	//
 	// ⚠ `wp_unslash()` is not optional. `wp_magic_quotes()` slashes every request variable before any
 	// plugin reads one, so `/\evil.com` arrives as `/\\evil.com` and would walk past the sanitiser's
