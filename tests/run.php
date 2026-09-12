@@ -306,6 +306,7 @@ sahaj_ok( 'and the page path', false !== strpos( $mount, (string) get_page_uri( 
 require __DIR__ . '/contract.php';
 require __DIR__ . '/sitemap.php';
 require __DIR__ . '/domains.php';
+require __DIR__ . '/seo.php';
 
 // ---------------------------------------------------------------------------------------------
 

@@ -141,6 +141,33 @@ async function check(run) {
     ok('and no locale — the page\'s <html lang> is the source', !src.includes('locale='), src)
     ok('and no version query core would have appended', !src.includes('ver='), src)
 
+    // ── The root view's metadata (SahajCloud#739) ──────────────────────────────────────────────
+    // The blueprint seeds the answer, so this exercises the takeover itself: the suppression, the
+    // head block, and the crawlable children, without a real API key. Which routes get asked
+    // about, and what happens when nothing answers, are the PHP suite's job.
+    //
+    // ⚠ This page is the one a host links from its own nav, and it had no metadata of its own
+    // until #739. Every assertion below reads the page a crawler gets, not the one a browser
+    // assembles: the widget replaces these children the moment it boots.
+    ok('the root view takes its title from the atlas', /<title>\s*Free meditation classes near you\s*<\/title>/.test(html))
+    ok('with a description of its own', html.includes('name="description" content="Find a free meditation class near you."'))
+    ok('a canonical of its own', new RegExp(`<link rel="canonical" href="${base}/find-a-class"`).test(html))
+    ok('one hreflang row per locale the answer carries', (html.match(/rel="alternate" hreflang=/g) ?? []).length === 2)
+    ok('and Open Graph tags', html.includes('property="og:title" content="Free meditation classes near you"'))
+
+    // ⚠ The producer escapes this value for a `<script>` element nothing downstream sanitizes, so
+    // the plugin echoes it raw. `esc_html` here would leave a crawler `&quot;`-laden text, and
+    // re-encoding would double-escape it — both still render a script tag, so only the payload shows it.
+    ok(
+      'the JSON-LD is echoed exactly as it arrived',
+      html.includes('<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Sahaj Atlas"}]}</script>'),
+    )
+
+    ok(
+      'and the element carries crawlable content for a visitor with no JavaScript',
+      /<sahaj-atlas><section><h1>Free meditation classes near you<\/h1><p>Every class is free/.test(html),
+    )
+
     const deep = await fetch(base + DEEP)
     const deepHtml = await deep.text()
 
