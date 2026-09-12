@@ -87,8 +87,8 @@ add_action( 'parse_request', 'sahaj_atlas_parse_request' );
 add_filter( 'redirect_canonical', 'sahaj_atlas_suppress_canonical_redirect' );
 add_action( 'template_redirect', 'sahaj_atlas_resolve_and_enqueue' );
 // ⚠ This hook runs at priority 11, after the embed resolves at priority 10. This means the SEO
-// takeover runs only on a page that already carries the widget. It also reads the route that the
-// resolver already validated.
+// takeover runs only on a page that already carries the widget. It validates the route itself —
+// the resolver does not, since the Atlas page's embed carries no `atlas` attribute at all.
 add_action( 'template_redirect', 'sahaj_atlas_seo_boot', 11 );
 // ⚠ This uses `wp_footer`, not `wp_body_open`. Both templates now print the element in the normal
 // page flow. A contained map draws where its element sits, so the element must come after the
