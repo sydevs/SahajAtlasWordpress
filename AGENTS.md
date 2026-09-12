@@ -94,13 +94,13 @@ the full story.
 9. `redirect_canonical()` 301s deep links back to the page root. Suppress it when the **path**
    route is set, never on every atlas route — a query-routed URL is the page's own permalink plus
    a parameter, so core has nothing to strip, and widening the filter would switch a core
-   behaviour off for any page load carrying `?atlas=`. See routing.php:113,118.
+   behaviour off for any page load carrying `?atlas=`. See routing.php:116,121.
 10. No translated string may run before `init` (WordPress 6.7) — not at file scope, in an
     activation hook, or on `plugins_loaded`. See sahaj-atlas.php:22.
 11. One `_wp_page_template` value serves both theme kinds. Core strips the suffix automatically,
     so do not branch to "fix" it. See page.php:191.
 12. A front-page atlas refuses path routing, or it would turn the host's own 404 page into the
-    atlas. See routing.php:207, tests/contract.php:130.
+    atlas. See routing.php:210, tests/contract.php:130.
 13. An empty sitemap must return a 404, never an empty `<urlset>` or an index line. See
     sitemap.php:81, tests/sitemap.php:82.
 14. `allowedDomains` splits on newlines, not commas. An empty list allows every origin — the
@@ -116,7 +116,7 @@ the full story.
     the SEO takeover, the `<title>` filter, the JSON-LD, the crawlable body — follows a
     query-routed deep link too. Reading `?atlas=` stays gated on the Atlas page: the parameter is
     one anyone can append to any URL on the site, and an ungated read would let an arbitrary page
-    claim an atlas route's canonical. See routing.php:155,161.
+    claim an atlas route's canonical. See routing.php:158,164,168.
 
 ## What is built
 
@@ -167,6 +167,9 @@ Three more traps apply here. Their inline `⚠` comments carry the full detail.
 - `$_GET` is already slashed when a plugin reads it, so a fixture that assigns a raw value tests a
   request WordPress never delivers. Set it through `sahaj_set_query_route()`. See
   tests/run.php:242.
+- One SEO endpoint answer serves every lane: `tests/fixtures/seo-answer.php`. The PHP suite requires
+  it, and both render blueprints require it from the mounted plugin. Three copies of an upstream
+  response shape diverge the first time that shape changes.
 
 ## Where the truth lives
 

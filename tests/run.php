@@ -248,7 +248,28 @@ function sahaj_route_for( $path ) {
  * @param mixed $value The value as a browser would send it.
  */
 function sahaj_set_query_route( $value ) {
-	$_GET[ SAHAJ_ATLAS_QUERY_VAR ] = wp_slash( $value );
+	$_GET[ SAHAJ_ATLAS_ROUTE_PARAM ] = wp_slash( $value );
+}
+
+/**
+ * Take the route back out again. The parameter is written and cleared in one place only.
+ */
+function sahaj_clear_query_route() {
+	unset( $_GET[ SAHAJ_ATLAS_ROUTE_PARAM ] );
+}
+
+/**
+ * Make the Atlas page the request WordPress thinks it is serving.
+ *
+ * `sahaj_atlas_is_atlas_page()` reads `is_page()` and `get_queried_object_id()` off the main query,
+ * so every query-routing assertion needs this first. One spelling, since a second one that forgets
+ * part of the setup shows up as a takeover that silently does not run.
+ *
+ * @param int|null $page_id Page to query, or null for the Atlas page.
+ * @return WP_Query
+ */
+function sahaj_query_page( $page_id = null ) {
+	return new WP_Query( array( 'page_id' => null === $page_id ? sahaj_atlas_page_id() : $page_id ) );
 }
 
 sahaj_is( 'a deep link is claimed', '/gb/london', sahaj_route_for( "$base/gb/london" ) );

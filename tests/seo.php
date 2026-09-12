@@ -6,12 +6,8 @@
  * transient exercises everything after it: the gate that decides whether this plugin owns the
  * page's metadata, the suppression of every other source, and the tags themselves.
  *
- * ⚠ Fixture pre-mortem. `$sahaj_seo_answer` assumes the endpoint's success body is an
- * `AtlasSeoResponse`: `type`, `id`, `route`, `locale`, `title`, `description`, `canonical`,
- * `alternates`, `openGraph`, `jsonLd`, `breadcrumbs`, `content`. Verified against
- * `src/endpoints/responseTypes.ts:149-188` in sydevs/SahajCloud, and the region content shape
- * against `AtlasSeoRegionContent` and `AtlasSeoEventCard` in the same file. A fixture invented from
- * this plugin's reader instead would only assert that the reader reads itself.
+ * The answer comes from `tests/fixtures/seo-answer.php`, the one copy both render blueprints seed
+ * from too. Its own docblock carries the fixture pre-mortem.
  *
  * @package SahajAtlas
  */
@@ -21,6 +17,7 @@
  *
  * `sahaj_atlas_seo_boot()` is a one-way door by design — it hooks, and never unhooks. So a suite
  * that runs it more than once has to undo it, or the second case inherits the first one's verdict.
+ * Only the state an assertion below reads is restored.
  */
 function sahaj_seo_reset() {
 	$GLOBALS['sahaj_atlas_seo'] = null;
@@ -29,78 +26,37 @@ function sahaj_seo_reset() {
 	remove_filter( 'pre_get_document_title', 'sahaj_atlas_seo_title' );
 	remove_filter( 'sahaj_atlas_element_children', 'sahaj_atlas_seo_children' );
 	remove_filter( 'wpseo_canonical', '__return_false' );
-	remove_filter( 'aioseo_disable', '__return_true' );
-	remove_filter( 'aioseo_disable_schema', '__return_true' );
 
 	// Core's own emitters, at the priorities `wp-includes/default-filters.php` registers them with.
 	add_action( 'wp_head', 'rel_canonical' );
 	add_action( 'wp_head', 'wp_shortlink_wp_head', 10, 0 );
 
-	unset( $_GET[ SAHAJ_ATLAS_QUERY_VAR ] );
+	sahaj_clear_query_route();
 	set_query_var( SAHAJ_ATLAS_ROUTE_VAR, '' );
 }
 
 /**
- * The `<head>` block this plugin emits for the current answer.
+ * Assert that this request changed nothing: no takeover, and nobody silenced.
  *
- * @return string
+ * @param string $label What was tried.
  */
-function sahaj_seo_head() {
-	ob_start();
-
-	sahaj_atlas_seo_emit();
-
-	return (string) ob_get_clean();
+function sahaj_seo_untouched( $label ) {
+	sahaj_ok(
+		$label,
+		null === $GLOBALS['sahaj_atlas_seo'] && false !== has_action( 'wp_head', 'rel_canonical' )
+	);
 }
 
 update_option( 'permalink_structure', '/%postname%/' );
 update_option( SAHAJ_ATLAS_OPTION_KEY, 'test-key-123' );
 sahaj_mount_atlas_page_at( 'find-a-class' );
 
-$sahaj_seo_route     = '/nl/amsterdam';
-$sahaj_seo_canonical = home_url( '/find-a-class/' ) . '?atlas=' . $sahaj_seo_route;
+$sahaj_seo_fixture   = require __DIR__ . '/fixtures/seo-answer.php';
+$sahaj_seo_route     = $sahaj_seo_fixture['route'];
+$sahaj_seo_canonical = $sahaj_seo_fixture['canonical'];
 
-$sahaj_seo_answer = array(
-	'type'        => 'region',
-	'id'          => 42,
-	'route'       => $sahaj_seo_route,
-	'locale'      => 'en',
-	'title'       => 'Free meditation classes in Amsterdam',
-	'description' => 'Weekly Sahaja Yoga meditation classes in Amsterdam, free to attend.',
-	'canonical'   => $sahaj_seo_canonical,
-	'alternates'  => array(
-		array( 'hreflang' => 'en', 'href' => $sahaj_seo_canonical ),
-		array( 'hreflang' => 'x-default', 'href' => $sahaj_seo_canonical ),
-	),
-	'openGraph'   => array(
-		'og:title'     => 'Free meditation classes in Amsterdam',
-		'twitter:card' => 'summary',
-	),
-	'jsonLd'      => '{"@context":"https://schema.org","@type":"Place","name":"Amsterdam"}',
-	'breadcrumbs' => array(
-		array( 'name' => 'Netherlands', 'route' => '/nl', 'url' => home_url( '/find-a-class/' ) . '?atlas=/nl' ),
-	),
-	'content'     => array(
-		'name'       => 'Amsterdam',
-		'subtitle'   => 'Netherlands',
-		'level'      => 'city',
-		'eventCount' => 1,
-		'events'     => array(
-			array(
-				'id'       => 1204,
-				'route'    => '/nl/amsterdam/1204',
-				'url'      => home_url( '/find-a-class/' ) . '?atlas=/nl/amsterdam/1204',
-				'title'    => 'Tuesday evening class',
-				'schedule' => 'Every week on Tuesday at 7:00 PM',
-				'address'  => 'Keizersgracht 1, Amsterdam',
-				'online'   => false,
-			),
-		),
-	),
-);
-
-// An ordinary page, queried the same way a visitor's request would be. `?atlas=` on it is the case
-// that must change nothing at all.
+// An ordinary page, queried the way a visitor's request would be. `?atlas=` on it must change
+// nothing at all.
 $sahaj_seo_other_page = wp_insert_post(
 	array(
 		'post_type'   => 'page',
@@ -110,22 +66,21 @@ $sahaj_seo_other_page = wp_insert_post(
 	)
 );
 
-$sahaj_seo_page_query  = new WP_Query( array( 'page_id' => sahaj_atlas_page_id() ) );
-$sahaj_seo_other_query = new WP_Query( array( 'page_id' => $sahaj_seo_other_page ) );
+$sahaj_seo_page_query  = sahaj_query_page();
+$sahaj_seo_other_query = sahaj_query_page( $sahaj_seo_other_page );
 
 $GLOBALS['wp_query'] = $sahaj_seo_page_query;
 
 // The transient is seeded through the plugin's own key builder, not a copy of it. A hand-written
 // key that drifts would make every assertion below fetch over the network and fail as a timeout,
 // which reads as a broken endpoint rather than a broken fixture.
-set_transient( sahaj_atlas_seo_slot( $sahaj_seo_route ), $sahaj_seo_answer, MINUTE_IN_SECONDS );
+set_transient( sahaj_atlas_seo_slot( $sahaj_seo_route ), $sahaj_seo_fixture['answer'], MINUTE_IN_SECONDS );
 
 // ---------------------------------------------------------------------------------------------
 
 sahaj_group( 'A query-routed deep link is an atlas route' );
 
 sahaj_seo_reset();
-
 sahaj_set_query_route( $sahaj_seo_route );
 
 sahaj_is( 'the route variable answers for `?atlas=` too', $sahaj_seo_route, sahaj_atlas_current_route() );
@@ -149,7 +104,9 @@ sahaj_ok( 'core\'s rel_canonical is silenced', false === has_action( 'wp_head', 
 sahaj_ok( 'and its shortlink with it', false === has_action( 'wp_head', 'wp_shortlink_wp_head' ) );
 sahaj_ok( 'and Yoast is told to emit none', false !== has_filter( 'wpseo_canonical', '__return_false' ) );
 
-$sahaj_seo_head = sahaj_seo_head();
+ob_start();
+sahaj_atlas_seo_emit();
+$sahaj_seo_head = (string) ob_get_clean();
 
 sahaj_is( 'exactly one canonical is emitted', 1, substr_count( $sahaj_seo_head, '<link rel="canonical"' ) );
 sahaj_ok( 'and it is the one SahajCloud published', false !== strpos( $sahaj_seo_head, 'href="' . esc_url( $sahaj_seo_canonical ) . '"' ), $sahaj_seo_head );
@@ -182,8 +139,7 @@ sahaj_set_query_route( '/gb/london' );
 
 sahaj_is( 'and a parameter cannot override it', $sahaj_seo_route, sahaj_atlas_current_route() );
 
-unset( $_GET[ SAHAJ_ATLAS_QUERY_VAR ] );
-
+sahaj_clear_query_route();
 sahaj_atlas_seo_boot();
 
 sahaj_ok( 'the takeover still runs on a path-routed link', is_array( $GLOBALS['sahaj_atlas_seo'] ) );
@@ -192,17 +148,12 @@ sahaj_ok( 'the takeover still runs on a path-routed link', is_array( $GLOBALS['s
 
 sahaj_group( 'The atlas root stays the host\'s own page' );
 
-foreach ( array( '/', '' ) as $sahaj_root ) {
+foreach ( array( '/' => 'the root route', '' => 'an empty parameter' ) as $sahaj_root => $sahaj_label ) {
 	sahaj_seo_reset();
-
 	sahaj_set_query_route( $sahaj_root );
 
 	sahaj_atlas_seo_boot();
-
-	$label = '' === $sahaj_root ? 'an empty parameter' : 'the root route';
-
-	sahaj_ok( "$label triggers no takeover", null === $GLOBALS['sahaj_atlas_seo'] );
-	sahaj_ok( "and $label suppresses nothing", false !== has_action( 'wp_head', 'rel_canonical' ) );
+	sahaj_seo_untouched( "$sahaj_label triggers no takeover, and suppresses nothing" );
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -213,20 +164,19 @@ sahaj_group( 'A value the sanitiser refuses is not a route' );
 // from a URL anyone can compose, which is the sharper version of the same problem.
 foreach ( array( '//evil.com', '/\\evil.com', "/\t/evil.com", 'https://evil.com', 'gb/london' ) as $sahaj_hostile ) {
 	sahaj_seo_reset();
-
 	sahaj_set_query_route( $sahaj_hostile );
 
-	sahaj_is( 'refuses ' . str_replace( "\t", '\t', $sahaj_hostile ), '', sahaj_atlas_current_route() );
+	$sahaj_label = str_replace( "\t", '\t', $sahaj_hostile );
+
+	sahaj_is( "refuses $sahaj_label", '', sahaj_atlas_current_route() );
 
 	sahaj_atlas_seo_boot();
-
-	sahaj_ok( 'and leaves the host\'s own metadata in place', null === $GLOBALS['sahaj_atlas_seo'] && false !== has_action( 'wp_head', 'rel_canonical' ) );
+	sahaj_seo_untouched( "and $sahaj_label leaves the host's own metadata in place" );
 }
 
-// An array value. `?atlas[]=/nl/amsterdam` makes `$_GET['atlas']` an array, and a bare string cast
-// on one is a PHP notice plus the literal word `Array`.
+// An array value. `?atlas[]=/nl/amsterdam` makes the parameter an array, and a bare string cast on
+// one is a PHP notice plus the literal word `Array`.
 sahaj_seo_reset();
-
 sahaj_set_query_route( array( $sahaj_seo_route ) );
 
 sahaj_is( 'refuses an array parameter', '', sahaj_atlas_current_route() );
@@ -244,8 +194,8 @@ sahaj_set_query_route( $sahaj_seo_route );
 sahaj_is( 'no route is claimed off the Atlas page', '', sahaj_atlas_current_route() );
 
 sahaj_atlas_seo_boot();
+sahaj_seo_untouched( 'so no takeover, and no suppression' );
 
-sahaj_ok( 'so no takeover, and no suppression', null === $GLOBALS['sahaj_atlas_seo'] && false !== has_action( 'wp_head', 'rel_canonical' ) );
 sahaj_is( 'and its own canonical redirect still runs', 'https://example.com/x', sahaj_atlas_suppress_canonical_redirect( 'https://example.com/x' ) );
 
 sahaj_seo_reset();

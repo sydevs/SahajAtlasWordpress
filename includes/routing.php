@@ -1,11 +1,14 @@
 <?php
 /**
- * Path routing: serving the Atlas page for everything beneath it.
+ * Routing: reading the atlas route a request carries, in either shape.
  *
  * With `routing=path`, the widget puts its route in the pathname — `/find-a-class/gb/london`, not
  * `/find-a-class/?atlas=/gb/london`. A click inside the widget uses `pushState` and never reaches
  * the server. But a reload, a bookmark, or a shared link does reach the server, and that URL must
  * return the Atlas page.
+ *
+ * With `routing=query` the server has nothing to match — WordPress already served the page — so
+ * this file only reads the parameter back. Both shapes end at `sahaj_atlas_current_route()`.
  *
  * @package SahajAtlas
  */
@@ -162,11 +165,18 @@ function sahaj_atlas_path_route() {
  * the site, and this function feeds `sahaj_atlas_seo_boot()`. Without the check, an arbitrary page
  * could be talked into claiming an atlas route's canonical as its own.
  *
+ * ⚠ This reads `$_GET` rather than registering `atlas` through `query_vars`, and that is a
+ * deliberate exception to preferring a core API. A registered var is filled from `$_POST` before
+ * `$_GET`, so the route would become accepted from a request body. It would still need the Atlas
+ * page check above, since `get_query_var()` answers on every page. It would claim the bare name
+ * `atlas` as a public query var across the host's whole site. And `sahaj_atlas_parse_request()`
+ * replaces `$wp->query_vars` wholesale, so it would be discarded on the path-routed requests.
+ *
  * @return string
  */
 function sahaj_atlas_query_route() {
-	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- a public URL parameter on a read-only request; validated by `sahaj_atlas_clean_route()`.
-	$raw = isset( $_GET[ SAHAJ_ATLAS_QUERY_VAR ] ) ? wp_unslash( $_GET[ SAHAJ_ATLAS_QUERY_VAR ] ) : '';
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- a public URL parameter on a read-only request, sanitized below once the cheap guards pass.
+	$raw = isset( $_GET[ SAHAJ_ATLAS_ROUTE_PARAM ] ) ? $_GET[ SAHAJ_ATLAS_ROUTE_PARAM ] : '';
 
 	if ( ! is_string( $raw ) || '' === $raw || ! sahaj_atlas_is_atlas_page() ) {
 		return '';
@@ -174,7 +184,11 @@ function sahaj_atlas_query_route() {
 
 	// The same sanitiser the block and shortcode attribute uses. A value it refuses leaves the route
 	// empty, so the page falls back to the host's own metadata rather than emitting a wrong one.
-	return sahaj_atlas_clean_route( $raw );
+	//
+	// ⚠ `wp_unslash()` is not optional. `wp_magic_quotes()` slashes every request variable before any
+	// plugin reads one, so `/\evil.com` arrives as `/\\evil.com` and would walk past the sanitiser's
+	// backslash check unrecognised.
+	return sahaj_atlas_clean_route( wp_unslash( $raw ) );
 }
 
 /**

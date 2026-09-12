@@ -54,8 +54,11 @@ define( 'SAHAJ_ATLAS_ROUTE_VAR', 'sahaj_atlas_route' );
  * ⚠ This is `queryParam` in the shared URL contract, not a name this plugin chose. SahajCloud
  * composes canonical URLs with it, and the widget reads it back. `tests/contract.php` pins the two
  * together.
+ *
+ * ⚠ A parameter, not a query var — unlike `SAHAJ_ATLAS_ROUTE_VAR` above, this one is deliberately
+ * never registered with WordPress. See `sahaj_atlas_query_route()` for the three reasons.
  */
-define( 'SAHAJ_ATLAS_QUERY_VAR', 'atlas' );
+define( 'SAHAJ_ATLAS_ROUTE_PARAM', 'atlas' );
 
 require_once SAHAJ_ATLAS_DIR . 'includes/embed.php';
 require_once SAHAJ_ATLAS_DIR . 'includes/page.php';
@@ -87,8 +90,9 @@ add_action( 'parse_request', 'sahaj_atlas_parse_request' );
 add_filter( 'redirect_canonical', 'sahaj_atlas_suppress_canonical_redirect' );
 add_action( 'template_redirect', 'sahaj_atlas_resolve_and_enqueue' );
 // ⚠ This hook runs at priority 11, after the embed resolves at priority 10. This means the SEO
-// takeover runs only on a page that already carries the widget. It validates the route itself —
-// the resolver does not, since the Atlas page's embed carries no `atlas` attribute at all.
+// takeover runs only on a page that already carries the widget. The route validates itself, in
+// `sahaj_atlas_query_route()` — the resolver does not, since the Atlas page's embed carries no
+// `atlas` attribute at all.
 add_action( 'template_redirect', 'sahaj_atlas_seo_boot', 11 );
 // ⚠ This uses `wp_footer`, not `wp_body_open`. Both templates now print the element in the normal
 // page flow. A contained map draws where its element sits, so the element must come after the

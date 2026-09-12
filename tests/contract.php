@@ -179,11 +179,11 @@ sahaj_group( 'Query routing answers the same contract' );
 sahaj_is(
 	'the plugin reads the parameter the contract names',
 	isset( $sahaj_contract['queryParam'] ) ? $sahaj_contract['queryParam'] : null,
-	SAHAJ_ATLAS_QUERY_VAR
+	SAHAJ_ATLAS_ROUTE_PARAM
 );
 
 $sahaj_previous_query = isset( $GLOBALS['wp_query'] ) ? $GLOBALS['wp_query'] : null;
-$GLOBALS['wp_query']  = new WP_Query( array( 'page_id' => sahaj_atlas_page_id() ) );
+$GLOBALS['wp_query']  = sahaj_query_page();
 
 $sahaj_query_replayed = 0;
 
@@ -197,11 +197,11 @@ foreach ( $sahaj_contract['cases'] as $case ) {
 
 	parse_str( (string) wp_parse_url( (string) $case['expected'], PHP_URL_QUERY ), $sahaj_args );
 
-	if ( ! isset( $sahaj_args[ SAHAJ_ATLAS_QUERY_VAR ] ) ) {
+	if ( ! isset( $sahaj_args[ SAHAJ_ATLAS_ROUTE_PARAM ] ) ) {
 		continue;
 	}
 
-	sahaj_set_query_route( $sahaj_args[ SAHAJ_ATLAS_QUERY_VAR ] );
+	sahaj_set_query_route( $sahaj_args[ SAHAJ_ATLAS_ROUTE_PARAM ] );
 
 	++$sahaj_query_replayed;
 
@@ -212,7 +212,7 @@ foreach ( $sahaj_contract['cases'] as $case ) {
 	);
 }
 
-unset( $_GET[ SAHAJ_ATLAS_QUERY_VAR ] );
+sahaj_clear_query_route();
 
 sahaj_ok( 'replayed the query cases the contract publishes', $sahaj_query_replayed >= 3 );
 
