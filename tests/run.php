@@ -236,6 +236,21 @@ function sahaj_route_for( $path ) {
 	return isset( $wp->query_vars[ SAHAJ_ATLAS_ROUTE_VAR ] ) ? $wp->query_vars[ SAHAJ_ATLAS_ROUTE_VAR ] : null;
 }
 
+/**
+ * Put a route in `?atlas=`, the way a browser would deliver it.
+ *
+ * ⚠ `$_GET` is already slashed by the time any plugin reads it. `wp_magic_quotes()` runs on every
+ * request, before `init`, so the plugin unslashes — and a fixture that assigns a raw value tests a
+ * request WordPress never delivers. `/\evil.com` is where this shows: unslashing a raw value eats
+ * the backslash and the hostile shape sails through as `/evil.com`. Every query-routing case here
+ * goes through this function for that reason.
+ *
+ * @param mixed $value The value as a browser would send it.
+ */
+function sahaj_set_query_route( $value ) {
+	$_GET[ SAHAJ_ATLAS_QUERY_VAR ] = wp_slash( $value );
+}
+
 sahaj_is( 'a deep link is claimed', '/gb/london', sahaj_route_for( "$base/gb/london" ) );
 sahaj_is( 'a deeper one too', '/in/pune/507/register', sahaj_route_for( "$base/in/pune/507/register" ) );
 sahaj_is( 'the page itself is left to WordPress', null, sahaj_route_for( $base ) );
@@ -306,6 +321,7 @@ sahaj_ok( 'and the page path', false !== strpos( $mount, (string) get_page_uri( 
 require __DIR__ . '/contract.php';
 require __DIR__ . '/sitemap.php';
 require __DIR__ . '/domains.php';
+require __DIR__ . '/seo.php';
 
 // ---------------------------------------------------------------------------------------------
 

@@ -9,8 +9,8 @@
  * URL that SahajCloud publishes and this plugin 404s is the same defect as a wrong canonical URL,
  * seen from the other side.
  *
- * Every `routing: "path"` case with a URL is replayed here as a request. Every case the contract
- * refuses is asserted to stay unclaimed.
+ * Every `routing: "path"` case with a URL is replayed here as a request, and every `"query"` case
+ * as the parameter it arrives in. Every case the contract refuses is asserted to stay unclaimed.
  *
  * @package SahajAtlas
  */
@@ -48,9 +48,8 @@ foreach ( $sahaj_contract['cases'] as $case ) {
 	$target  = isset( $case['target'] ) ? $case['target'] : array();
 	$routing = isset( $target['routing'] ) ? $target['routing'] : '';
 
-	// Query-routing cases put the route in `?atlas=`. That value never reaches the server as a
-	// path, so this plugin has nothing to serve here. The widget's own test suite covers the
-	// parsing.
+	// Query-routing cases never reach the server as a path. They are replayed as parameters in
+	// their own group below.
 	if ( 'path' !== $routing ) {
 		continue;
 	}
@@ -163,3 +162,58 @@ update_option( 'page_on_front', $sahaj_front );
 clean_post_cache( sahaj_atlas_page_id() );
 
 sahaj_ok( 'which is restored once it is no longer the front page', sahaj_atlas_path_routing_viable() );
+
+// ---------------------------------------------------------------------------------------------
+
+sahaj_group( 'Query routing answers the same contract' );
+
+/*
+ * ⚠ The path cases above are replayed as requests. These are replayed as parameters, because that
+ * is how the route arrives — the server sees the page's own permalink either way. Both halves
+ * matter equally: a canonical URL SahajCloud publishes and this plugin renders as a generic page is
+ * the same defect as one it 404s, seen from the other side.
+ *
+ * Query routing is permanent for the hosts on it, not a waiting room. A site with plain permalinks,
+ * an atlas at its front page, or a server SahajCloud cannot probe stays here for good.
+ */
+sahaj_is(
+	'the plugin reads the parameter the contract names',
+	isset( $sahaj_contract['queryParam'] ) ? $sahaj_contract['queryParam'] : null,
+	SAHAJ_ATLAS_QUERY_VAR
+);
+
+$sahaj_previous_query = isset( $GLOBALS['wp_query'] ) ? $GLOBALS['wp_query'] : null;
+$GLOBALS['wp_query']  = new WP_Query( array( 'page_id' => sahaj_atlas_page_id() ) );
+
+$sahaj_query_replayed = 0;
+
+foreach ( $sahaj_contract['cases'] as $case ) {
+	$target  = isset( $case['target'] ) ? $case['target'] : array();
+	$routing = isset( $target['routing'] ) ? $target['routing'] : '';
+
+	if ( 'query' !== $routing || empty( $case['expected'] ) ) {
+		continue;
+	}
+
+	parse_str( (string) wp_parse_url( (string) $case['expected'], PHP_URL_QUERY ), $sahaj_args );
+
+	if ( ! isset( $sahaj_args[ SAHAJ_ATLAS_QUERY_VAR ] ) ) {
+		continue;
+	}
+
+	sahaj_set_query_route( $sahaj_args[ SAHAJ_ATLAS_QUERY_VAR ] );
+
+	++$sahaj_query_replayed;
+
+	sahaj_is(
+		'reads the published route — ' . ( isset( $case['name'] ) ? (string) $case['name'] : '(unnamed)' ),
+		(string) $case['webPath'],
+		sahaj_atlas_current_route()
+	);
+}
+
+unset( $_GET[ SAHAJ_ATLAS_QUERY_VAR ] );
+
+sahaj_ok( 'replayed the query cases the contract publishes', $sahaj_query_replayed >= 3 );
+
+$GLOBALS['wp_query'] = $sahaj_previous_query;
