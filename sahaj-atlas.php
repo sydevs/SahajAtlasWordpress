@@ -48,6 +48,15 @@ define( 'SAHAJ_ATLAS_OPTION_PAGE', 'sahaj_atlas_page_id' );
 /** The query var the path router hands to the widget's page. */
 define( 'SAHAJ_ATLAS_ROUTE_VAR', 'sahaj_atlas_route' );
 
+/**
+ * The public URL parameter a query-routed atlas link carries.
+ *
+ * ⚠ This is `queryParam` in the shared URL contract, not a name this plugin chose. SahajCloud
+ * composes canonical URLs with it, and the widget reads it back. `tests/contract.php` pins the two
+ * together.
+ */
+define( 'SAHAJ_ATLAS_QUERY_VAR', 'atlas' );
+
 require_once SAHAJ_ATLAS_DIR . 'includes/embed.php';
 require_once SAHAJ_ATLAS_DIR . 'includes/page.php';
 require_once SAHAJ_ATLAS_DIR . 'includes/routing.php';

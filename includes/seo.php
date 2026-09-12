@@ -350,7 +350,7 @@ function sahaj_atlas_seo_fetch( $route ) {
 	}
 
 	$locale = sahaj_atlas_seo_locale();
-	$slot   = 'sahaj_atlas_seo_' . substr( md5( $route . '|' . $locale . '|' . $key ), 0, 20 );
+	$slot   = sahaj_atlas_seo_slot( $route, $locale );
 	$cached = get_transient( $slot );
 
 	if ( is_array( $cached ) ) {
@@ -379,6 +379,24 @@ function sahaj_atlas_seo_fetch( $route ) {
 	set_transient( $slot, $answer['body'], SAHAJ_ATLAS_SEO_TTL );
 
 	return $answer['body'];
+}
+
+/**
+ * The transient name holding one route's answer.
+ *
+ * The key is part of it: two sites sharing a database must not share an answer, and a key change is
+ * a different client record. So is the locale, since the answer is written in it.
+ *
+ * @param string      $route  The atlas route.
+ * @param string|null $locale Locale, or null for this request's own.
+ * @return string
+ */
+function sahaj_atlas_seo_slot( $route, $locale = null ) {
+	if ( null === $locale ) {
+		$locale = sahaj_atlas_seo_locale();
+	}
+
+	return 'sahaj_atlas_seo_' . substr( md5( $route . '|' . $locale . '|' . sahaj_atlas_api_key() ), 0, 20 );
 }
 
 /**

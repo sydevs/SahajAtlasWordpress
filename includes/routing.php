@@ -115,22 +115,66 @@ function sahaj_atlas_parse_request( $wp ) {
  * So every shared deep link lands on the root view instead. This costs one filter, and stays
  * invisible until somebody follows a link.
  *
+ * ⚠ This asks for the path route alone, never `sahaj_atlas_current_route()`. A query-routed URL is
+ * the page's own permalink plus a parameter, so core has nothing to strip and nothing to suppress.
+ * Widening this filter to every atlas route would return `false` on ordinary page loads that happen
+ * to carry `?atlas=`, disabling a core behaviour for no gain.
+ *
  * @param string|false $redirect The URL core wants to redirect to.
  * @return string|false
  */
 function sahaj_atlas_suppress_canonical_redirect( $redirect ) {
-	return sahaj_atlas_current_route() ? false : $redirect;
+	return sahaj_atlas_path_route() ? false : $redirect;
 }
 
 /**
- * The atlas route this request is for, or an empty string.
+ * The atlas route this request is for, whichever routing mode carried it, or an empty string.
  *
  * @return string
  */
 function sahaj_atlas_current_route() {
+	$route = sahaj_atlas_path_route();
+
+	return '' !== $route ? $route : sahaj_atlas_query_route();
+}
+
+/**
+ * The route `sahaj_atlas_parse_request()` claimed, or an empty string.
+ *
+ * @return string
+ */
+function sahaj_atlas_path_route() {
 	$route = get_query_var( SAHAJ_ATLAS_ROUTE_VAR );
 
 	return is_string( $route ) ? $route : '';
+}
+
+/**
+ * The route carried in `?atlas=`, or an empty string.
+ *
+ * ⚠ Query routing is a supported, permanent shape, not a transitional one. A host whose server
+ * cannot path-route — plain permalinks, an atlas at the front page, a server SahajCloud cannot
+ * probe — stays on it for good, and SahajCloud publishes real canonical URLs for those routes. Read
+ * here, so `sahaj_atlas_current_route()` answers for both shapes and the SEO takeover follows for
+ * free.
+ *
+ * ⚠ The Atlas page check is load-bearing. `?atlas=` is a parameter anyone can append to any URL on
+ * the site, and this function feeds `sahaj_atlas_seo_boot()`. Without the check, an arbitrary page
+ * could be talked into claiming an atlas route's canonical as its own.
+ *
+ * @return string
+ */
+function sahaj_atlas_query_route() {
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- a public URL parameter on a read-only request; validated by `sahaj_atlas_clean_route()`.
+	$raw = isset( $_GET[ SAHAJ_ATLAS_QUERY_VAR ] ) ? wp_unslash( $_GET[ SAHAJ_ATLAS_QUERY_VAR ] ) : '';
+
+	if ( ! is_string( $raw ) || '' === $raw || ! sahaj_atlas_is_atlas_page() ) {
+		return '';
+	}
+
+	// The same sanitiser the block and shortcode attribute uses. A value it refuses leaves the route
+	// empty, so the page falls back to the host's own metadata rather than emitting a wrong one.
+	return sahaj_atlas_clean_route( $raw );
 }
 
 /**
