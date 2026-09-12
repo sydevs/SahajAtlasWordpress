@@ -26,7 +26,7 @@ drives the whole design:
 - The plugin has a diagnostics panel.
 - Setup is one button, not a set of instructions.
 - Updates run automatically.
-- The plugin exposes only one configuration setting.
+- The plugin exposes two configuration settings: a key to paste, and a checkbox.
 
 ## Principles — acceptance criteria, not goals
 
@@ -36,8 +36,10 @@ drives the whole design:
    the implementation plan.
 3. Use no framework, service container, or abstraction layer. The plugin has seven
    responsibilities, listed in the implementation plan — question an eighth.
-4. Treat configuration as a cost. The plugin allows one site setting (the API key) and two
-   per-embed attributes (`map`, `atlas`). Add a setting only for a use case someone actually hit.
+4. Treat configuration as a cost. The plugin allows two site settings (the API key, and the
+   Atlas page's description opt-out) and two per-embed attributes (`map`, `atlas`). Add a setting
+   only for a use case someone actually hit — #16 is the shape that qualifies, and the bar does
+   not move because a third one would be convenient.
 5. Fail loudly to the admin, never to the visitor.
 6. Do not reimplement anything the widget already does — routing, translation, layout, errors,
    and reporting are its job.
@@ -53,7 +55,9 @@ drives the whole design:
   registration form, shipped as both a shortcode and a block.
 - The editor shows a static placeholder — the widget cannot upgrade to a live map inside its
   iframe.
-- The plugin takes over SEO on atlas pages, instead of feeding the site's own SEO plugin.
+- The plugin takes over SEO on atlas pages, instead of feeding the site's own SEO plugin. The
+  Atlas page's root view is included, by default, with one checkbox to hand it back — the one
+  atlas URL a host's own SEO plugin has ever seen.
 - The plugin ships as a public repo with GitHub Releases and Plugin Update Checker, since a
   manual zip upload gives no updates at all.
 - Multisite is in scope: the plugin uses per-site `get_option`, never `get_site_option`.
@@ -110,6 +114,11 @@ the full story.
 16. Suppress the host's SEO plugin only after a successful fetch. Suppressing first, then finding
     the endpoint unreachable, leaves the page with no metadata at all — worse than leaving the
     original, generic metadata in place.
+17. A bare view route — `/search`, `/calendar`, `/filters`, `/online`, `/share` — is a view of the
+    atlas root, and the endpoint answers it with the root document. Decide that from `type` in the
+    answer. Never keep a copy of that segment list here; it drifts the day a view is added
+    upstream, the same reason `sahaj_atlas_seo_locale()` keeps no copy of the locale list. See
+    seo.php:78.
 
 ## What is built
 
@@ -123,8 +132,8 @@ check, the PHP suite, then the render checks.
 | `includes/page.php` | Owns the Atlas page and both template paths |
 | `includes/routing.php` | Matches `parse_request` and suppresses the canonical redirect |
 | `includes/shortcode.php` | Runs `[sahaj_atlas]`, sharing the block's render body |
-| `includes/settings.php` | Holds the one option, the settings screen, and the create-page button |
-| `includes/diagnostics.php` | Runs the four checks |
+| `includes/settings.php` | Holds the two options, the settings screen, and the create-page button |
+| `includes/diagnostics.php` | Runs the five checks |
 | `includes/seo.php` | Takes over metadata and renders crawlable body content |
 | `includes/sitemap.php` | Serves `/sahaj-atlas-sitemap.xml`, `robots.txt`, and the SEO-plugin index lines |
 | `includes/updates.php` | Runs Plugin Update Checker against GitHub Releases |
