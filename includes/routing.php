@@ -118,10 +118,16 @@ function sahaj_atlas_parse_request( $wp ) {
  * So every shared deep link lands on the root view instead. This costs one filter, and stays
  * invisible until somebody follows a link.
  *
- * ⚠ This asks for the path route alone, never `sahaj_atlas_current_route()`. A query-routed URL is
- * the page's own permalink plus a parameter, so core has nothing to strip and nothing to suppress.
- * Widening this filter to every atlas route would return `false` on ordinary page loads that happen
- * to carry `?atlas=`, disabling a core behaviour for no gain.
+ * ⚠ This asks for the path route alone, never `sahaj_atlas_current_route()`. On a query-routed URL
+ * core's redirect is the one we want. The shared contract publishes `/?p=42&atlas=…` and
+ * `/index.php?page_id=7&atlas=…` mounts, and `redirect_canonical()` 301s each to the page's pretty
+ * permalink with `?atlas=` intact — `atlas` is no registered query var, so core does not consume it.
+ * Widening this filter would strand those visitors on the non-canonical mount.
+ *
+ * ⚠ The reason is that mount shape, not a site-wide cost. Widening this filter would not disable
+ * the redirect across the site: `sahaj_atlas_query_route()` refuses off the Atlas page, so an
+ * ordinary page load carrying `?atlas=` never reaches a non-empty route. `tests/seo.php` pins both
+ * directions. Do not restate the wider claim — it reads plausible and is wrong.
  *
  * @param string|false $redirect The URL core wants to redirect to.
  * @return string|false

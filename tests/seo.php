@@ -88,9 +88,10 @@ sahaj_is( 'though the path router claimed nothing', '', sahaj_atlas_path_route()
 
 /*
  * ⚠ The canonical redirect stays live here, and that is the point of keying it on the path route
- * alone. A query-routed URL is the page's own permalink plus a parameter, so there is nothing for
- * `redirect_canonical()` to strip. Returning `false` would switch a core behaviour off for every
- * ordinary page load that happens to carry `?atlas=`.
+ * alone. The contract publishes `/?p=42&atlas=…` mounts, and core's 301 to the pretty permalink is
+ * what carries a query-routed visitor to the canonical URL, `?atlas=` intact. Returning `false`
+ * would strand them on the mount. It would not disable the redirect on ordinary pages — the group
+ * below pins that, since `?atlas=` is refused off the Atlas page.
  */
 sahaj_is( 'and the canonical redirect is left alone', 'https://example.com/x', sahaj_atlas_suppress_canonical_redirect( 'https://example.com/x' ) );
 

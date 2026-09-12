@@ -92,15 +92,16 @@ the full story.
 8. `get_footer()` is not `wp_footer()`. Always fire `wp_footer()` instead. See atlas-page.php:8,
    sahaj-atlas.php:93.
 9. `redirect_canonical()` 301s deep links back to the page root. Suppress it when the **path**
-   route is set, never on every atlas route — a query-routed URL is the page's own permalink plus
-   a parameter, so core has nothing to strip, and widening the filter would switch a core
-   behaviour off for any page load carrying `?atlas=`. See routing.php:116,121.
+   route is set, never on every atlas route — the contract publishes `/?p=42&atlas=…` mounts, and
+   core's 301 to the pretty permalink is what carries a query-routed visitor to the canonical URL,
+   `?atlas=` intact. The reason is not a site-wide cost: `?atlas=` is refused off the Atlas page
+   already. See routing.php:116,121,127.
 10. No translated string may run before `init` (WordPress 6.7) — not at file scope, in an
     activation hook, or on `plugins_loaded`. See sahaj-atlas.php:22.
 11. One `_wp_page_template` value serves both theme kinds. Core strips the suffix automatically,
     so do not branch to "fix" it. See page.php:191.
 12. A front-page atlas refuses path routing, or it would turn the host's own 404 page into the
-    atlas. See routing.php:210, tests/contract.php:130.
+    atlas. See routing.php:227, tests/contract.php:130.
 13. An empty sitemap must return a 404, never an empty `<urlset>` or an index line. See
     sitemap.php:81, tests/sitemap.php:82.
 14. `allowedDomains` splits on newlines, not commas. An empty list allows every origin — the
@@ -116,7 +117,7 @@ the full story.
     the SEO takeover, the `<title>` filter, the JSON-LD, the crawlable body — follows a
     query-routed deep link too. Reading `?atlas=` stays gated on the Atlas page: the parameter is
     one anyone can append to any URL on the site, and an ungated read would let an arbitrary page
-    claim an atlas route's canonical. See routing.php:158,164,168.
+    claim an atlas route's canonical. See routing.php:164,170,174.
 
 ## What is built
 
