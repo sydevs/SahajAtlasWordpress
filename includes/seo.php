@@ -86,6 +86,13 @@ function sahaj_atlas_seo_boot() {
 		return;
 	}
 
+	// ⚠ Trap 15, on the tag that decides whether this page is indexed at all. A root answer naming
+	// another domain is treated as a failed fetch, so the host keeps its own metadata — trap 16's
+	// shape. Dropping only the tag would be worse: `rel_canonical` is already gone by then.
+	if ( sahaj_atlas_seo_root_points_elsewhere( $answer ) ) {
+		return;
+	}
+
 	$GLOBALS['sahaj_atlas_seo'] = $answer;
 
 	sahaj_atlas_seo_suppress_others();
@@ -111,6 +118,28 @@ function sahaj_atlas_seo_boot() {
  */
 function sahaj_atlas_seo_host_describes_root() {
 	return '1' === (string) get_option( SAHAJ_ATLAS_OPTION_SEO_ROOT_OPT_OUT, '' );
+}
+
+/**
+ * Does this answer send the atlas root view to somebody else's domain?
+ *
+ * ⚠ Trap 15 again, and `sahaj_atlas_is_local_url()` is the same guard `sahaj_atlas_sitemap_rows()`
+ * applies to every row it publishes. The endpoint answers what the client owns, and an owned
+ * subtree is not necessarily served from the domain asking: a client whose canonical target is
+ * unverified is answered with the We Meditate surface, and one key shared between two sites, or a
+ * `canonical.domain` that is not this host, does it too.
+ *
+ * ⚠ The rule is the root view's alone. A region or an event may legitimately canonicalise to
+ * another surface — that is a consolidation decision the endpoint owns. The root view is the page
+ * this host links from its own nav, and a canonical naming another domain hands that page's
+ * indexing away.
+ *
+ * @param array $answer An `AtlasSeoResponse`.
+ * @return bool
+ */
+function sahaj_atlas_seo_root_points_elsewhere( $answer ) {
+	return 'root' === sahaj_atlas_seo_get( $answer, 'type' )
+		&& ! sahaj_atlas_is_local_url( sahaj_atlas_seo_get( $answer, 'canonical' ) );
 }
 
 /**

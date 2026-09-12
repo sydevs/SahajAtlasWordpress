@@ -200,6 +200,9 @@ function sahaj_atlas_sitemap_rows( $body ) {
 /**
  * Is this URL served by this site?
  *
+ * Trap 15's one test, shared: `sahaj_atlas_seo_root_points_elsewhere()` asks it of the root view's
+ * canonical. A second copy there would be free to disagree with this one about the same URL.
+ *
  * @param string $url Absolute URL.
  * @return bool
  */

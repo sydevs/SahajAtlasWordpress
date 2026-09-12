@@ -113,7 +113,10 @@ the full story.
     and mirror `parseAllowedDomains()` / `isHostAllowed()` in SahajCloud instead of re-deriving
     them. See diagnostics.php:262,398, tests/domains.php.
 15. Publish sitemap URLs only for this host. A shared key, or a mis-set `canonical.embed`, can add
-    a foreign one. See sitemap.php:181, tests/sitemap.php:20.
+    a foreign one. The same guard decides whether the root view may take the Atlas page over at
+    all: a root answer whose canonical names another domain is a failed fetch, not a tag to drop,
+    because `rel_canonical` is gone by the time the tag is printed. A region may canonicalise
+    elsewhere. The root may not. See sitemap.php:187,209, seo.php:89,140, tests/sitemap.php:20.
 16. Suppress the host's SEO plugin only after a successful fetch. Suppressing first, then finding
     the endpoint unreachable, leaves the page with no metadata at all — worse than leaving the
     original, generic metadata in place.

@@ -390,6 +390,23 @@ function sahaj_atlas_check_page_description( $client ) {
 		);
 	}
 
+	/*
+	 * ⚠ The same refusal `sahaj_atlas_seo_boot()` makes, reported rather than hidden. Without this
+	 * row the panel would say "Sahaj Atlas describes it" about a page Sahaj Atlas had just declined
+	 * to describe — and the one person who could report the misconfiguration would never see it. A
+	 * warning, not a failure: the host's own description is still there, exactly as before.
+	 */
+	if ( sahaj_atlas_seo_root_points_elsewhere( $answer ) ) {
+		return array(
+			'status' => 'warn',
+			'label'  => $label,
+			'detail' => esc_html__(
+				'The Atlas server describes this page as belonging to another website, so Sahaj Atlas left your own description in place. Nothing is broken. Tell the Sahaj Atlas maintainers — your site is set up under the wrong address.',
+				'sahaj-atlas'
+			),
+		);
+	}
+
 	return array(
 		'status' => 'ok',
 		'label'  => $label,

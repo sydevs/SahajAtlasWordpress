@@ -458,6 +458,37 @@ sahaj_is( 'and the theme keeps its title', 'Find a class — Example', sahaj_atl
 
 // ---------------------------------------------------------------------------------------------
 
+sahaj_group( 'A root canonical on another domain is a failed fetch too (trap 15)' );
+
+/*
+ * ⚠ The endpoint answers what the client owns, and a client whose canonical target is unverified is
+ * answered with the We Meditate surface. Emitting that on the Atlas page — after core's own
+ * `rel_canonical` has been removed — hands the host's most-linked page to another domain. The
+ * sitemap already refuses a foreign URL row by row; this is the same refusal on the one tag whose
+ * job is to say which site owns the page.
+ */
+$sahaj_seo_foreign = 'https://elsewhere.example.org/map';
+
+sahaj_seo_reset();
+sahaj_seo_stub( array_merge( $sahaj_seo_root, array( 'canonical' => $sahaj_seo_foreign ) ) );
+sahaj_atlas_seo_boot();
+
+sahaj_seo_untouched( 'a root described as another site\'s page takes nothing over' );
+sahaj_ok( 'the host\'s SEO plugin is not silenced', ! sahaj_seo_suppressed() );
+sahaj_is( 'and nothing of ours is emitted', '', sahaj_seo_head() );
+
+// ⚠ The rule is the root view's alone. A region page may consolidate onto another surface, and that
+// is the endpoint's decision to make — pinning this half keeps the guard from widening into one.
+sahaj_seo_reset();
+sahaj_seo_stub( array_merge( $sahaj_seo_fixture['answer'], array( 'canonical' => $sahaj_seo_foreign . '/nl/amsterdam' ) ) );
+sahaj_set_query_route( $sahaj_seo_route );
+sahaj_atlas_seo_boot();
+
+sahaj_ok( 'a region still canonicalises wherever the endpoint says', sahaj_seo_suppressed() );
+sahaj_ok( 'and emits that canonical', false !== strpos( sahaj_seo_head(), esc_url( $sahaj_seo_foreign . '/nl/amsterdam' ) ) );
+
+// ---------------------------------------------------------------------------------------------
+
 sahaj_group( 'What the root\'s crawlable body renders' );
 
 // A locale nobody has written copy for answers `description: null` and no paragraphs, which is the
@@ -544,6 +575,16 @@ $sahaj_seo_check = sahaj_atlas_check_page_description( array( 'name' => 'Test cl
 
 sahaj_is( 'ours, when we supply it', 'ok', $sahaj_seo_check['status'] );
 sahaj_ok( 'and it shows the title a visitor would see', false !== strpos( $sahaj_seo_check['detail'], 'Free meditation classes near you' ) );
+
+// ⚠ The panel reports the refusal the front end just made. A row that said "Sahaj Atlas describes
+// it" about a page the takeover had declined would hide the one misconfiguration only the site's
+// own volunteer can report.
+sahaj_seo_stub( array_merge( $sahaj_seo_root, array( 'canonical' => $sahaj_seo_foreign ) ) );
+
+$sahaj_seo_check = sahaj_atlas_check_page_description( array( 'name' => 'Test client' ) );
+
+sahaj_is( 'a root pointed at another domain is a warning', 'warn', $sahaj_seo_check['status'] );
+sahaj_ok( 'and it says another website owns it', false !== strpos( $sahaj_seo_check['detail'], 'another website' ) );
 
 sahaj_seo_stub( array( 'errors' => array() ), 404 );
 
