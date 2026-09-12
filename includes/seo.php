@@ -350,7 +350,7 @@ function sahaj_atlas_seo_fetch( $route ) {
 	}
 
 	$locale = sahaj_atlas_seo_locale();
-	$slot   = 'sahaj_atlas_seo_' . substr( md5( $route . '|' . $locale . '|' . $key ), 0, 20 );
+	$slot   = sahaj_atlas_seo_slot( $route );
 	$cached = get_transient( $slot );
 
 	if ( is_array( $cached ) ) {
@@ -379,6 +379,25 @@ function sahaj_atlas_seo_fetch( $route ) {
 	set_transient( $slot, $answer['body'], SAHAJ_ATLAS_SEO_TTL );
 
 	return $answer['body'];
+}
+
+/**
+ * The transient name holding one route's answer.
+ *
+ * The key is part of it: two sites sharing a database must not share an answer, and a key change is
+ * a different client record. So is the locale, since the answer is written in it.
+ *
+ * ⚠ The locale is computed here, never passed in. A caller free to name a different one writes a
+ * transient nothing ever reads, and that failure surfaces as a request timing out against the live
+ * endpoint rather than as a wrong key. The retry at a failed locale deliberately reuses this slot.
+ *
+ * @param string $route The atlas route.
+ * @return string
+ */
+function sahaj_atlas_seo_slot( $route ) {
+	$parts = $route . '|' . sahaj_atlas_seo_locale() . '|' . sahaj_atlas_api_key();
+
+	return 'sahaj_atlas_seo_' . substr( md5( $parts ), 0, 20 );
 }
 
 /**
