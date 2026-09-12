@@ -1,11 +1,14 @@
 <?php
 /**
- * Path routing: serving the Atlas page for everything beneath it.
+ * Routing: reading the atlas route a request carries, in either shape.
  *
  * With `routing=path`, the widget puts its route in the pathname — `/find-a-class/gb/london`, not
  * `/find-a-class/?atlas=/gb/london`. A click inside the widget uses `pushState` and never reaches
  * the server. But a reload, a bookmark, or a shared link does reach the server, and that URL must
  * return the Atlas page.
+ *
+ * With `routing=query` the server has nothing to match — WordPress already served the page — so
+ * this file only reads the parameter back. Both shapes end at `sahaj_atlas_current_route()`.
  *
  * @package SahajAtlas
  */
@@ -115,22 +118,83 @@ function sahaj_atlas_parse_request( $wp ) {
  * So every shared deep link lands on the root view instead. This costs one filter, and stays
  * invisible until somebody follows a link.
  *
+ * ⚠ This asks for the path route alone, never `sahaj_atlas_current_route()`. On a query-routed URL
+ * core's redirect is the one we want. The shared contract publishes `/?p=42&atlas=…` and
+ * `/index.php?page_id=7&atlas=…` mounts, and `redirect_canonical()` 301s each to the page's pretty
+ * permalink with `?atlas=` intact — `atlas` is no registered query var, so core does not consume it.
+ * Widening this filter would strand those visitors on the non-canonical mount.
+ *
+ * ⚠ The reason is that mount shape, not a site-wide cost. Widening this filter would not disable
+ * the redirect across the site: `sahaj_atlas_query_route()` refuses off the Atlas page, so an
+ * ordinary page load carrying `?atlas=` never reaches a non-empty route. `tests/seo.php` pins both
+ * directions. Do not restate the wider claim — it reads plausible and is wrong.
+ *
  * @param string|false $redirect The URL core wants to redirect to.
  * @return string|false
  */
 function sahaj_atlas_suppress_canonical_redirect( $redirect ) {
-	return sahaj_atlas_current_route() ? false : $redirect;
+	return sahaj_atlas_path_route() ? false : $redirect;
 }
 
 /**
- * The atlas route this request is for, or an empty string.
+ * The atlas route this request is for, whichever routing mode carried it, or an empty string.
  *
  * @return string
  */
 function sahaj_atlas_current_route() {
+	$route = sahaj_atlas_path_route();
+
+	return '' !== $route ? $route : sahaj_atlas_query_route();
+}
+
+/**
+ * The route `sahaj_atlas_parse_request()` claimed, or an empty string.
+ *
+ * @return string
+ */
+function sahaj_atlas_path_route() {
 	$route = get_query_var( SAHAJ_ATLAS_ROUTE_VAR );
 
 	return is_string( $route ) ? $route : '';
+}
+
+/**
+ * The route carried in `?atlas=`, or an empty string.
+ *
+ * ⚠ Query routing is a supported, permanent shape, not a transitional one. A host whose server
+ * cannot path-route — plain permalinks, an atlas at the front page, a server SahajCloud cannot
+ * probe — stays on it for good, and SahajCloud publishes real canonical URLs for those routes. Read
+ * here, so `sahaj_atlas_current_route()` answers for both shapes and the SEO takeover follows for
+ * free.
+ *
+ * ⚠ The Atlas page check is load-bearing. `?atlas=` is a parameter anyone can append to any URL on
+ * the site, and this function feeds `sahaj_atlas_seo_boot()`. Without the check, an arbitrary page
+ * could be talked into claiming an atlas route's canonical as its own.
+ *
+ * ⚠ This reads `$_GET` rather than registering `atlas` through `query_vars`, and that is a
+ * deliberate exception to preferring a core API. A registered var is filled from `$_POST` before
+ * `$_GET`, so the route would become accepted from a request body. It would still need the Atlas
+ * page check above, since `get_query_var()` answers on every page. It would claim the bare name
+ * `atlas` as a public query var across the host's whole site. And `sahaj_atlas_parse_request()`
+ * replaces `$wp->query_vars` wholesale, so it would be discarded on the path-routed requests.
+ *
+ * @return string
+ */
+function sahaj_atlas_query_route() {
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- a public URL parameter on a read-only request, sanitized below once the cheap guards pass.
+	$raw = isset( $_GET[ SAHAJ_ATLAS_ROUTE_PARAM ] ) ? $_GET[ SAHAJ_ATLAS_ROUTE_PARAM ] : '';
+
+	if ( ! is_string( $raw ) || '' === $raw || ! sahaj_atlas_is_atlas_page() ) {
+		return '';
+	}
+
+	// The same sanitiser the block and shortcode attribute uses. A value it refuses leaves the route
+	// empty, so the page falls back to the host's own metadata rather than emitting a wrong one.
+	//
+	// ⚠ `wp_unslash()` is not optional. `wp_magic_quotes()` slashes every request variable before any
+	// plugin reads one, so `/\evil.com` arrives as `/\\evil.com` and would walk past the sanitiser's
+	// backslash check unrecognised.
+	return sahaj_atlas_clean_route( wp_unslash( $raw ) );
 }
 
 /**

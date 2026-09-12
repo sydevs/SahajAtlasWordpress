@@ -85,7 +85,7 @@ the full story.
    now becomes `position: fixed; inset: 0` and covers the page, which is why the Atlas page had no
    header before #170.
 5. `min-height` is not a height. Use a definite height and `display: block` instead — a custom
-   element defaults to `inline` and cannot size itself. See embed.php:342, render.mjs:198,
+   element defaults to `inline` and cannot size itself. See embed.php:342, render.mjs:233,
    run.php:143.
 6. Never run `wp_kses()` on markup this plugin generates. `safecss_filter_attr()`'s property
    allowlist has no `display` property, so it silently reduced `display:block;height:520px` to
@@ -94,15 +94,18 @@ the full story.
 7. Never call `get_header()` on a block theme — it falls through to theme-compat and prints a
    duplicate, 2010-era `<!DOCTYPE html>`. See atlas-page.php:14,20,31.
 8. `get_footer()` is not `wp_footer()`. Always fire `wp_footer()` instead. See atlas-page.php:8,
-   sahaj-atlas.php:84.
-9. `redirect_canonical()` 301s deep links back to the page root. Suppress it when our route
-   variable is set. See routing.php:113.
+   sahaj-atlas.php:93.
+9. `redirect_canonical()` 301s deep links back to the page root. Suppress it when the **path**
+   route is set, never on every atlas route — the contract publishes `/?p=42&atlas=…` mounts, and
+   core's 301 to the pretty permalink is what carries a query-routed visitor to the canonical URL,
+   `?atlas=` intact. The reason is not a site-wide cost: `?atlas=` is refused off the Atlas page
+   already. See routing.php:116,121,127.
 10. No translated string may run before `init` (WordPress 6.7) — not at file scope, in an
     activation hook, or on `plugins_loaded`. See sahaj-atlas.php:22.
 11. One `_wp_page_template` value serves both theme kinds. Core strips the suffix automatically,
     so do not branch to "fix" it. See page.php:191.
 12. A front-page atlas refuses path routing, or it would turn the host's own 404 page into the
-    atlas. See routing.php:163, tests/contract.php:131.
+    atlas. See routing.php:227, tests/contract.php:130.
 13. An empty sitemap must return a 404, never an empty `<urlset>` or an index line. See
     sitemap.php:81, tests/sitemap.php:82.
 14. `allowedDomains` splits on newlines, not commas. An empty list allows every origin — the
@@ -114,11 +117,20 @@ the full story.
 16. Suppress the host's SEO plugin only after a successful fetch. Suppressing first, then finding
     the endpoint unreachable, leaves the page with no metadata at all — worse than leaving the
     original, generic metadata in place.
-17. A bare view route — `/search`, `/calendar`, `/filters`, `/online`, `/share` — is a view of the
+17. `sahaj_atlas_current_route()` answers for both routing shapes, so everything keyed on it —
+    the SEO takeover, the `<title>` filter, the JSON-LD, the crawlable body — follows a
+    query-routed deep link too. Reading `?atlas=` stays gated on the Atlas page: the parameter is
+    one anyone can append to any URL on the site, and an ungated read would let an arbitrary page
+    claim an atlas route's canonical. See routing.php:164,170,174.
+18. A bare view route — `/search`, `/calendar`, `/filters`, `/online`, `/share` — is a view of the
     atlas root, and the endpoint answers it with the root document. Decide that from `type` in the
     answer. Never keep a copy of that segment list here; it drifts the day a view is added
     upstream, the same reason `sahaj_atlas_seo_locale()` keeps no copy of the locale list. See
-    seo.php:78.
+    seo.php:83.
+19. An empty route on the Atlas page is the root view, not "no route". That includes a `?atlas=`
+    the sanitiser refused, which falls back to the root rather than to nothing — the page is the
+    root view either way, and the refused value must reach neither the endpoint nor the canonical.
+    See seo.php:60, tests/seo.php:302.
 
 ## What is built
 
@@ -130,7 +142,7 @@ check, the PHP suite, then the render checks.
 | `includes/embed.php` | Resolves the page's one embed, builds the script URL, prints the element |
 | `assets/atlas-page.{css,js}` | Sizes the element below the theme's header — the contained-map opt-in |
 | `includes/page.php` | Owns the Atlas page and both template paths |
-| `includes/routing.php` | Matches `parse_request` and suppresses the canonical redirect |
+| `includes/routing.php` | Matches `parse_request`, reads `?atlas=`, and suppresses the canonical redirect |
 | `includes/shortcode.php` | Runs `[sahaj_atlas]`, sharing the block's render body |
 | `includes/settings.php` | Holds the two options, the settings screen, and the create-page button |
 | `includes/diagnostics.php` | Runs the five checks |
@@ -163,9 +175,17 @@ Three more traps apply here. Their inline `⚠` comments carry the full detail.
 
 - wp-playground-cli discards stdout when a step fails. See tests/bootstrap.php:5.
 - The `server` command ignores `preferredVersions`. Pass `--php` and `--wp` directly instead. See
-  tests/render.mjs:85.
+  tests/render.mjs:86.
 - Activate the plugin through a blueprint step. Do not call `activate_plugin()` after
   `wp-load.php`. See tests/bootstrap.php:42.
+- `$_GET` is already slashed when a plugin reads it, so a fixture that assigns a raw value tests a
+  request WordPress never delivers. Set it through `sahaj_set_query_route()`. See
+  tests/run.php:242.
+- The SEO endpoint's answers serve every lane from one file: `tests/fixtures/seo-answer.php`, a
+  region route and a root. The PHP suite requires it, and both render blueprints require it from the
+  mounted plugin. Three copies of an upstream response shape diverge the first time that shape
+  changes. Seed the root under every route the plugin asks about — the endpoint answers `/` and a
+  bare view route alike, but the cache is keyed on the route as asked.
 
 ## Where the truth lives
 

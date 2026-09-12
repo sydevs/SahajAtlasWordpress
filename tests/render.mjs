@@ -31,6 +31,7 @@ const RUNS = [
 
 const PAGE = '/find-a-class/'
 const DEEP = '/find-a-class/gb/london'
+const QUERY_DEEP = '/find-a-class/?atlas=/nl/amsterdam'
 const MISSING = '/no-such-page-anywhere/'
 
 let failures = 0
@@ -173,6 +174,41 @@ async function check(run) {
 
     ok('a deep link is served', deep.status === 200, `status ${deep.status}`)
     ok('by the same page', (deepHtml.match(/<sahaj-atlas[\s>]/g) ?? []).length === 1)
+
+    // ── Query routing ──────────────────────────────────────────────────────────────────────────
+    // The other half of the same page. A host that cannot path-route stays on `?atlas=` for good,
+    // and SahajCloud publishes real canonical URLs for those routes. So the takeover has to run
+    // here too. The blueprint seeds the endpoint's answer, exactly as it does for the sitemap.
+    //
+    // ⚠ Assert on the rendered <head>, never on a status code. A page with generic metadata and a
+    // competing canonical returns 200 just as happily as a correct one.
+    const queried = await fetch(base + QUERY_DEEP, { redirect: 'manual' })
+    const queriedHtml = await queried.text()
+
+    ok('a query-routed deep link is served, not redirected', queried.status === 200, `status ${queried.status}`)
+
+    const canonicals = queriedHtml.match(/<link[^>]+rel=["']canonical["'][^>]*>/gi) ?? []
+
+    ok('with exactly one canonical', canonicals.length === 1, canonicals.join(' | ') || 'none')
+    ok('and it is the one the endpoint published', (canonicals[0] ?? '').includes('atlas=/nl/amsterdam'), canonicals[0] ?? 'none')
+    ok('carrying the route\'s own title', /<title>[^<]*Free meditation classes in Amsterdam/.test(queriedHtml))
+    ok('and its description', queriedHtml.includes('Weekly Sahaja Yoga meditation classes in Amsterdam'))
+    ok('and its JSON-LD', queriedHtml.includes('application/ld+json') && queriedHtml.includes('"name":"Amsterdam"'))
+    ok('and hreflang, which no SEO plugin emits', (queriedHtml.match(/rel="alternate" hreflang=/g) ?? []).length === 2)
+
+    // The crawlable body content is what a crawler and a no-JavaScript visitor see. The widget
+    // replaces it the moment it boots, so nothing else ever renders it.
+    ok(
+      'with crawlable content inside the element',
+      /<sahaj-atlas[^>]*>[\s\S]*?<h1>Amsterdam<\/h1>[\s\S]*?Tuesday evening class/.test(queriedHtml),
+      queriedHtml.slice(queriedHtml.search(/<sahaj-atlas[\s>]/), queriedHtml.search(/<sahaj-atlas[\s>]/) + 200),
+    )
+
+    // ⚠ The root is described as the root, never as a region. A gate keyed on "is there a route"
+    // rather than on the answer's own `type` would hand the landing page the last deep link's
+    // document, and the page would still return 200 with a full `<head>`.
+    ok('the atlas root is not described as a region', !html.includes('Weekly Sahaja Yoga meditation classes'))
+    ok('and carries exactly one canonical, ours', (html.match(/<link[^>]+rel=["']canonical["'][^>]*>/gi) ?? []).length === 1)
 
     // The plugin claims a subtree, not the whole site. If this regresses, every typo on the site
     // becomes the atlas, and the host loses their 404 page.
