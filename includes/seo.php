@@ -52,18 +52,44 @@ function sahaj_atlas_seo_boot() {
 	$route = sahaj_atlas_current_route();
 
 	/*
-	 * ⚠ This deliberately excludes the atlas root. The endpoint 404s an unresolvable route, and
-	 * treats the root as one. A site's landing page is its own to describe, in its own language,
-	 * and nothing in the atlas is localized. A sentence composed upstream would show English in a
-	 * Dutch site's `<head>` — the one place a visitor cannot skip.
+	 * The page itself is the atlas root view. It used to be excluded here, because the endpoint
+	 * 404d the root and treated it as unresolvable. SahajCloud#739 answers it: the title and
+	 * description are operator-written per locale on `sy-atlas-translations`, so nothing is
+	 * composed here and no English sentence lands in a Dutch site's `<head>`.
 	 */
-	if ( '' === $route || '/' === $route ) {
+	if ( '' === $route ) {
+		$route = '/';
+	}
+
+	$their_seo = sahaj_atlas_seo_host_describes_root();
+
+	// ⚠ One decision, consulted twice. The root spelled as `/` is checked before the request, so an
+	// opted-out host pays no round trip on the page their own nav links to. A bare view route still
+	// asks, because only the answer names which routes resolve to the root — it is discarded below.
+	if ( '/' === $route && $their_seo ) {
 		return;
 	}
 
 	$answer = sahaj_atlas_seo_fetch( $route );
 
 	if ( ! is_array( $answer ) ) {
+		return;
+	}
+
+	/*
+	 * ⚠ A bare view route — `/search`, `/calendar`, `/filters`, `/online`, `/share` — is a view of
+	 * the root, and the endpoint answers it with the root document. This reads `type` off the
+	 * answer rather than keeping a copy of that segment list, which would drift the day a view is
+	 * added there. The same reason `sahaj_atlas_seo_locale()` keeps no copy of the locale list.
+	 */
+	if ( 'root' === sahaj_atlas_seo_get( $answer, 'type' ) && $their_seo ) {
+		return;
+	}
+
+	// ⚠ Trap 15, on the tag that decides whether this page is indexed at all. A root answer naming
+	// another domain is treated as a failed fetch, so the host keeps its own metadata — trap 16's
+	// shape. Dropping only the tag would be worse: `rel_canonical` is already gone by then.
+	if ( sahaj_atlas_seo_root_points_elsewhere( $answer ) ) {
 		return;
 	}
 
@@ -74,6 +100,46 @@ function sahaj_atlas_seo_boot() {
 	add_action( 'wp_head', 'sahaj_atlas_seo_emit', 1 );
 	add_filter( 'pre_get_document_title', 'sahaj_atlas_seo_title' );
 	add_filter( 'sahaj_atlas_element_children', 'sahaj_atlas_seo_children' );
+}
+
+/**
+ * Has this site said its own SEO plugin describes the Atlas page?
+ *
+ * ⚠ This is the plugin's second setting, and principle 4 says a setting needs a use case somebody
+ * actually hit. This one has it: a host that deliberately wrote its own description for the Atlas
+ * page had no way to keep it, because the takeover is silent and the volunteer who notices it is
+ * the one person on the site who cannot debug it.
+ *
+ * It governs the root view alone. Every other atlas route is a URL the host's SEO plugin has never
+ * heard of — it emits the Atlas page's own metadata there, for a page about London. There is no
+ * host-written description to preserve on those, so there is nothing to opt out of.
+ *
+ * @return bool
+ */
+function sahaj_atlas_seo_host_describes_root() {
+	return '1' === (string) get_option( SAHAJ_ATLAS_OPTION_SEO_ROOT_OPT_OUT, '' );
+}
+
+/**
+ * Does this answer send the atlas root view to somebody else's domain?
+ *
+ * ⚠ Trap 15 again, and `sahaj_atlas_is_local_url()` is the same guard `sahaj_atlas_sitemap_rows()`
+ * applies to every row it publishes. The endpoint answers what the client owns, and an owned
+ * subtree is not necessarily served from the domain asking: a client whose canonical target is
+ * unverified is answered with the We Meditate surface, and one key shared between two sites, or a
+ * `canonical.domain` that is not this host, does it too.
+ *
+ * ⚠ The rule is the root view's alone. A region or an event may legitimately canonicalise to
+ * another surface — that is a consolidation decision the endpoint owns. The root view is the page
+ * this host links from its own nav, and a canonical naming another domain hands that page's
+ * indexing away.
+ *
+ * @param array $answer An `AtlasSeoResponse`.
+ * @return bool
+ */
+function sahaj_atlas_seo_root_points_elsewhere( $answer ) {
+	return 'root' === sahaj_atlas_seo_get( $answer, 'type' )
+		&& ! sahaj_atlas_is_local_url( sahaj_atlas_seo_get( $answer, 'canonical' ) );
 }
 
 /**
@@ -214,13 +280,42 @@ function sahaj_atlas_seo_emit() {
 function sahaj_atlas_seo_children( $children ) {
 	$seo = $GLOBALS['sahaj_atlas_seo'];
 
-	if ( ! is_array( $seo ) || empty( $seo['content'] ) || ! is_array( $seo['content'] ) ) {
+	if ( ! is_array( $seo ) ) {
 		return $children;
 	}
 
-	return 'event' === ( isset( $seo['type'] ) ? $seo['type'] : '' )
+	// ⚠ The root is decided before the `content` guard below, not after it. Its heading is the
+	// top-level title, so it renders with no content at all — and a locale nobody has written copy
+	// for answers exactly that. A region and an event have nothing to show without `content`.
+	if ( 'root' === sahaj_atlas_seo_get( $seo, 'type' ) ) {
+		return sahaj_atlas_seo_root_children( $seo );
+	}
+
+	if ( empty( $seo['content'] ) || ! is_array( $seo['content'] ) ) {
+		return $children;
+	}
+
+	return 'event' === sahaj_atlas_seo_get( $seo, 'type' )
 		? sahaj_atlas_seo_event_children( $seo['content'] )
 		: sahaj_atlas_seo_region_children( $seo['content'] );
+}
+
+/**
+ * The root view's crawlable content.
+ *
+ * ⚠ This one takes the whole answer, not just `content`. The root names no document, so it has no
+ * name of its own to render — its heading is the page title the operator wrote, which lives at the
+ * top level beside every other route's. `content.paragraphs` carries the description, already
+ * plain text, one entry per block, and is empty in a locale nobody has written one for.
+ *
+ * @param array $seo An `AtlasSeoResponse` of `type: root`.
+ * @return string
+ */
+function sahaj_atlas_seo_root_children( $seo ) {
+	$content = ( isset( $seo['content'] ) && is_array( $seo['content'] ) ) ? $seo['content'] : array();
+
+	return '<section><h1>' . esc_html( sahaj_atlas_seo_get( $seo, 'title' ) ) . '</h1>'
+		. sahaj_atlas_seo_paragraphs( $content ) . '</section>';
 }
 
 /**
@@ -244,9 +339,7 @@ function sahaj_atlas_seo_event_children( $content ) {
 		$out .= '<address>' . esc_html( (string) $address['oneLine'] ) . '</address>';
 	}
 
-	foreach ( sahaj_atlas_seo_list( $content, 'paragraphs' ) as $paragraph ) {
-		$out .= '<p>' . esc_html( (string) $paragraph ) . '</p>';
-	}
+	$out .= sahaj_atlas_seo_paragraphs( $content );
 
 	foreach ( sahaj_atlas_seo_list( $content, 'images' ) as $image ) {
 		if ( empty( $image['url'] ) ) {
@@ -334,6 +427,25 @@ function sahaj_atlas_seo_get( $source, $key ) {
  */
 function sahaj_atlas_seo_list( $source, $key ) {
 	return ( isset( $source[ $key ] ) && is_array( $source[ $key ] ) ) ? $source[ $key ] : array();
+}
+
+/**
+ * One `<p>` per block of plain text the operator wrote, escaped.
+ *
+ * Both the root and an event render the same list from the same key, so the escaping rule lives in
+ * one place rather than once per renderer.
+ *
+ * @param array $content The answer's `content` object.
+ * @return string
+ */
+function sahaj_atlas_seo_paragraphs( $content ) {
+	$out = '';
+
+	foreach ( sahaj_atlas_seo_list( $content, 'paragraphs' ) as $paragraph ) {
+		$out .= '<p>' . esc_html( (string) $paragraph ) . '</p>';
+	}
+
+	return $out;
 }
 
 /**

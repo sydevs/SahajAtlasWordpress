@@ -44,6 +44,12 @@ defined( 'SAHAJ_ATLAS_API_ORIGIN' ) || define( 'SAHAJ_ATLAS_API_ORIGIN', 'https:
 /** Option names. Always use `get_option`, never `get_site_option`. At least one target site is multisite. */
 define( 'SAHAJ_ATLAS_OPTION_KEY', 'sahaj_atlas_api_key' );
 define( 'SAHAJ_ATLAS_OPTION_PAGE', 'sahaj_atlas_page_id' );
+/**
+ * ⚠ The second site setting, and the whole permitted surface. It exists for one use case: a host
+ * that writes its own description for the Atlas page and needs a way to say so. See
+ * `sahaj_atlas_seo_host_describes_root()`.
+ */
+define( 'SAHAJ_ATLAS_OPTION_SEO_ROOT_OPT_OUT', 'sahaj_atlas_seo_root_opt_out' );
 
 /** The query var the path router hands to the widget's page. */
 define( 'SAHAJ_ATLAS_ROUTE_VAR', 'sahaj_atlas_route' );

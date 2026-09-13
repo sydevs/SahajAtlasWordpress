@@ -26,6 +26,8 @@ and covers your whole site.
   top and the atlas below it, with no footer.
 * A shortcode and a block. Use them to show one class, or its registration form, inside your own
   pages.
+* A title and description for your Atlas page, written by Sahaj Atlas in each visitor's own
+  language. One checkbox on the settings screen hands that back to your own SEO plugin.
 * A status panel. It shows whether your key works and whether setup is correct.
 * A sitemap of every atlas page, listed in your `robots.txt` file, so search engines can find
   them.
@@ -80,6 +82,16 @@ Not with clean URLs on. The atlas would then have to answer every address on you
 addresses that should show "not found". Give the atlas its own page, and link to it from your
 menu.
 
+= My SEO plugin's description for the Atlas page stopped showing =
+
+That is Sahaj Atlas describing the page instead, in each visitor's own language. It does this for
+your Atlas page and for every country, city and class page under it.
+
+To keep your own description for the Atlas page, tick "Let my SEO plugin describe the Atlas page"
+under Settings → Sahaj Atlas. Country, city and class pages stay with Sahaj Atlas either way —
+your SEO plugin has never seen those addresses, and would describe every one of them as your
+Atlas page.
+
 = I use Elementor / WPBakery / Beaver Builder =
 
 That is fine. The Atlas page does not use a page builder, and the shortcode works inside all
@@ -98,4 +110,5 @@ blank or canvas template, and place the `[sahaj_atlas]` shortcode on it.
 * Adds a `[sahaj_atlas]` shortcode and a block, for one class or its registration form.
 * Adds a sitemap at `/sahaj-atlas-sitemap.xml`, listed in `robots.txt` and in the sitemap indexes
   of Yoast and Rank Math.
-* Adds a status panel for the API key, the Atlas page, clean URLs, and domain registration.
+* Adds a status panel for the API key, the Atlas page, clean URLs, domain registration, and which
+  side describes the Atlas page.
