@@ -182,13 +182,24 @@ function sahaj_atlas_seo_suppress_others() {
 /**
  * `<title>` for an atlas route.
  *
+ * ⚠ `esc_html()` here, and nowhere downstream. A non-empty `pre_get_document_title` return
+ * short-circuits `wp_get_document_title()` before every sanitising step below it, and
+ * `_wp_render_title_tag()` echoes the result raw — so a `title` carrying `<` would close the
+ * `<title>` element and put whatever followed into the document. `esc_html()` does not double
+ * encode, so a title that already carries an entity survives unchanged. This is the same escape
+ * the crawlable body and `og:title` already apply to this field; `jsonLd` stays the one
+ * deliberate exception, and it is not this function's value.
+ *
+ * The other branch returns what core or another plugin composed, untouched. Escaping a value we
+ * did not fetch would double encode somebody else's already-escaped title.
+ *
  * @param string $title The title core or a plugin composed.
  * @return string
  */
 function sahaj_atlas_seo_title( $title ) {
 	$seo = $GLOBALS['sahaj_atlas_seo'];
 
-	return ( is_array( $seo ) && ! empty( $seo['title'] ) ) ? (string) $seo['title'] : $title;
+	return ( is_array( $seo ) && ! empty( $seo['title'] ) ) ? esc_html( (string) $seo['title'] ) : $title;
 }
 
 /**
