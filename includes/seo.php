@@ -190,8 +190,9 @@ function sahaj_atlas_seo_suppress_others() {
  * entity-encoded text they already receive on every non-atlas page. And `esc_html()` does not
  * double encode, so a title that already carries an entity survives unchanged.
  *
- * Escaping a value we did not fetch would double encode somebody else's already-escaped title, so
- * the other branch returns `$title` as it arrived.
+ * The other branch returns `$title` as it arrived because the value is not ours: it is whatever
+ * core or an earlier `pre_get_document_title` callback composed, and escaping it would edit
+ * another plugin's output.
  *
  * @param string $title The title core or a plugin composed.
  * @return string
