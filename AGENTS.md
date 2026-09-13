@@ -134,6 +134,10 @@ the full story.
     the sanitiser refused, which falls back to the root rather than to nothing — the page is the
     root view either way, and the refused value must reach neither the endpoint nor the canonical.
     See seo.php:60, tests/seo.php:302.
+20. A non-empty `pre_get_document_title` return short-circuits `wp_get_document_title()` before
+    every sanitising step below it — core's own `esc_html()` included — and
+    `_wp_render_title_tag()` echoes the result raw. Escape inside the filter, or nothing does.
+    See seo.php:185.
 
 ## What is built
 
@@ -211,5 +215,7 @@ Ask, do not guess, when these docs and the code disagree. The code is what ships
   wordpress.org as of 2026-08-25.
 - The text domain is `sahaj-atlas`, matching the slug.
 - PHP follows WordPress coding standards, with real tabs — `.editorconfig` enforces this.
-- Pass every attribute reaching markup through `esc_attr()` or `esc_url()`. The one exception is
-  the SEO endpoint's `jsonLd` value, already escaped on arrival — echo it raw, never re-encode it.
+- Pass every value reaching markup through the escape its sink wants: `esc_attr()` for an
+  attribute, `esc_url()` for a URL, `esc_html()` for text — the `<title>` element included. The one
+  exception is the SEO endpoint's `jsonLd` value, already escaped on arrival — echo it raw, never
+  re-encode it.
