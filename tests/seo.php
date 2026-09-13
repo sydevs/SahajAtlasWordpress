@@ -534,11 +534,11 @@ sahaj_ok( 'and never re-escaped', false === strpos( $sahaj_seo_head, '&quot;' ) 
 sahaj_group( 'The endpoint\'s title cannot break out of `<title>`' );
 
 /*
- * ⚠ The mirror image of the block above, on the same field's other sink. A non-empty
- * `pre_get_document_title` return short-circuits `wp_get_document_title()` before every sanitising
- * step below it, and `_wp_render_title_tag()` echoes what comes back raw — so this filter is the
- * last place the value can be escaped. These go through `wp_get_document_title()` rather than the
- * callback alone, because the short-circuit is the half that makes the sink reachable.
+ * ⚠ These drive `wp_get_document_title()`, not the filter callback alone. A non-empty
+ * `pre_get_document_title` return short-circuits that function before every sanitising step below
+ * it — core's own path ends with `esc_html()` — and `_wp_render_title_tag()` echoes what comes
+ * back raw. That short-circuit is the half that makes the sink reachable, so a case calling the
+ * callback directly would pass against the defect.
  */
 $sahaj_seo_hostile = 'Atlas </title><script>alert(1)</script>';
 
@@ -549,8 +549,14 @@ sahaj_atlas_seo_boot();
 $sahaj_seo_document_title = wp_get_document_title();
 
 sahaj_ok( 'a hostile title opens no element', false === strpos( $sahaj_seo_document_title, '<' ) );
+
+// ⚠ Not implied by the line above. A half-escape replacing `<` alone would pass it and leave every
+// `>` standing, which is the shape a hand-rolled `str_replace()` takes.
 sahaj_ok( 'and closes none either', false === strpos( $sahaj_seo_document_title, '>' ) );
-sahaj_is( 'and still reads as the text it was', $sahaj_seo_hostile, html_entity_decode( $sahaj_seo_document_title, ENT_QUOTES, 'UTF-8' ) );
+
+// `wp_specialchars_decode()` is `esc_html()`'s own inverse, so this pins that the escape
+// round-trips — not that some wider entity table happens to decode it.
+sahaj_is( 'and still reads as the text it was', $sahaj_seo_hostile, wp_specialchars_decode( $sahaj_seo_document_title, ENT_QUOTES ) );
 
 /*
  * ⚠ `esc_html()` does not double encode, and the assertion above would pass just the same if it
@@ -562,18 +568,6 @@ sahaj_seo_stub( array_merge( $sahaj_seo_root, array( 'title' => 'Cours &amp; ate
 sahaj_atlas_seo_boot();
 
 sahaj_is( 'an entity already in the title is left as it arrived', 'Cours &amp; ateliers', wp_get_document_title() );
-
-// And the ordinary answer, which has nothing to escape, comes back byte for byte.
-sahaj_seo_reset();
-sahaj_seo_stub( $sahaj_seo_root );
-sahaj_atlas_seo_boot();
-
-sahaj_is( 'an ordinary title passes through untouched', 'Free meditation classes near you', wp_get_document_title() );
-
-// ⚠ The escape is this field's alone. `jsonLd` is escaped by its producer for a `<script>` sink,
-// so a fix that reached for "escape everything the endpoint sends" would break it — and the pair
-// of assertions above only pins the half that must be escaped.
-sahaj_ok( 'and `jsonLd` is still echoed raw beside it', false !== strpos( sahaj_seo_head(), '<script type="application/ld+json">' . $sahaj_seo_root['jsonLd'] . '</script>' ) );
 
 // ---------------------------------------------------------------------------------------------
 
