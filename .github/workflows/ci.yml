@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The merge queue runs the required checks against a merge_group ref, not
+  # the PR head. Without this trigger the check never reports and the queue
+  # stalls forever. (why: sydevs/claude-workflow docs/why.md#github-owns-the-merge)
+  merge_group:
 
 jobs:
   test:
