@@ -178,8 +178,11 @@ A new assertion is not finished until it has failed once. Reintroduce the real d
 fail, then restore the fix. This step matters: the first version of `tests/lint.php` passed every
 file, including broken ones, and three early render assertions passed against a 404 page.
 
-Three more traps apply here. Their inline `⚠` comments carry the full detail.
+More traps apply here. Their inline `⚠` comments carry the full detail.
 
+- Every lane refuses outbound HTTP by default, through an mu-plugin each blueprint writes. A lane
+  that needs an answer stubs it or seeds the transient; an unstubbed call is recorded and fails the
+  run. Never reach the real endpoint to make a lane pass. See tests/no-network.php.
 - wp-playground-cli discards stdout when a step fails. See tests/bootstrap.php:5.
 - The `server` command ignores `preferredVersions`. Pass `--php` and `--wp` directly instead. See
   tests/render.mjs:86.

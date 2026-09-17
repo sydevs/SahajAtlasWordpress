@@ -16,7 +16,16 @@
  */
 
 import { spawn } from 'node:child_process'
+import { readFile, rm } from 'node:fs/promises'
 import { setTimeout as sleep } from 'node:timers/promises'
+
+/**
+ * Where `tests/no-network.php` records an outbound request it refused.
+ *
+ * ⚠ The plugin mount is bidirectional, so a file the instance writes under the plugin directory
+ * is readable here — the same channel `tests/bootstrap.php` uses to recover the PHP suite's output.
+ */
+const NETWORK_LOG = '.test-network.txt'
 
 /** Each theme run uses a fixed port. A failed run then leaves nothing to guess about. */
 const RUNS = [
@@ -30,7 +39,9 @@ const RUNS = [
 ]
 
 const PAGE = '/find-a-class/'
-const DEEP = '/find-a-class/gb/london'
+// ⚠ A route the blueprint seeds an answer for. A route it does not seed sends the SEO fetch to the
+// live endpoint, which is how this lane called production SahajCloud on every run until #28.
+const DEEP = '/find-a-class/nl/amsterdam'
 const QUERY_DEEP = '/find-a-class/?atlas=/nl/amsterdam'
 const MISSING = '/no-such-page-anywhere/'
 
@@ -95,6 +106,8 @@ async function check(run) {
     '--port',
     String(run.port),
   ]
+
+  await rm(NETWORK_LOG, { force: true })
 
   const server = spawn('npx', args, { stdio: 'ignore' })
 
@@ -280,6 +293,16 @@ async function check(run) {
         ok('shortcode: the rest of the content survives', body.includes('Before.') && body.includes('After.'))
       }
     }
+
+    // ── Nothing reached the network ────────────────────────────────────────────────────────────
+    // ⚠ Last, because it reports on every request above. `tests/no-network.php` refuses an
+    // unstubbed outbound call, and a refusal alone is silent — the plugin treats an unreachable
+    // endpoint as a miss and serves the page anyway. This is the line that turns it into a
+    // failure instead. Until #28 this lane called production SahajCloud with a fake key, on every
+    // run, from CI and from developer machines alike.
+    const escaped = await readFile(NETWORK_LOG, 'utf8').catch(() => '')
+
+    ok(`${run.theme}: no request left the instance`, escaped.trim() === '', escaped.trim())
   } finally {
     server.kill('SIGTERM')
     await sleep(1500)

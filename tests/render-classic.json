@@ -6,6 +6,11 @@
   },
   "steps": [
     {
+      "step": "writeFile",
+      "path": "/wordpress/wp-content/mu-plugins/sahaj-atlas-no-network.php",
+      "data": "<?php require '/wordpress/wp-content/plugins/sahaj-atlas/tests/no-network.php';"
+    },
+    {
       "step": "activateTheme",
       "themeFolderName": "sahaj-classic"
     },

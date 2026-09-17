@@ -6,6 +6,7 @@
 .editorconfig
 .DS_Store
 .test-output.txt
+.test-network.txt
 node_modules
 package.json
 pnpm-lock.yaml

@@ -100,7 +100,12 @@ sahaj_ok( 'carrying the newest lastmod', false !== strpos( $sahaj_index, '2026-0
 sahaj_ok( 'keeping what was there', 0 === strpos( $sahaj_index, '<sitemapindex>' ) );
 sahaj_is( 'and Rank Math gets the identical entry', $sahaj_index, sahaj_atlas_rank_math_sitemap_index( '<sitemapindex>' ) );
 
-sahaj_atlas_flush_sitemap_cache();
+/*
+ * ⚠ An empty set, not a flushed cache. The group below runs `parse_request`, and the sitemap
+ * answers that hook first — with no cached URLs it fetches the live endpoint to decide (#28).
+ * Empty is the state a failed fetch leaves behind anyway, so the assertion reads the same world.
+ */
+set_transient( SAHAJ_ATLAS_SITEMAP_TRANSIENT, array(), MINUTE_IN_SECONDS );
 
 // ---------------------------------------------------------------------------------------------
 
