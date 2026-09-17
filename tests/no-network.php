@@ -17,6 +17,11 @@
 /** Where a refused request is recorded. Both `tests/run.php` and `tests/render.mjs` read it. */
 define( 'SAHAJ_ATLAS_NETWORK_LOG', '/wordpress/wp-content/plugins/sahaj-atlas/.test-network.txt' );
 
+// ⚠ Create it empty, so a reader can tell "nothing was refused" from "this file never loaded".
+// `FILE_APPEND` is what makes that safe to repeat: a render lane loads this on every request, and
+// truncating would drop what the earlier ones recorded.
+file_put_contents( SAHAJ_ATLAS_NETWORK_LOG, '', FILE_APPEND );
+
 // `.invalid` is reserved by RFC 2606 and resolves nowhere, so a path that slips past the filter
 // below still cannot reach a real host.
 defined( 'SAHAJ_ATLAS_API_ORIGIN' ) || define( 'SAHAJ_ATLAS_API_ORIGIN', 'https://api.sahaj-atlas.invalid' );
