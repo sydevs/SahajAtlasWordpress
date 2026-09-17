@@ -68,6 +68,11 @@ function ok(label, condition, detail = '') {
  * So polling `/` reports ready too early, and every assertion then runs against a 404. This cost
  * a debugging round on the classic run. The readiness signal has to be the thing under test.
  *
+ * ⚠ Which is why both blueprints create the Atlas page *last*, after the transients. A poll is a
+ * real page render: one that lands before the SEO answers are seeded sends the root's fetch to
+ * the endpoint for real. Every assertion still passes — seeding wins long before they run — and
+ * only the network log remembers, as an intermittent `route=/` escape.
+ *
  * @param {number} port
  */
 async function waitForAtlasPage(port) {
