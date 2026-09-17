@@ -295,13 +295,9 @@ async function check(run) {
     }
 
     // ── Nothing reached the network ────────────────────────────────────────────────────────────
-    // ⚠ Last, because it reports on every request above. `tests/no-network.php` refuses an
-    // unstubbed outbound call, and a refusal alone is silent — the plugin treats an unreachable
-    // endpoint as a miss and serves the page anyway. This is the line that turns it into a
-    // failure instead. Until #28 this lane called production SahajCloud with a fake key, on every
-    // run, from CI and from developer machines alike.
-    // ⚠ And the guard first: that file creates the log as it loads, so a missing log means the
-    // blueprint stopped writing the mu-plugin and this lane is back on the real endpoint.
+    // ⚠ Last, because it reports on every request above. Why a silent refusal needs an assertion
+    // at all is in `tests/no-network.php` (#28), which also creates the log as it loads — so a
+    // missing log means the mu-plugin never loaded, and this lane is back on the real endpoint.
     const escaped = await readFile(NETWORK_LOG, 'utf8').catch(() => null)
 
     ok(`${run.theme}: the refusal is armed at all`, escaped !== null, 'no log — the mu-plugin never loaded')
