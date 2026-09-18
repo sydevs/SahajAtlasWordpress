@@ -26,6 +26,9 @@ build/
 # Captured output from the WordPress test run
 .test-output.txt
 
+# Outbound requests tests/no-network.php refused during a run
+.test-network.txt
+
 # Per-user Claude config (the other three repos ignore this too)
 .claude/settings.local.json
 

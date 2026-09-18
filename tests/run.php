@@ -346,5 +346,26 @@ require __DIR__ . '/seo.php';
 
 // ---------------------------------------------------------------------------------------------
 
+sahaj_group( 'Nothing reached the network' );
+
+/*
+ * ⚠ Last, because it reports on every lane above. `tests/no-network.php` refuses an unstubbed
+ * outbound request, and a refusal alone is silent — the plugin treats an unreachable endpoint as
+ * a miss and carries on. This is the line that turns it into a failure instead. Until #28 the
+ * suite called production SahajCloud with a fake key, and every call filed a Sentry event there.
+ */
+// ⚠ First, because an empty log proves nothing on its own. A blueprint that stopped writing the
+// mu-plugin would leave the suite calling the real endpoint again, and reading a file nobody
+// writes reports that as a pass.
+sahaj_ok( 'the refusal is armed at all', false !== has_filter( 'pre_http_request', 'sahaj_atlas_test_refuse_http' ) );
+
+$sahaj_escaped = defined( 'SAHAJ_ATLAS_NETWORK_LOG' ) && file_exists( SAHAJ_ATLAS_NETWORK_LOG )
+	? trim( (string) file_get_contents( SAHAJ_ATLAS_NETWORK_LOG ) )
+	: '';
+
+sahaj_is( 'every request a lane made, that lane stubbed', '', $sahaj_escaped );
+
+// ---------------------------------------------------------------------------------------------
+
 echo "\n$sahaj_assertions assertion(s), $sahaj_failures failure(s)\n";
 exit( $sahaj_failures > 0 ? 1 : 0 );

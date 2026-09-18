@@ -16,7 +16,16 @@
  */
 
 import { spawn } from 'node:child_process'
+import { readFile, rm } from 'node:fs/promises'
 import { setTimeout as sleep } from 'node:timers/promises'
+
+/**
+ * Where `tests/no-network.php` records an outbound request it refused.
+ *
+ * ⚠ The plugin mount is bidirectional, so a file the instance writes under the plugin directory
+ * is readable here — the same channel `tests/bootstrap.php` uses to recover the PHP suite's output.
+ */
+const NETWORK_LOG = '.test-network.txt'
 
 /** Each theme run uses a fixed port. A failed run then leaves nothing to guess about. */
 const RUNS = [
@@ -30,7 +39,9 @@ const RUNS = [
 ]
 
 const PAGE = '/find-a-class/'
-const DEEP = '/find-a-class/gb/london'
+// ⚠ A route the blueprint seeds an answer for. A route it does not seed sends the SEO fetch to the
+// live endpoint, which is how this lane called production SahajCloud on every run until #28.
+const DEEP = '/find-a-class/nl/amsterdam'
 const QUERY_DEEP = '/find-a-class/?atlas=/nl/amsterdam'
 const MISSING = '/no-such-page-anywhere/'
 
@@ -56,6 +67,11 @@ function ok(label, condition, detail = '') {
  * ⚠ WordPress answers `/` the moment the server starts, before the blueprint creates the page.
  * So polling `/` reports ready too early, and every assertion then runs against a 404. This cost
  * a debugging round on the classic run. The readiness signal has to be the thing under test.
+ *
+ * ⚠ Which is why both blueprints create the Atlas page *last*, after the transients. A poll is a
+ * real page render: one that lands before the SEO answers are seeded sends the root's fetch to
+ * the endpoint for real. Every assertion still passes — seeding wins long before they run — and
+ * only the network log remembers, as an intermittent `route=/` escape.
  *
  * @param {number} port
  */
@@ -95,6 +111,8 @@ async function check(run) {
     '--port',
     String(run.port),
   ]
+
+  await rm(NETWORK_LOG, { force: true })
 
   const server = spawn('npx', args, { stdio: 'ignore' })
 
@@ -280,6 +298,15 @@ async function check(run) {
         ok('shortcode: the rest of the content survives', body.includes('Before.') && body.includes('After.'))
       }
     }
+
+    // ── Nothing reached the network ────────────────────────────────────────────────────────────
+    // ⚠ Last, because it reports on every request above. Why a silent refusal needs an assertion
+    // at all is in `tests/no-network.php` (#28), which also creates the log as it loads — so a
+    // missing log means the mu-plugin never loaded, and this lane is back on the real endpoint.
+    const escaped = await readFile(NETWORK_LOG, 'utf8').catch(() => null)
+
+    ok(`${run.theme}: the refusal is armed at all`, escaped !== null, 'no log — the mu-plugin never loaded')
+    ok(`${run.theme}: no request left the instance`, (escaped ?? '').trim() === '', (escaped ?? '').trim())
   } finally {
     server.kill('SIGTERM')
     await sleep(1500)
