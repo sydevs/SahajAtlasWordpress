@@ -122,5 +122,4 @@ blank or canvas template, and place the `[sahaj_atlas]` shortcode on it.
 * Adds a `[sahaj_atlas]` shortcode and a block, for one class or its registration form.
 * Adds a sitemap at `/sahaj-atlas-sitemap.xml`, listed in `robots.txt` and in the sitemap indexes
   of Yoast and Rank Math.
-* Adds a status panel for the API key, the Atlas page, clean URLs, domain registration, and which
-  side describes the Atlas page.
+* Adds a status panel for the API key, the Atlas page, clean URLs, and domain registration.
