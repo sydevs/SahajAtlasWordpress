@@ -3,7 +3,7 @@
  * Plugin Name:       Sahaj Atlas
  * Plugin URI:        https://github.com/sydevs/SahajAtlasWordpress
  * Description:       Adds the Sahaj Atlas — a searchable map of free meditation classes — to your site.
- * Version:           0.1.0
+ * Version:           0.2.0
  * Requires at least: 6.7
  * Requires PHP:      7.4
  * Author:            Sahaja Yoga Developers
@@ -26,7 +26,7 @@ defined( 'ABSPATH' ) || exit;
  * and on `plugins_loaded`. Every module below registers its hooks from `sahaj_atlas_init()` instead.
  */
 
-define( 'SAHAJ_ATLAS_VERSION', '0.1.0' );
+define( 'SAHAJ_ATLAS_VERSION', '0.2.0' );
 define( 'SAHAJ_ATLAS_FILE', __FILE__ );
 define( 'SAHAJ_ATLAS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SAHAJ_ATLAS_URL', plugin_dir_url( __FILE__ ) );
