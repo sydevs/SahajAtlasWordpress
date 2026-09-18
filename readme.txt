@@ -4,7 +4,7 @@ Tags: meditation, map, events, classes
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.1.0
+Stable tag: 0.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -100,6 +100,18 @@ blank or canvas template, and place the `[sahaj_atlas]` shortcode on it.
 
 == Changelog ==
 
+= 0.2.0 =
+* Your Atlas page now carries a title and description written by Sahaj Atlas, in each visitor's
+  own language. To keep your own, tick "Let my SEO plugin describe the Atlas page" under
+  Settings → Sahaj Atlas.
+* Sites without clean URLs now get a title, description and search-engine tags on every country,
+  city and class page. Before this, those pages named a different address to search engines than
+  the one in the sitemap.
+* The status panel gained a fifth row. It names which side describes the Atlas page.
+* Fixed: a title containing a `<` character no longer breaks the page's HTML.
+* Fixed: if the Sahaj Atlas service answers with another site's address, your Atlas page keeps the
+  title and description it already had.
+
 = 0.1.0 =
 * First release.
 * Creates one Atlas page per site, with your site's header and no footer.
@@ -110,5 +122,4 @@ blank or canvas template, and place the `[sahaj_atlas]` shortcode on it.
 * Adds a `[sahaj_atlas]` shortcode and a block, for one class or its registration form.
 * Adds a sitemap at `/sahaj-atlas-sitemap.xml`, listed in `robots.txt` and in the sitemap indexes
   of Yoast and Rank Math.
-* Adds a status panel for the API key, the Atlas page, clean URLs, domain registration, and which
-  side describes the Atlas page.
+* Adds a status panel for the API key, the Atlas page, clean URLs, and domain registration.
