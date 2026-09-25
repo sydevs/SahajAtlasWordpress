@@ -16,6 +16,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # release.yml runs the same script after the merge. Here a missed version declaration or a
+      # broken zip fails the PR, before a release goes red on main.
+      - name: Package the plugin zip
+        id: package
+        run: .github/scripts/package.sh . build
+
+      - name: Say what merging releases
+        if: steps.package.outputs.pending == 'true'
+        env:
+          VERSION: ${{ steps.package.outputs.version }}
+        run: echo "::notice title=Release::Merging to main releases v$VERSION to every site running the plugin."
+
       - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v7

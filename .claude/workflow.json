@@ -10,7 +10,7 @@
     "command": "curl -fsSL --retry 3 https://raw.githubusercontent.com/sydevs/SahajCloud/main/src/lib/atlas/atlas-url-contract.json -o /tmp/upstream.json && diff -u /tmp/upstream.json tests/atlas-url-contract.json"
   },
   "securityReview": {
-    "triggerPattern": "^includes/|^sahaj-atlas\\.php|^blocks/|^templates/|^\\.distignore|^\\.github/workflows/release\\.yml",
+    "triggerPattern": "^includes/|^sahaj-atlas\\.php|^blocks/|^templates/|^\\.distignore|^\\.github/workflows/release\\.yml|^\\.github/scripts/package\\.sh",
     "rationale": "The plugin runs on 13 volunteer sites. .distignore sets what ships. See AGENTS.md."
   },
   "worktreeSetup": [
