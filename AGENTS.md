@@ -222,3 +222,7 @@ Ask, do not guess, when these docs and the code disagree. The code is what ships
   attribute, `esc_url()` for a URL, `esc_html()` for text — the `<title>` element included. The one
   exception is the SEO endpoint's `jsonLd` value, already escaped on arrival — echo it raw, never
   re-encode it.
+- **Merging a version bump to `main` is the release.** `release.yml` tags the commit that changed
+  the `Version:` header, builds the zip, and publishes it to every site. Change the version only in
+  a release PR, and never push a tag to cut one. `.github/scripts/package.sh` checks all four
+  version declarations and the zip's contents on every PR, and again before publishing.

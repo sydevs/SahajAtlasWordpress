@@ -1,45 +1,102 @@
 name: Release
 
+# ⚠ Merging a version bump to main is the release: this job tags the bump commit, builds the zip
+# and publishes it. It must stay one job. A tag pushed with GITHUB_TOKEN starts no other workflow,
+# so a separate tag-triggered build would never run. A hand-pushed `v*` tag still works.
+# The version and zip checks live in .github/scripts/package.sh, which CI runs on every PR.
+# (sydevs/claude-workflow#126)
 on:
   push:
+    branches: [main]
     tags: ['v*']
+  workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
-      # ⚠ This workflow exists for one reason: the zip's top folder must be named `sahaj-atlas`.
-      # GitHub's own "Source code (zip)" names that folder `SahajAtlasWordpress-<tag>` instead.
-      # WordPress installs an update into the folder the zip names. A wrong folder name installs a
-      # second, separate plugin next to the first. Both copies then run. Each one refuses the
-      # other's `<sahaj-atlas>` element.
-      #
-      # The slug must match `SAHAJ_ATLAS_SLUG` in `includes/updates.php`. Never let the two values
-      # diverge.
-      - name: Build the plugin zip
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          HEADER=$(sed -n 's/^ \* Version: *//p' sahaj-atlas.php | head -1 | tr -d '[:space:]')
-          if [ "$HEADER" != "$VERSION" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match the plugin header version ($HEADER)."
-            exit 1
-          fi
-          mkdir -p build/sahaj-atlas
-          rsync -a --exclude-from=.distignore ./ build/sahaj-atlas/
-          cd build && zip -qr "../sahaj-atlas-${VERSION}.zip" sahaj-atlas
-
-      - name: Attach it to the release
+      - name: Find what to release
+        id: plan
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            --title "$GITHUB_REF_NAME" \
-            --notes "See readme.txt for the changelog." \
-            --verify-tag \
-            "sahaj-atlas-${GITHUB_REF_NAME#v}.zip" \
-            || gh release upload "$GITHUB_REF_NAME" "sahaj-atlas-${GITHUB_REF_NAME#v}.zip" --clobber
+          fail() { echo "::error::$*"; exit 1; }
+          header() { git show "$1:sahaj-atlas.php" | sed -n 's/^ \* Version: *//p' | head -1 | tr -d '[:space:]'; }
+
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION=$(header HEAD)
+          fi
+          [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "'$VERSION' is not MAJOR.MINOR.PATCH."
+
+          # Plugin Update Checker offers an update only once the zip is attached. A tag, or a
+          # release without the asset, delivers nothing.
+          ASSETS=$(gh release view "v$VERSION" --json assets --jq '.assets[].name' 2>/dev/null || true)
+          if grep -qxF "sahaj-atlas-$VERSION.zip" <<<"$ASSETS"; then
+            echo "v$VERSION is already released."
+            echo "skip=true" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+            TARGET=$(git rev-parse "v$VERSION^{commit}")
+          else
+            # The bump commit, not the pushed tip: the merge queue can land later PRs in the same
+            # push, and those have not been through a release decision.
+            TARGET=$(git log -1 --format=%H -G '^ \* Version: +'"${VERSION//./\\.}"' *$' -- sahaj-atlas.php)
+          fi
+          [ -n "$TARGET" ] || fail "No commit on main sets the plugin header to $VERSION."
+          [ "$(header "$TARGET")" = "$VERSION" ] ||
+            fail "v$VERSION would point at $TARGET, whose plugin header reads $(header "$TARGET")."
+          git merge-base --is-ancestor "$TARGET" origin/main || fail "$TARGET is not on main."
+
+          echo "Releasing v$VERSION from $TARGET."
+          {
+            echo "version=$VERSION"
+            echo "target=$TARGET"
+          } >>"$GITHUB_OUTPUT"
+
+      - name: Build the plugin zip
+        if: steps.plan.outputs.skip != 'true'
+        id: package
+        env:
+          TARGET: ${{ steps.plan.outputs.target }}
+        run: |
+          mkdir -p build/src
+          git archive "$TARGET" | tar -x -C build/src
+          .github/scripts/package.sh build/src build
+
+      - name: Tag and publish
+        if: steps.plan.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: v${{ steps.plan.outputs.version }}
+          TARGET: ${{ steps.plan.outputs.target }}
+          ZIP: ${{ steps.package.outputs.zip }}
+        run: |
+          if ! git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              tag -a "$TAG" "$TARGET" -m "$TAG"
+            git push origin "refs/tags/$TAG"
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$ZIP"
+          else
+            gh release create "$TAG" --verify-tag --title "$TAG" \
+              --notes "See readme.txt for the changelog." "$ZIP"
+          fi
