@@ -1,6 +1,6 @@
 name: Release
 
-# ⚠ Merging a version bump to main is the release: this job tags the bump commit, builds the zip
+# ⚠ Merging a version bump to main is the release: this job tags the version, builds the zip
 # and publishes it. It must stay one job. A tag pushed with GITHUB_TOKEN starts no other workflow,
 # so a separate tag-triggered build would never run. A hand-pushed `v*` tag still works.
 # The version and zip checks live in .github/scripts/package.sh, which CI runs on every PR.
@@ -38,6 +38,12 @@ jobs:
         run: |
           fail() { echo "::error::$*"; exit 1; }
           header() { git show "$1:sahaj-atlas.php" | sed -n 's/^ \* Version: *//p' | head -1 | tr -d '[:space:]'; }
+          workflows() { git rev-parse -q --verify "$1:.github/workflows" || echo none; }
+          shipped() {
+            mkdir -p "$2/src" "$2/out"
+            git archive "$1" | tar -x -C "$2/src"
+            rsync -a --exclude-from="$2/src/.distignore" "$2/src/" "$2/out/"
+          }
 
           if [ "$GITHUB_REF_TYPE" = tag ]; then
             VERSION="${GITHUB_REF_NAME#v}"
@@ -60,9 +66,29 @@ jobs:
           else
             # The bump commit, not the pushed tip: the merge queue can land later PRs in the same
             # push, and those have not been through a release decision.
-            TARGET=$(git log -1 --format=%H -G '^ \* Version: +'"${VERSION//./\\.}"' *$' -- sahaj-atlas.php)
+            BUMP=$(git log -1 --format=%H -G '^ \* Version: +'"${VERSION//./\\.}"' *$' -- sahaj-atlas.php)
+            [ -n "$BUMP" ] || fail "No commit on main sets the plugin header to $VERSION."
+
+            # ⚠ GITHUB_TOKEN may push a tag only at a commit whose .github/workflows/ matches a
+            # branch tip. Anywhere else, GitHub refuses it as a workflow edit — v0.2.0's first run
+            # died here. When a later commit changed a workflow, tag the tip instead, but only if
+            # it ships exactly the bump commit's files.
+            # (https://github.com/orgs/community/discussions/26164)
+            MAIN_WORKFLOWS=$(workflows origin/main)
+            if [ "$(workflows "$BUMP")" = "$MAIN_WORKFLOWS" ]; then
+              TARGET=$BUMP
+            else
+              CMP=$(mktemp -d)
+              shipped "$BUMP" "$CMP/bump"
+              shipped HEAD "$CMP/head"
+              if [ "$(workflows HEAD)" = "$MAIN_WORKFLOWS" ] && diff -rq "$CMP/bump/out" "$CMP/head/out"; then
+                TARGET=$(git rev-parse HEAD)
+                echo "::notice::Tagging main's tip, $TARGET: a workflow changed after the bump, $BUMP, and both ship the same files."
+              else
+                fail "This job cannot tag the v$VERSION bump, $BUMP: a workflow changed after it, and so did shipped files. Push the tag by hand, and this workflow publishes it: git tag -a v$VERSION $BUMP -m v$VERSION && git push origin v$VERSION"
+              fi
+            fi
           fi
-          [ -n "$TARGET" ] || fail "No commit on main sets the plugin header to $VERSION."
           [ "$(header "$TARGET")" = "$VERSION" ] ||
             fail "v$VERSION would point at $TARGET, whose plugin header reads $(header "$TARGET")."
           git merge-base --is-ancestor "$TARGET" origin/main || fail "$TARGET is not on main."
