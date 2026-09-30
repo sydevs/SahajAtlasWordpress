@@ -149,15 +149,16 @@ function sahaj_atlas_template_include( $template ) {
  *
  * ⚠ Ask for the theme's own hero-less variant. Do not hide the hero with CSS: the rest of the
  * header is laid out for its variant. Core falls back to `header.php` when the variant is missing.
- * `get_template()` names the parent theme, so child themes match too. Add a theme only after
- * checking its source.
+ * `get_stylesheet()`, not `get_template()`: a child theme's own `header.php` may carry changes the
+ * parent's variant would drop, so a child theme keeps it. Add a theme only after checking its
+ * source.
  *
  * @return string|null The header name, or null for the theme's default `header.php`.
  */
 function sahaj_atlas_header_name() {
 	// Mesmerize's `header-small.php` is `header.php` without the `.header-wrapper` hero, and puts
 	// the nav bar in flow. In `header.php` the nav is `position: absolute` over the hero.
-	return in_array( get_template(), array( 'mesmerize', 'mesmerize-pro' ), true ) ? 'small' : null;
+	return in_array( get_stylesheet(), array( 'mesmerize', 'mesmerize-pro' ), true ) ? 'small' : null;
 }
 
 /**

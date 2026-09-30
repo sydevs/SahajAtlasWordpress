@@ -214,6 +214,11 @@ sahaj_is( 'so there is still only one', array(), sahaj_atlas_stray_pages() );
 
 sahaj_group( 'The Atlas page asks a hero theme for its hero-less header' );
 
+/** @return string A child theme's slug. */
+function sahaj_as_child_theme() {
+	return 'mesmerize-child';
+}
+
 sahaj_is( 'an unlisted theme keeps its default header.php', null, sahaj_atlas_header_name() );
 
 foreach ( array( 'mesmerize', 'mesmerize-pro' ) as $sahaj_theme ) {
@@ -222,7 +227,14 @@ foreach ( array( 'mesmerize', 'mesmerize-pro' ) as $sahaj_theme ) {
 	};
 
 	add_filter( 'template', $sahaj_as_theme );
+	add_filter( 'stylesheet', $sahaj_as_theme );
 	sahaj_is( "$sahaj_theme gets header-small.php, which has no hero", 'small', sahaj_atlas_header_name() );
+	remove_filter( 'stylesheet', $sahaj_as_theme );
+
+	// A child theme may have customised `header.php`. The parent's variant would drop that.
+	add_filter( 'stylesheet', 'sahaj_as_child_theme' );
+	sahaj_is( "a child of $sahaj_theme keeps its own header.php", null, sahaj_atlas_header_name() );
+	remove_filter( 'stylesheet', 'sahaj_as_child_theme' );
 	remove_filter( 'template', $sahaj_as_theme );
 }
 
