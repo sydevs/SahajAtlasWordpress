@@ -144,27 +144,20 @@ function sahaj_atlas_template_include( $template ) {
 /**
  * Which header variant the classic Atlas page asks the theme for.
  *
- * Some themes print a hero image inside `header.php`. The atlas is sized to the screen below the
- * header, so a hero leaves it under the widget's 420px floor on most laptops and every phone, and
- * the widget shows a single button instead of the map.
+ * Some themes print a hero image in `header.php`. The atlas fills the screen below the header, so
+ * a hero leaves it too short for the map, and the widget shows a single button instead.
  *
- * ⚠ This asks for the theme's own hero-less variant, rather than hiding the hero with CSS: the
- * rest of the header is laid out for the variant it belongs to. Mesmerize's nav bar, for one, is
- * `position: absolute` over the hero in `header.php`, and in flow only in `header-small.php`.
- * Core falls back to `header.php` when `header-{$name}.php` is missing, so a wrong entry costs
- * nothing. `get_template()` names the parent theme, so child themes match too. Add a theme only
- * after checking its source.
+ * ⚠ Ask for the theme's own hero-less variant. Do not hide the hero with CSS: the rest of the
+ * header is laid out for its variant. Core falls back to `header.php` when the variant is missing.
+ * `get_template()` names the parent theme, so child themes match too. Add a theme only after
+ * checking its source.
  *
  * @return string|null The header name, or null for the theme's default `header.php`.
  */
 function sahaj_atlas_header_name() {
-	$names = array(
-		// `header-small.php` is `header.php` without the `.header-wrapper` hero.
-		'mesmerize'     => 'small',
-		'mesmerize-pro' => 'small',
-	);
-
-	return isset( $names[ get_template() ] ) ? $names[ get_template() ] : null;
+	// Mesmerize's `header-small.php` is `header.php` without the `.header-wrapper` hero, and puts
+	// the nav bar in flow. In `header.php` the nav is `position: absolute` over the hero.
+	return in_array( get_template(), array( 'mesmerize', 'mesmerize-pro' ), true ) ? 'small' : null;
 }
 
 /**
