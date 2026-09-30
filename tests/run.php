@@ -233,7 +233,7 @@ foreach ( array( 'mesmerize', 'mesmerize-pro' ) as $sahaj_theme ) {
 
 	// A child theme may have customised `header.php`. The parent's variant would drop that.
 	add_filter( 'stylesheet', 'sahaj_as_child_theme' );
-	sahaj_is( "a child of $sahaj_theme keeps its own header.php", null, sahaj_atlas_header_name() );
+	sahaj_is( "a child of $sahaj_theme keeps today's header", null, sahaj_atlas_header_name() );
 	remove_filter( 'stylesheet', 'sahaj_as_child_theme' );
 	remove_filter( 'template', $sahaj_as_theme );
 }
