@@ -34,7 +34,10 @@ const RUNS = [
     theme: 'classic',
     port: 8802,
     blueprint: 'tests/render-classic.json',
-    mounts: ['./tests/fixtures/sahaj-classic:/wordpress/wp-content/themes/sahaj-classic'],
+    mounts: [
+      './tests/fixtures/sahaj-classic:/wordpress/wp-content/themes/sahaj-classic',
+      './tests/fixtures/mesmerize:/wordpress/wp-content/themes/mesmerize',
+    ],
   },
 ]
 
@@ -144,6 +147,17 @@ async function check(run) {
     const elementAt = html.search(/<sahaj-atlas[\s>]/)
 
     ok('with the element below the header', headerAt >= 0 && elementAt > headerAt, `header ${headerAt}, element ${elementAt}`)
+
+    // ── A hero theme (#36) ─────────────────────────────────────────────────────────────────────
+    // Mesmerize prints a hero image in `header.php`, which leaves the atlas too short for the map.
+    // `tests/fixture-theme.php` serves the fixture theme for this one request. The first
+    // assertion proves it did: without it, "no hero" would pass on the plain classic theme.
+    if (run.theme === 'classic') {
+      const hero = await (await fetch(`${base}${PAGE}?sahaj_fixture_theme=mesmerize`)).text()
+
+      ok('mesmerize: the page renders its header', hero.includes('id="page-top"'))
+      ok('mesmerize: the hero-less one', !hero.includes('header-wrapper'))
+    }
 
     // The loader is a real ES module. Its first statement is a top-level `import`, which is a
     // SyntaxError in a classic script. A `<script>` tag without `type="module"` breaks the page
