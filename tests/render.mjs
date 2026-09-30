@@ -38,8 +38,6 @@ const RUNS = [
       './tests/fixtures/sahaj-classic:/wordpress/wp-content/themes/sahaj-classic',
       './tests/fixtures/mesmerize:/wordpress/wp-content/themes/mesmerize',
     ],
-    // Served for one request by `tests/fixture-theme.php`, which this run's blueprint installs.
-    heroTheme: 'mesmerize',
   },
 ]
 
@@ -94,7 +92,7 @@ async function waitForAtlasPage(port) {
 }
 
 /**
- * @param {{theme: string, port: number, blueprint: string, mounts: string[], heroTheme?: string}} run
+ * @param {{theme: string, port: number, blueprint: string, mounts: string[]}} run
  */
 async function check(run) {
   console.log(`\n${run.theme} theme`)
@@ -152,16 +150,17 @@ async function check(run) {
 
     // ── A hero theme (#36) ─────────────────────────────────────────────────────────────────────
     // Mesmerize prints a hero image in `header.php`, which leaves the atlas too short for the map.
-    // The header assertion proves the fixture theme was served: without it, "no hero" would pass
-    // on the plain classic theme.
-    if (run.heroTheme) {
-      const response = await fetch(`${base}${PAGE}?sahaj_fixture_theme=${run.heroTheme}`)
+    // `tests/fixture-theme.php`, which only the classic blueprint installs, serves the fixture for
+    // this one request. The header assertion proves it did: without it, "no hero" would pass on
+    // the plain classic theme.
+    if (run.theme === 'classic') {
+      const response = await fetch(`${base}${PAGE}?sahaj_fixture_theme=mesmerize`)
       const hero = await response.text()
 
-      ok(`${run.heroTheme}: the page renders`, response.status === 200, `status ${response.status}`)
-      ok(`${run.heroTheme}: as one document with one element`, (hero.match(/<!doctype/gi) ?? []).length === 1 && (hero.match(/<sahaj-atlas[\s>]/g) ?? []).length === 1)
-      ok(`${run.heroTheme}: under the theme's header`, hero.search(/id="page-top"/) >= 0 && hero.search(/<sahaj-atlas[\s>]/) > hero.search(/id="page-top"/))
-      ok(`${run.heroTheme}: the hero-less one`, !hero.includes('header-wrapper'))
+      ok('mesmerize: the page renders', response.status === 200, `status ${response.status}`)
+      ok('mesmerize: as one document with one element', (hero.match(/<!doctype/gi) ?? []).length === 1 && (hero.match(/<sahaj-atlas[\s>]/g) ?? []).length === 1)
+      ok("mesmerize: under the theme's header", hero.search(/id="page-top"/) >= 0 && hero.search(/<sahaj-atlas[\s>]/) > hero.search(/id="page-top"/))
+      ok('mesmerize: the hero-less one', !hero.includes('header-wrapper'))
     }
 
     // The loader is a real ES module. Its first statement is a top-level `import`, which is a
