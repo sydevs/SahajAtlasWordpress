@@ -35,7 +35,7 @@ defined( 'ABSPATH' ) || exit;
 $sahaj_atlas_has_header = '' !== locate_template( array( 'header.php' ) );
 
 if ( $sahaj_atlas_has_header ) {
-	get_header();
+	get_header( sahaj_atlas_header_name() );
 } else {
 	?>
 <!doctype html>

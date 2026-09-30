@@ -212,6 +212,22 @@ sahaj_is( 'so there is still only one', array(), sahaj_atlas_stray_pages() );
 
 // ---------------------------------------------------------------------------------------------
 
+sahaj_group( 'The Atlas page asks a hero theme for its hero-less header' );
+
+sahaj_is( 'an unlisted theme keeps its default header.php', null, sahaj_atlas_header_name() );
+
+foreach ( array( 'mesmerize', 'mesmerize-pro' ) as $sahaj_theme ) {
+	$sahaj_as_theme = function () use ( $sahaj_theme ) {
+		return $sahaj_theme;
+	};
+
+	add_filter( 'template', $sahaj_as_theme );
+	sahaj_is( "$sahaj_theme gets header-small.php, which has no hero", 'small', sahaj_atlas_header_name() );
+	remove_filter( 'template', $sahaj_as_theme );
+}
+
+// ---------------------------------------------------------------------------------------------
+
 sahaj_group( 'Path routing matches the subtree and nothing else' );
 
 update_option( 'permalink_structure', '/%postname%/' );

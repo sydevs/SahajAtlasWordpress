@@ -142,6 +142,32 @@ function sahaj_atlas_template_include( $template ) {
 }
 
 /**
+ * Which header variant the classic Atlas page asks the theme for.
+ *
+ * Some themes print a hero image inside `header.php`. The atlas is sized to the screen below the
+ * header, so a hero leaves it under the widget's 420px floor on most laptops and every phone, and
+ * the widget shows a single button instead of the map.
+ *
+ * ⚠ This asks for the theme's own hero-less variant, rather than hiding the hero with CSS: the
+ * rest of the header is laid out for the variant it belongs to. Mesmerize's nav bar, for one, is
+ * `position: absolute` over the hero in `header.php`, and in flow only in `header-small.php`.
+ * Core falls back to `header.php` when `header-{$name}.php` is missing, so a wrong entry costs
+ * nothing. `get_template()` names the parent theme, so child themes match too. Add a theme only
+ * after checking its source.
+ *
+ * @return string|null The header name, or null for the theme's default `header.php`.
+ */
+function sahaj_atlas_header_name() {
+	$names = array(
+		// `header-small.php` is `header.php` without the `.header-wrapper` hero.
+		'mesmerize'     => 'small',
+		'mesmerize-pro' => 'small',
+	);
+
+	return isset( $names[ get_template() ] ) ? $names[ get_template() ] : null;
+}
+
+/**
  * Mark the Atlas page for styling, and for the diagnostics loopback probe to recognise.
  *
  * @param array $classes Body classes.
