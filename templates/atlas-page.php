@@ -31,8 +31,13 @@ defined( 'ABSPATH' ) || exit;
  * ⚠ A classic theme with no `header.php` at all would hit the same theme-compat fallback as a
  * block theme. This page then prints its own minimal document instead. This case is rare. Its
  * failure mode is a malformed page, not an error anyone would notice.
+ *
+ * ⚠ Look in the theme's own directories, never through `locate_template()`. That function falls
+ * through to theme-compat itself, so it always finds a `header.php`. `tests/render.mjs` renders a
+ * theme without one.
  */
-$sahaj_atlas_has_header = '' !== locate_template( array( 'header.php' ) );
+$sahaj_atlas_has_header = file_exists( get_stylesheet_directory() . '/header.php' )
+	|| file_exists( get_template_directory() . '/header.php' );
 
 if ( $sahaj_atlas_has_header ) {
 	get_header( sahaj_atlas_header_name() );

@@ -9,7 +9,8 @@
  * - A rejected key renders an empty box.
  * - A mismatched canonical prefix silently degrades path routing to query routing, with a console
  *   message nobody reads.
- * - An empty `allowedDomains` list refuses the embed report. It does not allow every origin.
+ * - A non-empty `allowedDomains` list without this site's domain refuses the widget's requests.
+ *   An empty list refuses nothing, the embed report included. Check 4 carries the server's rules.
  *
  * The panel makes these problems visible. The browser hides them silently.
  *
