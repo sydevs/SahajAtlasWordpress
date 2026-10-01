@@ -19,8 +19,7 @@
  * record carries no brand colours, the harsher case, and names this server as the canonical embed)
  * and `clients/report` (so a test run records no embed). Every other read is real.
  *
- * ⚠ Chromium runs with software WebGL. The headless shell has no GL at all, and Mapbox refuses to
- * mount without it, which reads exactly like the widget failing to boot.
+ * ⚠ Chromium needs software GL flags, or Mapbox refuses to mount. See the launch at the end.
  */
 
 import { spawn } from 'node:child_process'
@@ -145,7 +144,14 @@ const CELLS = [
 // ── The harness ──────────────────────────────────────────────────────────────────────────────
 
 const args = process.argv.slice(2)
-const only = args.includes('--only') ? args[args.indexOf('--only') + 1].split(',') : null
+const only = args.includes('--only') ? (args[args.indexOf('--only') + 1] ?? '').split(',').filter(Boolean) : null
+const unknown = only?.filter((name) => !CELLS.some((cell) => cell.name === name)) ?? []
+
+if (only && (only.length === 0 || unknown.length)) {
+  console.error(`--only names no cell${unknown.length ? `: ${unknown.join(', ')}` : ''}. Run with --list to see them.`)
+  process.exit(2)
+}
+
 const cells = only ? CELLS.filter((c) => only.includes(c.name)) : CELLS
 
 if (args.includes('--list')) {
@@ -165,14 +171,18 @@ let widgetFindings = 0
 let knownFailures = 0
 
 /**
- * Two kinds of assertion. `ok` judges the plugin: sizing, placement, the loader, the page. `widget`
- * judges the widget itself, read from the production build: what host CSS reaches into it, where
- * its portals land. A widget finding is a SahajAtlasWeb ticket, not a red plugin lane, so it is
- * counted and printed but never fails the run.
+ * Three kinds of assertion.
+ * - `ok` is an invariant: the page is served, PHP never reaches SahajCloud, no error panel. It
+ *   fails the run in every cell, `known` or not.
+ * - `fit` judges how the plugin's page fits the theme: boot, the card or the interface, the slot,
+ *   the header. A cell marked `known` reports these as KNOWN, because its exposure is ticketed.
+ * - `widget` judges the production widget: host CSS reaching in, portals, its overlay. It is a
+ *   SahajAtlasWeb ticket, never a red plugin lane, so it is counted and printed only.
  *
- * @type {{ok: (label: string, condition: boolean, detail?: string) => void, widget: (label: string, condition: boolean, detail?: string) => void}}
+ * @typedef {(label: string, condition: boolean, detail?: string) => void} Check
+ * @type {{ok: Check, fit: Check, widget: Check}}
  */
-let scope = { ok: () => {}, widget: () => {} }
+let scope = { ok: () => {}, fit: () => {}, widget: () => {} }
 
 /**
  * @param {string} name The file next to this one whose `SAHAJ_ATLAS_TEST_KEY=` line holds the key.
@@ -228,9 +238,10 @@ async function blueprint(cell) {
 /**
  * @param {number} port
  * @param {string} path
+ * @param {() => boolean} gaveUp  true once the server has exited, so a failed blueprint fails fast
  */
-async function waitFor(port, path) {
-  for (let attempt = 0; attempt < 120; attempt += 1) {
+async function waitFor(port, path, gaveUp) {
+  for (let attempt = 0; attempt < 120 && !gaveUp(); attempt += 1) {
     try {
       const response = await fetch(`http://127.0.0.1:${port}${path}`)
 
@@ -266,6 +277,19 @@ function clientRecord(port) {
 }
 
 /**
+ * Stub the two SahajCloud calls the lane must not make for real. Every other read goes through.
+ *
+ * @param {import('playwright-core').BrowserContext} context
+ * @param {number} port
+ */
+async function stubApi(context, port) {
+  const headers = { 'access-control-allow-origin': '*', 'content-type': 'application/json' }
+
+  await context.route('**/clients/me*', (route) => route.fulfill({ status: 200, headers, body: JSON.stringify(clientRecord(port)) }))
+  await context.route('**/clients/report*', (route) => route.fulfill({ status: 200, headers, body: '{"ok":true}' }))
+}
+
+/**
  * What the lane measures on a page, all read from layout — never from class names.
  *
  * Runs inside the page. Returns plain data so the assertions can print the numbers they judged.
@@ -283,6 +307,7 @@ function measure() {
     return node ? getComputedStyle(node) : null
   }
   const headers = [...document.querySelectorAll('header, #page-top, #masthead, .site-header, [data-elementor-type="header"], #wpadminbar')]
+    .filter((node) => !element.contains(node))
     .map((node) => node.getBoundingClientRect())
     .filter((box) => box.height > 0 && box.top < rect.top + 1)
   const headerBottom = headers.length ? Math.max(...headers.map((box) => box.bottom)) : null
@@ -384,16 +409,7 @@ async function checkAtlasPage(browser, cell, viewport, port) {
   const label = `${cell.name} @ ${viewport.name}`
 
   try {
-    await context.route('**/clients/me*', (route) =>
-      route.fulfill({
-        status: 200,
-        headers: { 'access-control-allow-origin': '*', 'content-type': 'application/json' },
-        body: JSON.stringify(clientRecord(port)),
-      }),
-    )
-    await context.route('**/clients/report*', (route) =>
-      route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*', 'content-type': 'application/json' }, body: '{"ok":true}' }),
-    )
+    await stubApi(context, port)
 
     if (cell.login) await login(context, base)
 
@@ -418,9 +434,9 @@ async function checkAtlasPage(browser, cell, viewport, port) {
 
     await page.screenshot({ path: join(SCREENSHOTS, `${cell.name}-${viewport.name}.png`) }).catch(() => {})
 
-    const { ok, widget } = scope
+    const { ok, fit, widget } = scope
 
-    ok(`${label}: the widget booted inside <sahaj-atlas>`, booted && m.scope, booted ? 'no .sy-atlas' : `no boot${log.dump()}`)
+    fit(`${label}: the widget booted inside <sahaj-atlas>`, booted && m.scope, booted ? 'no .sy-atlas' : `no boot${log.dump()}`)
 
     if (!booted || !m.scope) return
 
@@ -428,13 +444,13 @@ async function checkAtlasPage(browser, cell, viewport, port) {
       console.log(`  info  ${label}: the compact card, as the widget's floors say (${m.element.width}×${m.element.height} at top ${m.element.top})`)
       await checkOverlay(page, `${label} overlay`, join(SCREENSHOTS, `${cell.name}-${viewport.name}-overlay.png`))
     } else {
-      ok(`${label}: the interface rendered, not the compact card`, m.drawer && !m.compactCard, `compact=${m.compactCard} drawer=${m.drawer}${log.dump()}`)
-      ok(`${label}: the widget logged nothing`, log.widget().length === 0, log.widget().join(' | '))
+      fit(`${label}: the interface rendered, not the compact card`, m.drawer && !m.compactCard, `compact=${m.compactCard} drawer=${m.drawer}${log.dump()}`)
+      fit(`${label}: the widget logged nothing`, log.widget().length === 0, log.widget().join(' | '))
       // A phone's columns are its whole width, and the widget keeps the interface there whatever
       // the floor says, so the width floor applies only where there is room to meet it.
       const minWidth = viewport.width >= MIN_WIDTH + 100 ? MIN_WIDTH : Math.round(0.8 * viewport.width)
 
-      ok(
+      fit(
         `${label}: the element is at least ${minWidth}×${MIN_HEIGHT}`,
         m.element.width >= minWidth && m.element.height >= MIN_HEIGHT,
         `${m.element.width}×${m.element.height} at top ${m.element.top}, offset ${m.offset}`,
@@ -442,16 +458,16 @@ async function checkAtlasPage(browser, cell, viewport, port) {
       if (m.element.height < 0.8 * m.viewport.height) {
         console.log(`  info  ${label}: ${m.viewport.height - m.element.height}px of a ${m.viewport.height}px screen sits above the map; a shorter screen will get the compact card`)
       }
-      ok(`${label}: the search box is on top`, m.inputHitInScope, 'elementFromPoint at the search box lands outside the widget')
+      fit(`${label}: the search box is on top`, m.inputHitInScope, 'elementFromPoint at the search box lands outside the widget')
     }
 
     ok(`${label}: no error panel`, !m.errorPanel, log.dump())
-    ok(
+    fit(
       `${label}: the header sits above the element`,
       m.headerBottom === null || m.headerBottom <= m.element.top + 1,
       m.headerBottom === null ? 'no header found' : `header bottom ${m.headerBottom}, element top ${m.element.top}`,
     )
-    ok(`${label}: no script error`, log.errors().length === 0, log.errors().join(' | '))
+    fit(`${label}: no script error`, log.errors().length === 0, log.errors().join(' | '))
     widget(`${label}: every drawer and dialog is inside the widget`, m.strayPortals === 0, `${m.strayPortals} outside`)
     widget(`${label}: <html> carries no theme class or brand vars`, !/\b(light|dark)\b/.test(m.htmlClass) && !m.htmlVars.includes('--primary'), `class="${m.htmlClass}" style="${m.htmlVars.slice(0, 80)}"`)
     widget(`${label}: the widget's typeface survives the theme`, Object.values(m.fonts).every((font) => font === null || font.includes('Atlas Rethink Sans')), JSON.stringify(m.fonts))
@@ -482,22 +498,24 @@ async function checkSidebar(browser, cell, port) {
   const label = `${cell.name} @ sidebar`
 
   try {
-    await context.route('**/clients/me*', (route) =>
-      route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*', 'content-type': 'application/json' }, body: JSON.stringify(clientRecord(port)) }),
-    )
-    await context.route('**/clients/report*', (route) =>
-      route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*', 'content-type': 'application/json' }, body: '{"ok":true}' }),
-    )
+    await stubApi(context, port)
 
     const page = await context.newPage()
     const log = collectConsole(page, label)
-    const ok = scope.ok
+    const { fit } = scope
 
     await page.goto(`${base}/sidebar-host/`, { waitUntil: 'load', timeout: 90000 })
 
-    const card = await page.waitForSelector('sahaj-atlas .sy-atlas button:not([aria-label])', { timeout: 45000 }).then(() => true, () => false)
+    await page.waitForSelector('sahaj-atlas .sy-atlas', { timeout: 45000 }).catch(() => {})
+    await sleep(2000)
 
-    ok(`${label}: a 300px column shows the compact card`, card, log.dump())
+    const card = await page.evaluate(() => {
+      const scope = document.querySelector('sahaj-atlas .sy-atlas')
+
+      return !!scope && !scope.querySelector('[data-vaul-drawer], [data-sy-frame]') && !!scope.querySelector('button:not([aria-label])')
+    })
+
+    fit(`${label}: a 300px column shows the compact card`, card, log.dump())
 
     if (!card) return
 
@@ -560,14 +578,15 @@ async function checkOverlay(page, label, screenshot) {
   await page.keyboard.press('Escape')
   await sleep(800)
 
-  ok(`${label}: Escape closes it`, !(await page.$('[data-sy-expanded]')))
+  widget(`${label}: Escape closes it`, !(await page.$('[data-sy-expanded]')))
 }
 
 /**
+ * @param {import('playwright-core').Browser} browser
  * @param {Cell} cell
  * @param {number} index
  */
-async function run(cell, index) {
+async function run(browser, cell, index) {
   const port = BASE_PORT + index
   const dir = join(tmpdir(), 'sahaj-atlas-browser')
   const file = join(dir, `${cell.name}.json`)
@@ -580,14 +599,18 @@ async function run(cell, index) {
 
   let cellFailures = 0
 
+  const report = (verdict, label, detail) => console.log(`  ${verdict} ${label}${detail ? `\n        ${detail}` : ''}`)
+
   scope = {
     ok(label, condition, detail = '') {
-      if (condition) {
-        console.log(`  ok    ${label}`)
-        return
-      }
+      if (condition) return console.log(`  ok    ${label}`)
+      failures += 1
+      report('FAIL ', label, detail)
+    },
+    fit(label, condition, detail = '') {
+      if (condition) return console.log(`  ok    ${label}`)
       cellFailures += 1
-      console.log(`  ${cell.known ? 'KNOWN' : 'FAIL '} ${label}${detail ? `\n        ${detail}` : ''}`)
+      report(cell.known ? 'KNOWN' : 'FAIL ', label, detail)
     },
     widget(label, condition, detail = '') {
       if (condition) {
@@ -599,6 +622,7 @@ async function run(cell, index) {
     },
   }
 
+  const serverLog = join(dir, `${cell.name}.log`)
   const server = spawn(
     'npx',
     [
@@ -616,16 +640,24 @@ async function run(cell, index) {
       '--port',
       String(port),
     ],
-    { stdio: 'ignore' },
+    { stdio: ['ignore', 'pipe', 'pipe'] },
   )
+  let exited = null
+  const output = []
 
-  const browser = await chromium.launch({
-    args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
-  })
+  server.stdout.on('data', (chunk) => output.push(chunk))
+  server.stderr.on('data', (chunk) => output.push(chunk))
+  server.on('exit', (code) => (exited = code))
+  server.on('error', (error) => (exited = error.message))
 
   try {
-    if (!(await waitFor(port, PAGE))) {
-      scope.ok(`${cell.name}: the Atlas page is served`, false, 'timed out waiting for a 200')
+    if (!(await waitFor(port, PAGE, () => exited !== null))) {
+      await writeFile(serverLog, Buffer.concat(output))
+      scope.ok(
+        `${cell.name}: the Atlas page is served`,
+        false,
+        exited !== null ? `the server exited (${exited}); its output is in ${serverLog}` : `timed out waiting for a 200; server output in ${serverLog}`,
+      )
       return
     }
 
@@ -645,11 +677,12 @@ async function run(cell, index) {
     const ours = (escaped ?? '').split('\n').filter((url) => /sahaj-atlas\.invalid|sydevelopers/.test(url))
     const theirs = (escaped ?? '').split('\n').filter((url) => url && !ours.includes(url))
 
-    scope.ok(`${cell.name}: the plugin's PHP made no outbound request`, escaped !== null && ours.length === 0, escaped === null ? 'no log — the mu-plugin never loaded' : ours.join(' '))
+    // The invariant is SahajCloud, the call that once ran on every test run (#28). Core and other
+    // plugins, Plugin Update Checker among them, are refused all the same and only named.
+    scope.ok(`${cell.name}: the plugin's PHP never reached SahajCloud`, escaped !== null && ours.length === 0, escaped === null ? 'no log — the mu-plugin never loaded' : ours.join(' '))
 
     if (theirs.length) console.log(`  info  ${cell.name}: core or another plugin tried ${new Set(theirs.map((url) => new URL(url).host)).size} host(s), refused: ${[...new Set(theirs.map((url) => new URL(url).host))].join(', ')}`)
   } finally {
-    await browser.close()
     server.kill('SIGTERM')
     await sleep(1500)
 
@@ -660,8 +693,25 @@ async function run(cell, index) {
 
 await mkdir(SCREENSHOTS, { recursive: true })
 
-for (const [index, cell] of cells.entries()) {
-  await run(cell, index)
+/**
+ * ⚠ Headless Chromium has no WebGL unless it is given software GL. Mapbox then refuses to mount
+ * ("Map is not supported by this browser"), which reads exactly like the widget failing to boot.
+ * The browser is not downloaded by `pnpm install`: run `pnpm exec playwright-core install chromium`
+ * once on a fresh machine.
+ */
+const browser = await chromium
+  .launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
+  .catch((error) => {
+    console.error(`Chromium did not launch. Run \`pnpm exec playwright-core install chromium\` once.\n${error.message.split('\n')[0]}`)
+    process.exit(2)
+  })
+
+try {
+  for (const [index, cell] of cells.entries()) {
+    await run(browser, cell, index)
+  }
+} finally {
+  await browser.close()
 }
 
 console.log(`\n${failures} failure(s), ${knownFailures} known, ${widgetFindings} widget finding(s) to file in SahajAtlasWeb`)
