@@ -111,7 +111,7 @@ set_transient( SAHAJ_ATLAS_SITEMAP_TRANSIENT, array(), MINUTE_IN_SECONDS );
 
 sahaj_group( 'The sitemap path is not an atlas route' );
 
-update_option( 'permalink_structure', '/%postname%/' );
+sahaj_set_permalink_structure( '/%postname%/' );
 sahaj_mount_atlas_page_at( 'find-a-class' );
 
 sahaj_is(
@@ -142,7 +142,7 @@ function sahaj_sitemap_subfolder( $url ) {
 }
 
 update_option( SAHAJ_ATLAS_OPTION_KEY, 'test-key-123' );
-update_option( 'permalink_structure', '/%postname%/' );
+sahaj_set_permalink_structure( '/%postname%/' );
 update_option( 'blog_public', '1' );
 
 $sahaj_origin    = untrailingslashit( home_url() );
@@ -177,7 +177,7 @@ sahaj_ok(
 // ⚠ Plain permalinks lose both files at once: `rewrite_rules()` returns no rules at all, so the
 // sitemap path 404s as well. The one branch that is a failure rather than a warning, because
 // there is no line a volunteer could paste that would be served.
-update_option( 'permalink_structure', '' );
+sahaj_set_permalink_structure( '' );
 
 $sahaj_discovery = sahaj_atlas_check_sitemap_discovery();
 
@@ -185,7 +185,7 @@ sahaj_is( 'plain permalinks are a failure', 'fail', $sahaj_discovery['status'] )
 sahaj_ok( 'and the row names the one screen that fixes it', false !== strpos( $sahaj_discovery['detail'], 'options-permalink.php' ) );
 sahaj_ok( 'never offering a line that could not be served anyway', false === strpos( $sahaj_discovery['detail'], 'Sitemap: ' ) );
 
-update_option( 'permalink_structure', '/%postname%/' );
+sahaj_set_permalink_structure( '/%postname%/' );
 
 // A site that asked not to be indexed gets no argument about it. `sahaj_atlas_robots_txt()`
 // honours that switch, so the row reports the same answer rather than a second opinion.
@@ -206,23 +206,6 @@ update_option( SAHAJ_ATLAS_OPTION_KEY, 'test-key-123' );
 
 sahaj_group( 'The published address follows the permalink shape' );
 
-/**
- * Set the permalink structure the way a real request has it.
- *
- * ⚠ `update_option()` alone is not enough. `$wp_rewrite->permalink_structure` is read once during
- * setup and never re-read, so `using_index_permalinks()` keeps answering for the structure the
- * instance booted with — and every assertion below would pass against the wrong shape. A real
- * request and the Permalinks screen both reach `WP_Rewrite::init()`, so a fixture has to as well.
- *
- * @param string $structure A permalink structure, or '' for plain.
- */
-function sahaj_set_permalink_structure( $structure ) {
-	global $wp_rewrite;
-
-	update_option( 'permalink_structure', $structure );
-	$wp_rewrite->init();
-}
-
 // A non-empty set, so every refusal below is the permalink shape and never the empty-set guard.
 set_transient( SAHAJ_ATLAS_SITEMAP_TRANSIENT, $sahaj_rows, MINUTE_IN_SECONDS );
 
@@ -230,11 +213,8 @@ sahaj_set_permalink_structure( '/%postname%/' );
 
 sahaj_is( 'mod_rewrite permalinks publish the bare path', home_url( '/' . SAHAJ_ATLAS_SITEMAP_PATH ), sahaj_atlas_sitemap_url() );
 
-/*
- * ⚠ `/index.php/%postname%/` is what WordPress offers when mod_rewrite is unavailable. The bare
- * path reaches the filesystem there and 404s; only the prefixed one reaches `parse_request`. Every
- * address the plugin publishes comes from one composer, so all four follow it at once.
- */
+// ⚠ One composer feeds all four published addresses, so each assertion below pins a different
+// reader of it, not a different rule. The why is at `sahaj_atlas_sitemap_url()`.
 sahaj_set_permalink_structure( '/index.php/%postname%/' );
 
 $sahaj_prefixed = 'index.php/' . SAHAJ_ATLAS_SITEMAP_PATH;
@@ -248,10 +228,9 @@ sahaj_ok(
 );
 
 /*
- * ⚠ The serve guard needs no branch for this shape, which is the whole reason one line fixes it.
- * WordPress strips its index file before setting `$wp->request`, so the handler compares
- * `sahaj-atlas-sitemap.xml` on both shapes. Measured against a real request for
- * `/index.php/sahaj-atlas-sitemap.xml`: this handler answered it.
+ * ⚠ What this cannot prove: the lane routes every request through PHP, so the bare path answers
+ * here too and only a server without mod_rewrite 404s it. Measured separately against a booted
+ * instance — a real request for `/index.php/sahaj-atlas-sitemap.xml` was served the XML.
  */
 $sahaj_serve_wp          = new WP();
 $sahaj_serve_wp->request = SAHAJ_ATLAS_SITEMAP_PATH;
@@ -290,11 +269,8 @@ sahaj_is(
 
 sahaj_group( 'Plain permalinks publish nothing, because nothing can be served' );
 
-/*
- * ⚠ Not hypothetical on this shape. Yoast's index answers at `/?sitemap=1` even though its pretty
- * URL 404s, because `sitemap` is a registered query var — so a crawler reaches the index, and with
- * it our entry, and fetches a 404 we submitted on purpose.
- */
+// ⚠ Withholding, not a missing feature: whether this shape should instead get a servable sitemap
+// at `/?sahaj_atlas_sitemap=1` is open on #50. Until it is answered, an entry here is a 404.
 sahaj_set_permalink_structure( '' );
 
 sahaj_is( 'Yoast gains no entry', '<sitemapindex>', sahaj_atlas_yoast_sitemap_index( '<sitemapindex>' ) );

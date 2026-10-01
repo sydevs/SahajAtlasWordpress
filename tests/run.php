@@ -287,6 +287,20 @@ function sahaj_clear_query_route() {
 }
 
 /**
+ * Change the permalink structure the way the Permalinks screen does.
+ *
+ * ⚠ `update_option( 'permalink_structure', … )` alone is not enough. `WP_Rewrite` caches the
+ * structure in `init()` and never re-reads the option, so `$wp_rewrite->root` — which
+ * `sahaj_atlas_sitemap_url()` reads — keeps answering for the structure the instance booted with.
+ * Core's own setter writes the option and re-initialises, which is what a real request has.
+ *
+ * @param string $structure A permalink structure, or '' for plain.
+ */
+function sahaj_set_permalink_structure( $structure ) {
+	$GLOBALS['wp_rewrite']->set_permalink_structure( $structure );
+}
+
+/**
  * Make the Atlas page the request WordPress thinks it is serving.
  *
  * `sahaj_atlas_is_atlas_page()` reads `is_page()` and `get_queried_object_id()` off the main query,

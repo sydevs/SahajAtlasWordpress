@@ -470,7 +470,8 @@ function sahaj_atlas_check_sitemap_discovery() {
 		);
 	}
 
-	$line  = 'Sitemap: ' . sahaj_atlas_sitemap_url();
+	$url   = sahaj_atlas_sitemap_url();
+	$line  = 'Sitemap: ' . $url;
 	$parts = (array) wp_parse_url( home_url() );
 
 	if ( '' !== untrailingslashit( isset( $parts['path'] ) ? (string) $parts['path'] : '' ) ) {
@@ -488,7 +489,7 @@ function sahaj_atlas_check_sitemap_discovery() {
 				'detail' => sprintf(
 					/* translators: %s: the address of this site's sitemap. */
 					esc_html__( 'This site is one of a network, so its sitemap cannot be listed in a robots.txt file. Submit this address to Google Search Console and Bing Webmaster Tools instead: %s', 'sahaj-atlas' ),
-					'<code>' . esc_html( sahaj_atlas_sitemap_url() ) . '</code>'
+					'<code>' . esc_html( $url ) . '</code>'
 				),
 			);
 		}
@@ -526,11 +527,8 @@ function sahaj_atlas_check_sitemap_discovery() {
 		);
 	}
 
-	// ⚠ The path comes out of the URL, never out of `SAHAJ_ATLAS_SITEMAP_PATH`. An `index.php` site
-	// is published at `/index.php/sahaj-atlas-sitemap.xml`, and a row naming the bare path there
-	// would show a volunteer an address that 404s, under a link to the one that works.
-	$url = sahaj_atlas_sitemap_url();
-
+	// ⚠ The path comes out of the URL, never `SAHAJ_ATLAS_SITEMAP_PATH` — an `index.php` site
+	// publishes a prefixed one, and naming the bare path here would show a volunteer a 404.
 	return array(
 		'status' => 'ok',
 		'label'  => $label,
