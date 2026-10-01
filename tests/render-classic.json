@@ -16,6 +16,11 @@
       "data": "<?php require '/wordpress/wp-content/plugins/sahaj-atlas/tests/fixture-theme.php';"
     },
     {
+      "step": "writeFile",
+      "path": "/wordpress/wp-content/mu-plugins/sahaj-atlas-fixture-template.php",
+      "data": "<?php require '/wordpress/wp-content/plugins/sahaj-atlas/tests/fixture-template.php';"
+    },
+    {
       "step": "activateTheme",
       "themeFolderName": "sahaj-classic"
     },

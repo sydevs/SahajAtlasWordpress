@@ -178,7 +178,7 @@ $GLOBALS['sahaj_atlas_active']  = array( 'map' => true, 'atlas' => '', 'source' 
  * An inline style would need `!important` to beat, on the one property that decides whether the
  * map is contained at all.
  */
-sahaj_is( 'the Atlas page element is sized by the stylesheet, not inline', '<sahaj-atlas></sahaj-atlas>', sahaj_atlas_page_element_markup() );
+sahaj_is( 'the Atlas page element is sized by the stylesheet, not inline', '<sahaj-atlas data-sahaj-atlas-render="template"></sahaj-atlas>', sahaj_atlas_page_element_markup( 'template' ) );
 
 // ---------------------------------------------------------------------------------------------
 
@@ -382,6 +382,104 @@ sahaj_ok( 'the measurement script is enqueued', wp_script_is( 'sahaj-atlas-page'
 sahaj_is( 'in the footer, not `<head>`', 1, wp_scripts()->get_data( 'sahaj-atlas-page', 'group' ) );
 
 $GLOBALS['wp_query'] = $sahaj_asset_query;
+
+// ---------------------------------------------------------------------------------------------
+
+sahaj_group( 'The element prints once, by the best path still available' );
+
+/**
+ * Run `the_content` the way a theme's page template does, with the print flag reset.
+ *
+ * @return string What the filter chain returned.
+ */
+function sahaj_content_print() {
+	$GLOBALS['sahaj_atlas_printed'] = false;
+
+	return (string) apply_filters( 'the_content', '' );
+}
+
+/** Ask for the content inside `<head>`, the way an SEO plugin building a description does. */
+function sahaj_content_in_head() {
+	$GLOBALS['sahaj_head_content'] = sahaj_content_print();
+}
+
+$sahaj_print_query   = isset( $GLOBALS['wp_query'] ) ? $GLOBALS['wp_query'] : null;
+$GLOBALS['wp_query'] = sahaj_query_page();
+$GLOBALS['wp_query']->the_post();
+
+$GLOBALS['sahaj_atlas_active'] = array( 'map' => true, 'atlas' => '', 'source' => 'page' );
+
+// A page builder's canvas template, or the theme's own `page.php`, renders the content area. The
+// element belongs there, above the footer the theme is about to print.
+$sahaj_printed_content = sahaj_content_print();
+
+sahaj_ok( 'the content area prints it', false !== strpos( $sahaj_printed_content, 'data-sahaj-atlas-render="content"' ) );
+sahaj_ok( 'exactly once', 1 === substr_count( $sahaj_printed_content, '<sahaj-atlas' ) );
+
+/*
+ * ⚠ `wpautop()` must not reach it. A `<p>` around the element adds a margin above and below, and
+ * the contained map is sized to the viewport less its own top — so the margins push its bottom
+ * edge, where the mobile drag handle lives, below the fold.
+ */
+sahaj_ok( 'and not wrapped in a paragraph', ! preg_match( '#<p>\s*<sahaj-atlas#', $sahaj_printed_content ) );
+
+sahaj_is( 'so the footer fallback has nothing left to print', '', sahaj_atlas_page_element_markup( 'footer' ) );
+
+// The last resort still renders the widget, for a template that runs neither path.
+$GLOBALS['sahaj_atlas_printed'] = false;
+
+sahaj_ok(
+	'the footer fallback prints when nothing earlier did',
+	false !== strpos( sahaj_atlas_page_element_markup( 'footer' ), 'data-sahaj-atlas-render="footer"' )
+);
+
+/*
+ * ⚠ Two callers run `the_content` without rendering the page body, and either one would spend the
+ * single print on a string nobody shows — leaving the page empty and the footer fallback no-opping
+ * behind it. `wp_trim_excerpt()` is the first: `get_the_excerpt()` on a page with no excerpt of its
+ * own runs the content through this filter to build one.
+ */
+$GLOBALS['sahaj_atlas_printed'] = false;
+$sahaj_excerpt                  = (string) get_the_excerpt( sahaj_atlas_page_id() );
+
+// ⚠ The flag, not just the string. Asserting on the excerpt alone passes while the print flag is
+// already spent, which is exactly the state this case exists to rule out.
+sahaj_ok(
+	'an excerpt never spends the print',
+	false === strpos( $sahaj_excerpt, '<sahaj-atlas' ) && ! $GLOBALS['sahaj_atlas_printed']
+);
+
+// The second is an SEO plugin asking for a description while `<head>` is being built.
+$GLOBALS['sahaj_head_content'] = '';
+
+add_action( 'wp_head', 'sahaj_content_in_head', 0 );
+ob_start();
+wp_head();
+ob_end_clean();
+remove_action( 'wp_head', 'sahaj_content_in_head', 0 );
+
+sahaj_ok( 'nor does a request for the content inside <head>', false === strpos( (string) $GLOBALS['sahaj_head_content'], '<sahaj-atlas' ) );
+
+// And the filter is global, so it must add nothing to any other page's content.
+$sahaj_other_page = wp_insert_post(
+	array(
+		'post_type'   => 'page',
+		'post_status' => 'publish',
+		'post_title'  => 'Elsewhere',
+		'post_name'   => 'elsewhere',
+	)
+);
+
+$GLOBALS['wp_query'] = sahaj_query_page( $sahaj_other_page );
+$GLOBALS['wp_query']->the_post();
+
+sahaj_is( 'and no other page gets an element', '', sahaj_content_print() );
+
+wp_reset_postdata();
+wp_delete_post( $sahaj_other_page, true );
+$GLOBALS['wp_query']            = $sahaj_print_query;
+$GLOBALS['sahaj_atlas_printed'] = false;
+$GLOBALS['sahaj_atlas_active']  = null;
 
 // ---------------------------------------------------------------------------------------------
 

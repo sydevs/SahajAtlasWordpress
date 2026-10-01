@@ -100,11 +100,12 @@ add_action( 'template_redirect', 'sahaj_atlas_resolve_and_enqueue' );
 // `sahaj_atlas_query_route()` — the resolver does not, since the Atlas page's embed carries no
 // `atlas` attribute at all.
 add_action( 'template_redirect', 'sahaj_atlas_seo_boot', 11 );
-// ⚠ This uses `wp_footer`, not `wp_body_open`. Both templates now print the element in the normal
-// page flow. A contained map draws where its element sits, so the element must come after the
-// header. This hook is only a last-resort fallback. It does nothing if the flow print already
-// happened.
-add_action( 'wp_footer', 'sahaj_atlas_render_element_once', 1 );
+// ⚠ Three prints, in order of preference, and the first one to run wins. The plugin's own template
+// prints in the page flow after the header. `the_content` covers a template this plugin did not
+// supply, at a priority past `wpautop()`. `wp_footer` is the last resort, and lands after the
+// theme's footer — diagnostics turns red on it rather than reporting the page healthy.
+add_filter( 'the_content', 'sahaj_atlas_content_element', 99 );
+add_action( 'wp_footer', 'sahaj_atlas_render_element_fallback', 1 );
 add_action( 'wp_enqueue_scripts', 'sahaj_atlas_enqueue_page_assets' );
 add_filter( 'body_class', 'sahaj_atlas_body_class' );
 add_filter( 'template_include', 'sahaj_atlas_template_include' );

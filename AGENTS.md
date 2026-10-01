@@ -68,7 +68,7 @@ Each entry states the trap. Where a line number is given, the inline `⚠` comme
 the full story.
 
 1. `auto.js` is an ES module. Use `wp_enqueue_script_module()`, not `wp_enqueue_script()` with
-   `defer`. See embed.php:48.
+   `defer`. See embed.php:51.
 2. Print an explicit `<sahaj-atlas></sahaj-atlas>` element. Core prints script modules in the
    footer on classic themes, and in `<head>` on block themes — but the loader refuses `<head>`.
    Core adopts an existing element wherever it sits, so the script tag's own position no longer
@@ -76,17 +76,22 @@ the full story.
 3. Element placement now matters, though it did not before. A contained map draws inside its own
    element's box, so both templates print it in the page flow, right after the header. Do not use
    `wp_body_open` — that was correct only for the old fixed-overlay map, and now it would place
-   the atlas above the header. The `wp_footer` hook stays as a fallback print, for a theme that
-   runs neither template. This also fixes the old transform-ancestor hazard, since a contained map
-   creates its own containing block.
+   the atlas above the header. This also fixes the old transform-ancestor hazard, since a contained
+   map creates its own containing block.
+   Three prints exist, and the first to run wins: the plugin's template, then `the_content` for a
+   template this plugin did not supply, then `wp_footer`. The last one lands after the theme's
+   footer, where the sizing script measures the element's top at the document's full height and the
+   map computes to nothing — so it is a last resort, and diagnostics turns red on it rather than
+   reporting the page healthy. A caller that runs `the_content` without rendering the page body,
+   `wp_trim_excerpt()` above all, must not spend the one print. See embed.php:291,311.
 4. Size `<sahaj-atlas>` with `display: block` and a definite height. This opts into a contained
    map: it draws inside its own box and stacking context, so the site header survives, and the map
    skips the compact-card question. SahajAtlasWeb#170 inverted the old rule — an unsized element
    now becomes `position: fixed; inset: 0` and covers the page, which is why the Atlas page had no
    header before #170.
 5. `min-height` is not a height. Use a definite height and `display: block` instead — a custom
-   element defaults to `inline` and cannot size itself. See embed.php:342, render.mjs:321,
-   run.php:143.
+   element defaults to `inline` and cannot size itself. See embed.php:399, render.mjs:359,
+   run.php:155.
 6. Never run `wp_kses()` on markup this plugin generates. `safecss_filter_attr()`'s property
    allowlist has no `display` property, so it silently reduced `display:block;height:520px` to
    `height:520px`, breaking the block path while the shortcode path stayed fine. Sanitize only
@@ -94,7 +99,7 @@ the full story.
 7. Never call `get_header()` on a block theme — it falls through to theme-compat and prints a
    duplicate, 2010-era `<!DOCTYPE html>`. See atlas-page.php:14,20,31.
 8. `get_footer()` is not `wp_footer()`. Always fire `wp_footer()` instead. See atlas-page.php:8,
-   sahaj-atlas.php:93.
+   sahaj-atlas.php:108.
 9. `redirect_canonical()` 301s deep links back to the page root. Suppress it when the **path**
    route is set, never on every atlas route — the contract publishes `/?p=42&atlas=…` mounts, and
    core's 301 to the pretty permalink is what carries a query-routed visitor to the canonical URL,
@@ -140,7 +145,7 @@ the full story.
     See seo.php:185.
 21. Enqueue `assets/atlas-page.js` in the footer. `<head>` has neither the element it measures nor
     `document.body`, so both the first measure and the observer are lost there — silently. See
-    embed.php:377, atlas-page.js:65.
+    embed.php:429, atlas-page.js:65.
 
 ## What is built
 

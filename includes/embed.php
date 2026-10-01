@@ -26,7 +26,10 @@ $GLOBALS['sahaj_atlas_printed'] = false;
  * comes from the whole post, not from whichever block happens to render first.
  */
 function sahaj_atlas_resolve_and_enqueue() {
-	if ( is_admin() || ! is_singular() ) {
+	// ⚠ `is_feed()` too. A feed request is singular and reaches this far, and the element belongs
+	// in a page body — `sahaj_atlas_content_element()` would otherwise spend the one print on a
+	// feed item and leave the page itself empty.
+	if ( is_admin() || is_feed() || ! is_singular() ) {
 		return;
 	}
 
@@ -245,11 +248,13 @@ function sahaj_atlas_script_url( $embed ) {
  * its own element box (SahajAtlasWeb#170), so both templates print it after the header, not at
  * `wp_body_open` — that would place the atlas above the header. Only the classic template calls
  * this function (`templates/atlas-page.php:52`). The block template instead renders
- * `wp:sahaj-atlas/page`, whose callback is `sahaj_atlas_render_page_block()`. `sahaj-atlas.php`
- * keeps a `wp_footer` hook at priority 1 as a last-resort fallback, for a theme that runs neither
- * template — it no-ops once the flow print has already happened. (The old transform-ancestor
- * argument for `wp_body_open` retired with the fixed overlay it protected. `AGENTS.md`, "Traps
- * already paid for", covers that inversion.)
+ * `wp:sahaj-atlas/page`, whose callback is `sahaj_atlas_render_page_block()`. (The old
+ * transform-ancestor argument for `wp_body_open` retired with the fixed overlay it protected.
+ * `AGENTS.md`, "Traps already paid for", covers that inversion.)
+ *
+ * ⚠ Neither of those templates runs when something else claims the page, which is the common case
+ * on this fleet rather than the exotic one. `sahaj_atlas_content_element()` and
+ * `sahaj_atlas_render_element_fallback()` are the other two prints, in that order of preference.
  *
  * ⚠ The element is sized, and that is load-bearing — the opposite of what this file said before
  * #170. `display: block` plus a definite height opts into a contained map. Remove the sizing, and
@@ -261,7 +266,50 @@ function sahaj_atlas_script_url( $embed ) {
  * `sahaj_atlas_element_markup()`. `min-height` is not a height — see that function's note.
  */
 function sahaj_atlas_render_element_once() {
-	echo sahaj_atlas_page_element_markup(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built below; children escaped in includes/seo.php.
+	echo sahaj_atlas_page_element_markup( 'template' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built below; children escaped in includes/seo.php.
+}
+
+/**
+ * Print the element in the content area, for a template this plugin did not supply.
+ *
+ * A page builder's canvas template, a theme-builder layout, a maintenance-mode plugin, or a
+ * volunteer switching the page's template all replace the plugin's template with one that renders
+ * header, content and footer. The Atlas page's content is empty, so this is where the element
+ * belongs: inside the page, above the theme's own footer, which stays.
+ *
+ * ⚠ Refuse every caller that is not rendering the page body. `wp_trim_excerpt()` runs the content
+ * through this same filter, and an SEO plugin asks for an excerpt while `<head>` is being built —
+ * either one would spend the single print on a string nobody renders, leaving the page with no
+ * element at all and the `wp_footer` fallback no-opping behind it.
+ *
+ * ⚠ Late priority, after `wpautop()`. At the default priority `wpautop()` wraps the element in a
+ * `<p>`, whose margins then push the contained map's bottom edge past the fold.
+ *
+ * @param string $content The post content.
+ * @return string
+ */
+function sahaj_atlas_content_element( $content ) {
+	if ( doing_filter( 'get_the_excerpt' ) || doing_action( 'wp_head' ) ) {
+		return $content;
+	}
+
+	if ( ! sahaj_atlas_is_atlas_page() || (int) get_the_ID() !== sahaj_atlas_page_id() ) {
+		return $content;
+	}
+
+	return $content . sahaj_atlas_page_element_markup( 'content' );
+}
+
+/**
+ * Print the element at `wp_footer`, when no earlier print happened.
+ *
+ * ⚠ This lands after the theme's footer, where `assets/atlas-page.js` measures the element's top at
+ * the whole document's height and the map computes to nothing. It is the last resort, for a
+ * template that runs neither this plugin's template nor `the_content`, and the loopback check in
+ * `includes/diagnostics.php` turns red on it rather than letting it pass as healthy.
+ */
+function sahaj_atlas_render_element_fallback() {
+	echo sahaj_atlas_page_element_markup( 'footer' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built below; children escaped in includes/seo.php.
 }
 
 /**
@@ -278,15 +326,16 @@ function sahaj_atlas_render_element_once() {
  * @return string
  */
 function sahaj_atlas_render_page_block() {
-	return sahaj_atlas_page_element_markup();
+	return sahaj_atlas_page_element_markup( 'template' );
 }
 
 /**
  * The Atlas page's element, once per request.
  *
+ * @param string $render Which of the three prints is asking: `template`, `content` or `footer`.
  * @return string Empty after the first call, or when this page's embed is not the Atlas page's.
  */
-function sahaj_atlas_page_element_markup() {
+function sahaj_atlas_page_element_markup( $render ) {
 	$active = $GLOBALS['sahaj_atlas_active'];
 
 	if ( null === $active || 'page' !== $active['source'] || $GLOBALS['sahaj_atlas_printed'] ) {
@@ -301,7 +350,15 @@ function sahaj_atlas_page_element_markup() {
 	 * height, their own layout — with ordinary CSS. An inline style would need `!important` to
 	 * override, on the one property that decides whether the map is contained at all.
 	 */
-	return '<sahaj-atlas>' . sahaj_atlas_element_children() . '</sahaj-atlas>';
+
+	/*
+	 * ⚠ `data-sahaj-atlas-render` is read back by the loopback check in `includes/diagnostics.php`,
+	 * which is the only way the admin learns that the footer fallback is carrying the page. Nothing
+	 * in the page can be derived from instead: a theme's footer markup varies too much to locate,
+	 * and the plugin knows which print ran only while it is rendering. The widget ignores it.
+	 */
+	return '<sahaj-atlas data-sahaj-atlas-render="' . esc_attr( $render ) . '">'
+		. sahaj_atlas_element_children() . '</sahaj-atlas>';
 }
 
 /**
