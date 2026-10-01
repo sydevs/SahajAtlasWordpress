@@ -83,10 +83,10 @@ function sahaj_atlas_sitemap_url() {
 /**
  * Whether a request for that address can reach this plugin at all.
  *
- * ⚠ One answer, three readers — the two index entries and the diagnostics row. The composer owns
- * the address; this owns whether it can be served. `WP_Rewrite::rewrite_rules()` returns an empty
- * set for an empty permalink structure (`wp-includes/class-wp-rewrite.php:1279`, WordPress 6.7.9),
- * so `WP::parse_request()` never sets `$wp->request` and the guard in
+ * ⚠ One answer, four readers — `robots.txt`, both index entries, and the diagnostics row. The
+ * composer owns the address; this owns whether it can be served. `WP_Rewrite::rewrite_rules()`
+ * returns an empty set for an empty permalink structure (`wp-includes/class-wp-rewrite.php:1279`,
+ * WordPress 6.7.9), so `WP::parse_request()` never sets `$wp->request` and the guard in
  * `sahaj_atlas_maybe_serve_sitemap()` cannot match.
  *
  * ⚠ The cached rewrite state, never `get_option( 'permalink_structure' )`. The two disagree until
@@ -268,8 +268,8 @@ function sahaj_atlas_flush_sitemap_cache() {
  * below are a convenience for site owners who read their SEO plugin's report — they are not the
  * discovery path.
  *
- * ⚠ And on part of the fleet this filter never runs: core serves a virtual `robots.txt` only with
- * rewriting on and WordPress at the domain root, and never when a real file is there.
+ * ⚠ And on part of the fleet `/robots.txt` never reaches this filter: core serves a virtual one only
+ * with rewriting on and WordPress at the domain root, and never over a real file.
  * `sahaj_atlas_check_sitemap_discovery()` models those conditions for the panel. A change here
  * leaves that model stale, and it is the only thing that tells a volunteer the line is missing.
  *
@@ -280,6 +280,17 @@ function sahaj_atlas_flush_sitemap_cache() {
 function sahaj_atlas_robots_txt( $output, $public ) {
 	// A site set to discourage search engines gets nothing added. That switch is the owner's answer.
 	if ( ! $public ) {
+		return $output;
+	}
+
+	/*
+	 * ⚠ `/robots.txt` is not the only way in. `robots` is one of `WP::$public_query_vars`, and that
+	 * loop sits outside `parse_request()`'s `! empty( $rewrite )` block
+	 * (`wp-includes/class-wp.php:165,319`, WordPress 6.7.9), so `/?robots=1` runs `do_robots()` with
+	 * no rewrite rules at all. Without this guard the one shape that can serve nothing is still the
+	 * one announcing the address.
+	 */
+	if ( ! sahaj_atlas_sitemap_is_servable() ) {
 		return $output;
 	}
 

@@ -301,6 +301,11 @@ sahaj_set_permalink_structure( '' );
 sahaj_is( 'Yoast gains no entry', '<sitemapindex>', sahaj_atlas_yoast_sitemap_index( '<sitemapindex>' ) );
 sahaj_is( 'and neither does Rank Math', '<sitemapindex>', sahaj_atlas_rank_math_sitemap_index( '<sitemapindex>' ) );
 
+// ⚠ `/robots.txt` is unreachable on this shape, but `/?robots=1` is not: `robots` is a public query
+// var, parsed outside the rewrite block, so `do_robots()` still runs this filter. Both halves of one
+// refusal, or the file announces an address it just withheld from the indexes.
+sahaj_is( 'and robots.txt announces nothing either', "User-agent: *\n", sahaj_atlas_robots_txt( "User-agent: *\n", true ) );
+
 // Leave the suite on the shape the files after this one were written against.
 sahaj_set_permalink_structure( '/%postname%/' );
 set_transient( SAHAJ_ATLAS_SITEMAP_TRANSIENT, array(), MINUTE_IN_SECONDS );
