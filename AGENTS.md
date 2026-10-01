@@ -107,16 +107,16 @@ the full story.
 12. A front-page atlas refuses path routing, or it would turn the host's own 404 page into the
     atlas. See routing.php:227, tests/contract.php:130.
 13. An empty sitemap must return a 404, never an empty `<urlset>` or an index line. See
-    sitemap.php:101, tests/sitemap.php:82.
+    sitemap.php:121, tests/sitemap.php:82.
 14. `allowedDomains` splits on newlines, not commas. An empty list allows every origin — the
     documented default, not a refusal. Treat each entry as an exact host, never a wildcard suffix,
     and mirror `parseAllowedDomains()` / `isHostAllowed()` in SahajCloud instead of re-deriving
-    them. See diagnostics.php:284,616, tests/domains.php.
+    them. See diagnostics.php:284,639, tests/domains.php.
 15. Publish sitemap URLs only for this host. A shared key, or a mis-set `canonical.embed`, can add
     a foreign one. The same guard decides whether the root view may take the Atlas page over at
     all: a root answer whose canonical names another domain is a failed fetch, not a tag to drop,
     because `rel_canonical` is gone by the time the tag is printed. A region may canonicalise
-    elsewhere. The root may not. See sitemap.php:207,229, seo.php:89,147, tests/sitemap.php:20.
+    elsewhere. The root may not. See sitemap.php:227,249, seo.php:89,147, tests/sitemap.php:20.
 16. Suppress the host's SEO plugin only after a successful fetch. Suppressing first, then finding
     the endpoint unreachable, leaves the page with no metadata at all — worse than leaving the
     original, generic metadata in place.
@@ -158,10 +158,13 @@ the full story.
     invisible from inside this plugin: the page returns 200 with a full `<head>` either way. See
     seo.php:102,188, tests/fixtures/fake-yoast.php.
 24. The sitemap's address follows the permalink shape, and two shapes break it. An `index.php`
-    structure needs the prefix core keeps in `$wp_rewrite->root`; a plain one can serve nothing, so
-    the SEO-plugin index entries are withheld. Neither needs a branch in the serve guard or in
-    `robots.txt`. Keep one composer — anything that spells this address a second time is free to
-    disagree with it. See sitemap.php:62,77,304, diagnostics.php:530.
+    structure needs the prefix core keeps in `$wp_rewrite->root`, and cannot publish a `Sitemap:`
+    line at all, so check 6 warns and names the line to paste. A plain structure can serve nothing,
+    so both index entries and the `robots.txt` line are withheld — `/?robots=1` reaches that filter
+    with no rewrite rules, so it needs the guard too. The serve guard still needs none. Keep one
+    composer, and one `sahaj_atlas_sitemap_is_servable()` beside it — anything that spells either
+    answer a second time is free to disagree with it. See sitemap.php:62,77,86,287,333,
+    diagnostics.php:534,553.
 
 ## What is built
 
