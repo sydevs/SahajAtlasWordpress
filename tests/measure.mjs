@@ -19,6 +19,25 @@ import { readFile } from 'node:fs/promises'
 import { createContext, runInContext } from 'node:vm'
 
 const SOURCE = await readFile(new URL('../assets/atlas-page.js', import.meta.url), 'utf8')
+const EMBED = await readFile(new URL('../includes/embed.php', import.meta.url), 'utf8')
+
+/**
+ * Where the plugin enqueues this script today, read from the enqueue itself.
+ *
+ * ⚠ Read, never written down. A scene that hard-codes a load position keeps passing after the
+ * enqueue moves, while modelling a page the plugin no longer serves. Every scene below defaults to
+ * this value, and the lifecycle section runs both positions explicitly.
+ */
+const IN_FOOTER = (() => {
+  const match = /wp_enqueue_script\(\s*'sahaj-atlas-page',[^;]*?,\s*(true|false)\s*\)/.exec(EMBED)
+
+  if (!match) {
+    console.error("includes/embed.php no longer enqueues 'sahaj-atlas-page' in a shape this lane can read.")
+    process.exit(2)
+  }
+
+  return match[1] === 'true'
+})()
 
 /** A browser settles the offset over frames. Past this many, the script is looping, not settling. */
 const FRAME_BUDGET = 12
@@ -57,6 +76,7 @@ function ok(label, condition, detail = '') {
  * @param {number} [scene.parentMargin] A parent top margin that collapses with the element's own.
  * @param {number} [scene.scrollY]
  * @param {number} [scene.innerHeight] The viewport height. 720 unless a scene cares.
+ * @param {boolean} [scene.inFooter] Where the script is loaded. The shipped position unless a scene says.
  * @param {Array<{position: string, top: number, height: number, hidden?: boolean, inside?: boolean, wraps?: boolean, after?: boolean}>} [scene.headers]
  * @param {() => void} [mutate] Changes the scene once it has settled, to settle it again.
  */
@@ -71,9 +91,9 @@ function run(scene, mutate) {
   const observers = []
   const listeners = { DOMContentLoaded: [], load: [], resize: [] }
   let writes = 0
-  // `wp_enqueue_script()` puts the script in `<head>`: it runs before the atlas element and the
-  // body element exist, and only `DOMContentLoaded` brings them into being.
-  let parsed = false
+  // In `<head>` the script runs before the atlas element and the body element exist, and only
+  // `DOMContentLoaded` brings them into being. In the footer both are already there.
+  let parsed = scene.inFooter ?? IN_FOOTER
 
   const offset = () => Number.parseFloat(props.get('--sahaj-atlas-offset') ?? '0')
   const elementTop = () => base + Math.max(parentMargin, offset())
@@ -301,12 +321,28 @@ scene(
   { top: '80px', offset: '0px' }
 )
 
-console.log('\nthe lifecycle')
+console.log('\nthe load position')
 
-// Everything above settles only because the script is re-measured. Attaching the body observer is
-// #41's, so this lane asks only that the script needs nothing from the observer to decide.
-const lifecycle = run({ inflowTop: 0, headers: [{ position: 'fixed', top: 0, height: 100 }] })
-ok('nothing is measured while the script is still in the head', lifecycle.headWrites === 0)
+// Every scene above ran at the position `includes/embed.php` enqueues. Both are run here, so
+// neither is only assumed, and the decision must come out the same from either. Attaching the body
+// observer is #41's; this lane asks only that the script needs nothing from it to decide.
+for (const inFooter of [false, true]) {
+  const where = inFooter ? 'the footer' : 'the head'
+  const lane = run({ inflowTop: 0, inFooter, headers: [{ position: 'fixed', top: 0, height: 100 }] })
+
+  ok(
+    `loaded in ${where}, the atlas clears the header`,
+    lane.top === '100px' && lane.offset === '100px',
+    `top ${lane.top} offset ${lane.offset}`
+  )
+  ok(
+    `loaded in ${where}, the parse-time pass writes ${inFooter ? 'the offset' : 'nothing'}`,
+    inFooter ? lane.headWrites > 0 : lane.headWrites === 0,
+    `${lane.headWrites} write(s) before the document parsed`
+  )
+}
+
+console.log(`  info  includes/embed.php loads the script in ${IN_FOOTER ? 'the footer' : 'the head'}`)
 
 console.log('\nsettling')
 
