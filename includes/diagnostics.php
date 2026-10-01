@@ -461,7 +461,7 @@ function sahaj_atlas_check_sitemap_discovery() {
 		);
 	}
 
-	if ( ! get_option( 'permalink_structure' ) ) {
+	if ( ! sahaj_atlas_sitemap_is_servable() ) {
 		return array(
 			'status' => 'fail',
 			'label'  => $label,

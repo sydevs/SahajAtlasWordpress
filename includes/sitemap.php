@@ -81,6 +81,26 @@ function sahaj_atlas_sitemap_url() {
 }
 
 /**
+ * Whether a request for that address can reach this plugin at all.
+ *
+ * ⚠ One answer, three readers — the two index entries and the diagnostics row. The composer owns
+ * the address; this owns whether it can be served. `WP_Rewrite::rewrite_rules()` returns an empty
+ * set for an empty permalink structure (`wp-includes/class-wp-rewrite.php:1279`, WordPress 6.7.9),
+ * so `WP::parse_request()` never sets `$wp->request` and the guard in
+ * `sahaj_atlas_maybe_serve_sitemap()` cannot match.
+ *
+ * ⚠ The cached rewrite state, never `get_option( 'permalink_structure' )`. The two disagree until
+ * `WP_Rewrite::init()` runs, and a request is routed by the cached one.
+ *
+ * @return bool
+ */
+function sahaj_atlas_sitemap_is_servable() {
+	global $wp_rewrite;
+
+	return (bool) $wp_rewrite->using_permalinks();
+}
+
+/**
  * Serve the sitemap. Called from `parse_request`, before the atlas route matching.
  *
  * @param WP $wp The request.
@@ -298,17 +318,12 @@ function sahaj_atlas_rank_math_sitemap_index( $index ) {
  * @return string
  */
 function sahaj_atlas_sitemap_index_entry() {
-	global $wp_rewrite;
-
 	/*
-	 * ⚠ Plain permalinks leave nothing to point at. `WP_Rewrite` builds no rules for an empty
-	 * structure, so `WP::parse_request()` never sets `$wp->request` and the guard in
-	 * `sahaj_atlas_maybe_serve_sitemap()` cannot match — our address 404s. Not hypothetical here:
-	 * Yoast's index still answers at `/?sitemap=1`, a registered query var, so a crawler does reach
-	 * our entry and fetch that 404. `sahaj_atlas_robots_txt()`'s own ⚠ says why that filter needs
-	 * no matching guard.
+	 * ⚠ Not hypothetical: Yoast's index still answers at `/?sitemap=1`, a registered query var, so
+	 * a crawler reaches this entry on the one shape that cannot serve what it points at, and fetches
+	 * the 404.
 	 */
-	if ( ! $wp_rewrite->using_permalinks() ) {
+	if ( ! sahaj_atlas_sitemap_is_servable() ) {
 		return '';
 	}
 

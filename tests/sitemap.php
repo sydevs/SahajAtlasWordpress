@@ -187,6 +187,18 @@ sahaj_ok( 'never offering a line that could not be served anyway', false === str
 
 sahaj_set_permalink_structure( '/%postname%/' );
 
+/*
+ * ⚠ A bare option write on purpose — the desync `sahaj_set_permalink_structure()` exists to avoid.
+ * One predicate answers servability, and it reads the cached rewrite state, because that is the
+ * shape a request is routed by. A row that followed the option instead would call a working site
+ * broken.
+ */
+update_option( 'permalink_structure', '' );
+
+sahaj_is( 'the row follows the booted shape, never a bare option write', 'ok', sahaj_atlas_check_sitemap_discovery()['status'] );
+
+update_option( 'permalink_structure', '/%postname%/' );
+
 // A site that asked not to be indexed gets no argument about it. `sahaj_atlas_robots_txt()`
 // honours that switch, so the row reports the same answer rather than a second opinion.
 update_option( 'blog_public', '0' );
