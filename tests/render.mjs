@@ -151,6 +151,13 @@ async function check(run) {
 
     ok('with the element below the header', headerAt >= 0 && elementAt > headerAt, `header ${headerAt}, element ${elementAt}`)
 
+    // ⚠ And the measurement script below the element, because it measures it. `<head>` has neither
+    // the element nor `document.body`, so the first measure finds nothing and the `ResizeObserver`
+    // never attaches (#41). `includes/embed.php` carries the rest.
+    const scriptAt = html.indexOf('assets/atlas-page.js')
+
+    ok('with the script below both', scriptAt > elementAt, `element ${elementAt}, script ${scriptAt}`)
+
     // ── A classic theme with no header.php ─────────────────────────────────────────────────────
     // ⚠ `get_header()` there falls through to core's 2010 theme-compat header: a banner of its own
     // and no viewport tag. The template prints a minimal document instead. Only a rendered page

@@ -85,7 +85,7 @@ the full story.
    now becomes `position: fixed; inset: 0` and covers the page, which is why the Atlas page had no
    header before #170.
 5. `min-height` is not a height. Use a definite height and `display: block` instead — a custom
-   element defaults to `inline` and cannot size itself. See embed.php:342, render.mjs:314,
+   element defaults to `inline` and cannot size itself. See embed.php:342, render.mjs:321,
    run.php:143.
 6. Never run `wp_kses()` on markup this plugin generates. `safecss_filter_attr()`'s property
    allowlist has no `display` property, so it silently reduced `display:block;height:520px` to
@@ -138,6 +138,9 @@ the full story.
     every sanitising step below it — core's own `esc_html()` included — and
     `_wp_render_title_tag()` echoes the result raw. Escape inside the filter, or nothing does.
     See seo.php:185.
+21. Enqueue `assets/atlas-page.js` in the footer. `<head>` has neither the element it measures nor
+    `document.body`, so both the first measure and the observer are lost there — silently. See
+    embed.php:377, atlas-page.js:65.
 
 ## What is built
 
