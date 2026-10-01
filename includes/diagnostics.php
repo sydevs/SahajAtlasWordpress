@@ -79,7 +79,7 @@ function sahaj_atlas_check_idle( $label ) {
 }
 
 /**
- * The five checks, in the order a volunteer reaches them.
+ * The six checks, in the order a volunteer reaches them.
  *
  * @return array<int, array{status:string, label:string, detail:string}>
  */
@@ -92,6 +92,7 @@ function sahaj_atlas_checks() {
 		sahaj_atlas_check_path_routing( $client ),
 		sahaj_atlas_check_allowed_domains( $client ),
 		sahaj_atlas_check_page_description( $client ),
+		sahaj_atlas_check_sitemap_discovery(),
 	);
 }
 
@@ -415,6 +416,123 @@ function sahaj_atlas_check_page_description( $client ) {
 			/* translators: %s: the page title the Atlas server supplies. */
 			esc_html__( 'Sahaj Atlas describes it, in each visitor\'s own language, as %s.', 'sahaj-atlas' ),
 			'<strong>' . esc_html( $title ) . '</strong>'
+		),
+	);
+}
+
+/**
+ * Check 6 — can a crawler find the atlas at all?
+ *
+ * ⚠ The `Sitemap:` line in `robots.txt` is the whole discovery path (see `sitemap.php`), and on
+ * part of the fleet it cannot exist. Core adds the `robots.txt` rewrite rule only when rewriting
+ * is on at all and WordPress sits at the domain root — `WP_Rewrite::rewrite_rules()` returns an
+ * empty rule set for a plain permalink structure, and gates the rule itself on an empty
+ * `home_url()` path (`wp-includes/class-wp-rewrite.php:1279-1285`, WordPress 6.7.9). A real
+ * `robots.txt` file on disk never reaches WordPress at all. Each of those is silent: the plugin
+ * registers its filter, the filter never runs, and the atlas is simply never crawled.
+ *
+ * ⚠ So this row names the address a crawler actually reads, and the exact line to paste into it.
+ * A row saying only "your sitemap is not listed" would leave the one person who can fix it with
+ * nothing to do.
+ *
+ * @return array{status:string, label:string, detail:string}
+ */
+function sahaj_atlas_check_sitemap_discovery() {
+	$label = __( 'Sitemap', 'sahaj-atlas' );
+
+	// The same gate `sahaj_atlas_register_sitemap()` applies. Checks 1 and 2 name both causes.
+	if ( ! sahaj_atlas_page_is_healthy() || '' === sahaj_atlas_api_key() ) {
+		return sahaj_atlas_check_idle( $label );
+	}
+
+	// ⚠ `blog_public = 0` is the owner's own answer, and `sahaj_atlas_robots_txt()` honours it.
+	// A warning here would be this plugin arguing with a decision it was told about.
+	if ( ! get_option( 'blog_public' ) ) {
+		return array(
+			'status' => 'idle',
+			'label'  => $label,
+			'detail' => esc_html__(
+				'Not listed, because this site asks search engines not to index it. That is the "Search engine visibility" box under Settings → Reading.',
+				'sahaj-atlas'
+			),
+		);
+	}
+
+	if ( ! get_option( 'permalink_structure' ) ) {
+		return array(
+			'status' => 'fail',
+			'label'  => $label,
+			'detail' => sprintf(
+				/* translators: %s: a link to the Permalinks settings screen. */
+				esc_html__( 'Search engines cannot find your atlas pages. With plain permalinks WordPress serves neither the sitemap file nor a robots.txt, so there is nothing to point a crawler at. Choose any other option under %s.', 'sahaj-atlas' ),
+				'<a href="' . esc_url( admin_url( 'options-permalink.php' ) ) . '">' . esc_html__( 'Settings → Permalinks', 'sahaj-atlas' ) . '</a>'
+			),
+		);
+	}
+
+	$line  = 'Sitemap: ' . sahaj_atlas_sitemap_url();
+	$parts = (array) wp_parse_url( home_url() );
+
+	if ( '' !== untrailingslashit( isset( $parts['path'] ) ? (string) $parts['path'] : '' ) ) {
+		/*
+		 * ⚠ A subdirectory network has no file for anyone to edit. The robots.txt at the top of
+		 * the domain is WordPress's own, generated for the main site, and the filter that writes
+		 * it runs with the main site's options — so it publishes the main site's sitemap and can
+		 * never publish this one's. Telling a volunteer to edit that address sends them looking
+		 * for a file that does not exist. Submitting the address is the only remedy left.
+		 */
+		if ( is_multisite() ) {
+			return array(
+				'status' => 'warn',
+				'label'  => $label,
+				'detail' => sprintf(
+					/* translators: %s: the address of this site's sitemap. */
+					esc_html__( 'This site is one of a network, so its sitemap cannot be listed in a robots.txt file. Submit this address to Google Search Console and Bing Webmaster Tools instead: %s', 'sahaj-atlas' ),
+					'<code>' . esc_html( sahaj_atlas_sitemap_url() ) . '</code>'
+				),
+			);
+		}
+
+		// The port belongs in an address somebody is told to open. Dropping it names a different file.
+		$origin = $parts['scheme'] . '://' . $parts['host']
+			. ( empty( $parts['port'] ) ? '' : ':' . (int) $parts['port'] );
+
+		return array(
+			'status' => 'warn',
+			'label'  => $label,
+			'detail' => sprintf(
+				/* translators: 1: the only robots.txt address a search engine reads. 2: the line to add to that file. */
+				esc_html__( 'WordPress runs in a subfolder here, so it cannot write %1$s — the only robots.txt a search engine reads. Add this line to that file yourself, or ask whoever hosts the site to: %2$s', 'sahaj-atlas' ),
+				'<code>' . esc_html( $origin . '/robots.txt' ) . '</code>',
+				'<code>' . esc_html( $line ) . '</code>'
+			),
+		);
+	}
+
+	// ⚠ `get_home_path()` is `wp-admin`'s, and this panel only ever renders there. `ABSPATH` is
+	// the fallback for a direct call, and the same directory on every install that has not given
+	// WordPress its own folder.
+	$root = function_exists( 'get_home_path' ) ? get_home_path() : ABSPATH;
+
+	if ( file_exists( $root . 'robots.txt' ) ) {
+		return array(
+			'status' => 'warn',
+			'label'  => $label,
+			'detail' => sprintf(
+				/* translators: %s: the line to add to the site's robots.txt file. */
+				esc_html__( 'This site has a real robots.txt file, and WordPress never adds anything to one of those. Add this line to it yourself: %s', 'sahaj-atlas' ),
+				'<code>' . esc_html( $line ) . '</code>'
+			),
+		);
+	}
+
+	return array(
+		'status' => 'ok',
+		'label'  => $label,
+		'detail' => sprintf(
+			/* translators: %s: the address of the sitemap, as a link. */
+			esc_html__( 'Listed in your robots.txt, at %s.', 'sahaj-atlas' ),
+			'<a href="' . esc_url( sahaj_atlas_sitemap_url() ) . '"><code>/' . esc_html( SAHAJ_ATLAS_SITEMAP_PATH ) . '</code></a>'
 		),
 	);
 }

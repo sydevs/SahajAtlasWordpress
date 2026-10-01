@@ -98,7 +98,14 @@ function sahaj_atlas_seo_boot() {
 	sahaj_atlas_seo_suppress_others();
 
 	add_action( 'wp_head', 'sahaj_atlas_seo_emit', 1 );
-	add_filter( 'pre_get_document_title', 'sahaj_atlas_seo_title' );
+
+	// ⚠ Last in the chain, never 10. Yoast registers the same filter at 15 and its callback takes
+	// no argument at all — it discards whatever ran before it and returns its own title
+	// (`src/integrations/front-end-integration.php`, `register_hooks()` and `filter_title()`,
+	// confirmed in 28.6). Any priority below the highest vendor's loses, and there is no number
+	// that is above all of them for good. On an atlas route this plugin is the designated
+	// override, so the end of the chain is the only position that holds.
+	add_filter( 'pre_get_document_title', 'sahaj_atlas_seo_title', PHP_INT_MAX );
 	add_filter( 'sahaj_atlas_element_children', 'sahaj_atlas_seo_children' );
 }
 
@@ -177,6 +184,43 @@ function sahaj_atlas_seo_suppress_others() {
 	remove_action( 'wp_head', 'rel_canonical' );
 	remove_action( 'wp_head', 'wp_shortlink_wp_head' );
 	add_filter( 'wpseo_canonical', '__return_false' );
+
+	add_action( 'wp_head', 'sahaj_atlas_seo_restore_title_tag', 0 );
+}
+
+/**
+ * Put core's `<title>` printer back when the suppression above removed the only one.
+ *
+ * ⚠ The suppression costs the page its `<title>` element outright on some themes, which is worse
+ * than the wrong title it was aimed at. Yoast removes `_wp_render_title_tag`,
+ * `_block_template_render_title_tag` and `gutenberg_render_title_tag` from `wp_head` in its own
+ * `register_hooks()`, on `init`, and prints `<title>` from a `wpseo_head` presenter instead.
+ * Emptying `wpseo_head` leaves a classic theme with neither. Re-adding core's printer is enough,
+ * because it reads `wp_get_document_title()` and the filter above owns that answer.
+ *
+ * ⚠ This runs at `wp_head` priority 0, not at `template_redirect`. Core registers
+ * `_block_template_render_title_tag` while it resolves the block template, which is after every
+ * `template_redirect` callback — so a check made earlier sees no printer on a block theme that
+ * has a perfectly good one, and adds a second `<title>`.
+ *
+ * Re-adding core's own function, rather than printing the element here, keeps the theme-support
+ * test and the escaping where core already decides them: `_wp_render_title_tag()` is a no-op
+ * unless the theme declares `title-tag`, which is exactly when a theme prints its own.
+ */
+function sahaj_atlas_seo_restore_title_tag() {
+	/*
+	 * ⚠ All three names, and `false !==` on each. `has_action()` answers with the priority, so a
+	 * printer registered at 0 reads as absent under a bare truthiness test and earns the page a
+	 * second `<title>`. The third name is the Gutenberg plugin's: it swaps core's block-template
+	 * printer for its own under the same `title-tag` condition.
+	 */
+	foreach ( array( '_wp_render_title_tag', '_block_template_render_title_tag', 'gutenberg_render_title_tag' ) as $printer ) {
+		if ( false !== has_action( 'wp_head', $printer ) ) {
+			return;
+		}
+	}
+
+	add_action( 'wp_head', '_wp_render_title_tag', 1 );
 }
 
 /**

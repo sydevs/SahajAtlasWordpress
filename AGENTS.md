@@ -85,7 +85,7 @@ the full story.
    now becomes `position: fixed; inset: 0` and covers the page, which is why the Atlas page had no
    header before #170.
 5. `min-height` is not a height. Use a definite height and `display: block` instead — a custom
-   element defaults to `inline` and cannot size itself. See embed.php:342, render.mjs:321,
+   element defaults to `inline` and cannot size itself. See embed.php:342, render.mjs:364,
    run.php:143.
 6. Never run `wp_kses()` on markup this plugin generates. `safecss_filter_attr()`'s property
    allowlist has no `display` property, so it silently reduced `display:block;height:520px` to
@@ -111,12 +111,12 @@ the full story.
 14. `allowedDomains` splits on newlines, not commas. An empty list allows every origin — the
     documented default, not a refusal. Treat each entry as an exact host, never a wildcard suffix,
     and mirror `parseAllowedDomains()` / `isHostAllowed()` in SahajCloud instead of re-deriving
-    them. See diagnostics.php:283,495, tests/domains.php.
+    them. See diagnostics.php:284,613, tests/domains.php.
 15. Publish sitemap URLs only for this host. A shared key, or a mis-set `canonical.embed`, can add
     a foreign one. The same guard decides whether the root view may take the Atlas page over at
     all: a root answer whose canonical names another domain is a failed fetch, not a tag to drop,
     because `rel_canonical` is gone by the time the tag is printed. A region may canonicalise
-    elsewhere. The root may not. See sitemap.php:187,209, seo.php:89,140, tests/sitemap.php:20.
+    elsewhere. The root may not. See sitemap.php:187,209, seo.php:89,147, tests/sitemap.php:20.
 16. Suppress the host's SEO plugin only after a successful fetch. Suppressing first, then finding
     the endpoint unreachable, leaves the page with no metadata at all — worse than leaving the
     original, generic metadata in place.
@@ -133,11 +133,11 @@ the full story.
 19. An empty route on the Atlas page is the root view, not "no route". That includes a `?atlas=`
     the sanitiser refused, which falls back to the root rather than to nothing — the page is the
     root view either way, and the refused value must reach neither the endpoint nor the canonical.
-    See seo.php:60, tests/seo.php:302.
+    See seo.php:60, tests/seo.php:303.
 20. A non-empty `pre_get_document_title` return short-circuits `wp_get_document_title()` before
     every sanitising step below it — core's own `esc_html()` included — and
     `_wp_render_title_tag()` echoes the result raw. Escape inside the filter, or nothing does.
-    See seo.php:185.
+    See seo.php:229.
 21. Enqueue `assets/atlas-page.js` in the footer. `<head>` has neither the element it measures nor
     `document.body`, so both the first measure and the observer are lost there — silently. See
     embed.php:377, atlas-page.js:160.
@@ -150,6 +150,13 @@ the full story.
     outright, since handing that much away drops the atlas under the widget's map floor and the
     visitor gets the compact card — which is the defect #35 fixed, by another route. See
     atlas-page.css:31, atlas-page.js:26,64,86,122,127,138.
+23. Owning `<title>` takes a priority *and* a printer. Yoast registers
+    `pre_get_document_title` at 15, with a callback that takes no argument and so discards
+    whatever ran before it — any priority below the highest vendor's loses. It also removes core's
+    three title printers and emits `<title>` from its own `wpseo_head` presenter, so silencing
+    that presenter leaves a classic theme with no `<title>` element at all. Both halves are
+    invisible from inside this plugin: the page returns 200 with a full `<head>` either way. See
+    seo.php:102,188, tests/fixtures/fake-yoast.php.
 
 ## What is built
 
@@ -164,7 +171,7 @@ check, the measurement checks, the PHP suite, then the render checks.
 | `includes/routing.php` | Matches `parse_request`, reads `?atlas=`, and suppresses the canonical redirect |
 | `includes/shortcode.php` | Runs `[sahaj_atlas]`, sharing the block's render body |
 | `includes/settings.php` | Holds the two options, the settings screen, and the create-page button |
-| `includes/diagnostics.php` | Runs the five checks |
+| `includes/diagnostics.php` | Runs the six checks |
 | `includes/seo.php` | Takes over metadata and renders crawlable body content |
 | `includes/sitemap.php` | Serves `/sahaj-atlas-sitemap.xml`, `robots.txt`, and the SEO-plugin index lines |
 | `includes/updates.php` | Runs Plugin Update Checker against GitHub Releases |
@@ -174,6 +181,10 @@ sitemap file, `/sahaj-atlas-sitemap.xml`, instead of four SEO-plugin adapters we
 test — untested integration code tends to look correct and fail live. Each SEO system just points
 at our file. `robots.txt` is the load-bearing line, read by every crawler regardless of which SEO
 plugin runs. The Yoast and Rank Math index entries are only a convenience.
+
+Load-bearing, and not always writable. Core serves a virtual `robots.txt` only with rewriting on
+and WordPress at the domain root, and never over a real file. Diagnostics check 6 names each case
+and the line to paste; the ⚠ on `sahaj_atlas_robots_txt()` is the pointer back.
 
 ## Testing
 

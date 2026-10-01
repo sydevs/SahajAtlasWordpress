@@ -187,6 +187,49 @@ async function check(run) {
       ok('mesmerize: the hero-less one', !hero.includes('header-wrapper'))
     }
 
+    // ── A suppressed SEO plugin (#43) ──────────────────────────────────────────────────────────
+    // ⚠ Both halves of this failure are only visible from out here. The plugin cannot tell that
+    // its `pre_get_document_title` filter ran and then lost, and it cannot tell that silencing
+    // the vendor took the page's only `<title>` printer with it. Either way the page returns 200
+    // with a full `<head>`, and the route names one title to a crawler and another to a social
+    // preview.
+    //
+    // ⚠ The classic theme, because that is where losing costs the page its `<title>` outright:
+    // it declares `title-tag` and prints no title of its own, so core's `_wp_render_title_tag` is
+    // the only printer and `tests/fixtures/fake-yoast.php` removes it. A block theme keeps one
+    // whatever a vendor removes, since core registers `_block_template_render_title_tag` later,
+    // while it resolves the template.
+    if (run.theme === 'classic') {
+      const vendor = 'Find a class - Example Site'
+      const vendorDescription = 'The description Example Site wrote for this page.'
+
+      for (const [label, path, title] of [
+        ['the root view', `${PAGE}?sahaj_fixture_seo_plugin=yoast`, 'Free meditation classes near you'],
+        [
+          'a query-routed deep link',
+          `${QUERY_DEEP}&sahaj_fixture_seo_plugin=yoast`,
+          'Free meditation classes in Amsterdam',
+        ],
+      ]) {
+        const contested = await (await fetch(base + path, { redirect: 'manual' })).text()
+        const titles = contested.match(/<title>[\s\S]*?<\/title>/g) ?? []
+
+        // ⚠ Count first. A page with no `<title>` at all is what the priority fix alone leaves
+        // behind, and every assertion phrased as "not the vendor's title" passes on one.
+        ok(`yoast, ${label}: exactly one <title>`, titles.length === 1, titles.join(' | ') || 'none')
+        ok(`yoast, ${label}: and it is the endpoint's`, new RegExp(`<title>\\s*${title}\\s*</title>`).test(contested), titles[0] ?? 'none')
+        ok(`yoast, ${label}: never the SEO plugin's`, !contested.includes(vendor))
+
+        // The rest of the vendor's head block goes with it, or the page describes itself twice.
+        ok(`yoast, ${label}: the SEO plugin describes nothing`, !contested.includes(vendorDescription))
+        ok(
+          `yoast, ${label}: while our own description is there`,
+          (contested.match(/<meta name="description"/g) ?? []).length === 1,
+          contested.match(/<meta name="description"[^>]*>/)?.[0] ?? 'none',
+        )
+      }
+    }
+
     // The loader is a real ES module. Its first statement is a top-level `import`, which is a
     // SyntaxError in a classic script. A `<script>` tag without `type="module"` breaks the page
     // completely. It does not just degrade the experience.
