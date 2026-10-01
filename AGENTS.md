@@ -108,7 +108,7 @@ the full story.
 10. No translated string may run before `init` (WordPress 6.7) — not at file scope, in an
     activation hook, or on `plugins_loaded`. See sahaj-atlas.php:22.
 11. One `_wp_page_template` value serves both theme kinds. Core strips the suffix automatically,
-    so do not branch to "fix" it. See page.php:211.
+    so do not branch to "fix" it. See page.php:215.
 12. A front-page atlas refuses path routing, or it would turn the host's own 404 page into the
     atlas. See routing.php:227, tests/contract.php:130.
 13. An empty sitemap must return a 404, never an empty `<urlset>` or an index line. See
