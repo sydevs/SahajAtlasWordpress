@@ -444,10 +444,10 @@ function sahaj_atlas_check_page_description( $client ) {
  */
 function sahaj_atlas_check_render( $probe ) {
 	$label  = __( 'Map placement', 'sahaj-atlas' );
-	$excuse = sahaj_atlas_probe_excuse( $label, $probe );
+	$unavailable = sahaj_atlas_probe_unavailable( $label, $probe );
 
-	if ( null !== $excuse ) {
-		return $excuse;
+	if ( null !== $unavailable ) {
+		return $unavailable;
 	}
 
 	if ( '' === $probe['render'] ) {
@@ -506,10 +506,10 @@ function sahaj_atlas_check_render( $probe ) {
  */
 function sahaj_atlas_check_loader( $probe ) {
 	$label  = __( 'Map script', 'sahaj-atlas' );
-	$excuse = sahaj_atlas_probe_excuse( $label, $probe );
+	$unavailable = sahaj_atlas_probe_unavailable( $label, $probe );
 
-	if ( null !== $excuse ) {
-		return $excuse;
+	if ( null !== $unavailable ) {
+		return $unavailable;
 	}
 
 	if ( ! $probe['loader'] ) {
@@ -563,7 +563,7 @@ function sahaj_atlas_check_loader( $probe ) {
  * @param array|WP_Error|null $probe Result of the probe.
  * @return array{status:string, label:string, detail:string}|null Null once the probe has an answer.
  */
-function sahaj_atlas_probe_excuse( $label, $probe ) {
+function sahaj_atlas_probe_unavailable( $label, $probe ) {
 	if ( null === $probe ) {
 		return array(
 			'status' => 'idle',
