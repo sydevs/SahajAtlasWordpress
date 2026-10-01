@@ -35,14 +35,16 @@ const SCREENSHOTS = 'tests/screenshots'
 const PAGE = '/find-a-class/'
 const BASE_PORT = 8830
 
-/** The widget's floors (SahajAtlasWeb `src/lib/embed-slot.ts`). */
-const MIN_WIDTH = 360
-const MIN_HEIGHT = 420
+/**
+ * The sentence the widget logs when it chooses the compact card (`docs/embedding.md`, "Entering the
+ * compact card logs a console warning"). The lane reads the widget's decision from it instead of
+ * recomputing the widget's floors, which are the widget's to change.
+ */
+const COMPACT = 'showing a compact card'
 
 /**
- * `compactAllowed`: a landscape phone keeps about 310px below an 80px header, under the 420px
- * floor, so the widget shows the card there by its own rule. The lane then exercises the card's
- * overlay instead of failing the cell.
+ * `compactAllowed`: a landscape phone is 390px tall, under the widget's 420px floor, so the card is
+ * a legitimate answer there. The lane then exercises the card's overlay instead of failing.
  */
 const VIEWPORTS = [
   { name: 'laptop', width: 1280, height: 720 },
@@ -120,7 +122,7 @@ const CELLS = [
   { name: 'astra', theme: 'astra', sidebar: true },
   // OceanWP's page-title bar takes 205px above the map; the interface still fits (#37).
   { name: 'oceanwp', theme: 'oceanwp' },
-  { name: 'mesmerize', theme: 'mesmerize', known: 'the hero header until #35 ships; drop this once it merges' },
+  { name: 'mesmerize', theme: 'mesmerize' },
   { name: 'esotera', theme: 'esotera', known: 'header.php prints #header-image-main and ships no hero-less variant (#37)' },
   { name: 'fluida', theme: 'fluida', known: 'header image and breadcrumb bar from header.php (#37)' },
   { name: 'popularfx', theme: 'popularfx' },
@@ -138,7 +140,7 @@ const CELLS = [
   { name: 'root-font', theme: 'astra', mu: { 'root-font': MU.rootFont } },
   { name: 'zindex-wrapper', theme: 'astra', mu: { 'zindex-wrapper': MU.zIndexWrapper }, sidebar: true },
   { name: 'admin-bar', theme: 'astra', login: true },
-  { name: 'strip-module', theme: 'astra', mu: { 'strip-module': MU.stripModule }, known: 'a classic script cannot run the loader; nothing detects this yet' },
+  { name: 'strip-module', theme: 'astra', mu: { 'strip-module': MU.stripModule }, known: 'a classic script cannot run the loader, and nothing reports it (SahajAtlasWeb#239)' },
 ]
 
 // ── The harness ──────────────────────────────────────────────────────────────────────────────
@@ -256,9 +258,15 @@ async function waitFor(port, path, gaveUp) {
 }
 
 /**
- * The record the widget boots from. No colours, deliberately: a record with colours re-ran the
- * theme adoption and hid SahajAtlasWeb#235 for months. `canonical.embed` names this server, so
- * `routing=path` is honoured and the lane sees the same routing the Atlas page ships with.
+ * The record the widget boots from, standing in for `clients/me`.
+ * - No colours, deliberately: a record with colours re-ran the theme adoption and hid
+ *   SahajAtlasWeb#235 for months.
+ * - `allowedDomains: 'localhost'` is also what keeps the widget's analytics off
+ *   (SahajAtlasWeb `src/views/FullInterface.tsx`, `useAnalytics`), so a run records no pageview.
+ * - `canonical.embed` names this server, so `routing=path` is honoured as on a real Atlas page.
+ *
+ * The key the browser sends belongs to the "Sahaj Atlas (Local Test Key)" client in SahajCloud's
+ * Clients collection. Ask a SahajCloud admin for it.
  *
  * @param {number} port
  */
@@ -267,7 +275,6 @@ function clientRecord(port) {
     user: {
       id: 1,
       name: 'Browser lane',
-      locale: 'en',
       allowedDomains: 'localhost',
       clientId: 'lane',
       region: null,
@@ -290,7 +297,10 @@ async function stubApi(context, port) {
 }
 
 /**
- * What the lane measures on a page, all read from layout — never from class names.
+ * What the lane measures on a page. Plugin verdicts read layout and the widget's documented surface
+ * only: `<sahaj-atlas>`, its `.sy-atlas` scope, its console warnings and its readiness marker.
+ * Widget internals (`[data-vaul-drawer]` and the like) feed WIDGET findings, never a plugin FAIL,
+ * because the widget comes unpinned from production.
  *
  * Runs inside the page. Returns plain data so the assertions can print the numbers they judged.
  */
@@ -329,8 +339,6 @@ function measure() {
     headerBottom: headerBottom === null ? null : Math.round(headerBottom),
     scope: !!scope,
     ready: document.documentElement.getAttribute('data-sahaj-atlas-ready'),
-    drawer: !!scope?.querySelector('[data-vaul-drawer]'),
-    compactCard: !!scope && !scope.querySelector('[data-vaul-drawer], [data-sy-frame]') && !!scope.querySelector('button:not([aria-label])'),
     errorPanel: !!scope?.querySelector('[role="alert"]'),
     strayPortals,
     htmlClass: document.documentElement.className,
@@ -440,25 +448,28 @@ async function checkAtlasPage(browser, cell, viewport, port) {
 
     if (!booted || !m.scope) return
 
-    if (m.compactCard && viewport.compactAllowed) {
-      console.log(`  info  ${label}: the compact card, as the widget's floors say (${m.element.width}×${m.element.height} at top ${m.element.top})`)
+    const compact = log.widget().some((line) => line.includes(COMPACT))
+    const otherWarnings = log.widget().filter((line) => !line.includes(COMPACT))
+
+    // The plugin's own contract (`assets/atlas-page.css`): the element fills the screen below the
+    // header, to the viewport's bottom edge.
+    fit(
+      `${label}: the element runs to the bottom of the screen`,
+      Math.abs(m.element.top + m.element.height - m.viewport.height) <= 2 && m.element.height > 0,
+      `${m.element.width}×${m.element.height} at top ${m.element.top}, offset ${m.offset}, viewport ${m.viewport.height}`,
+    )
+    fit(`${label}: the widget logged nothing else`, otherWarnings.length === 0, otherWarnings.join(' | '))
+
+    if (compact && viewport.compactAllowed) {
+      console.log(`  info  ${label}: the compact card, as a ${viewport.height}px screen allows (${m.element.height}px below the header)`)
       await checkOverlay(page, `${label} overlay`, join(SCREENSHOTS, `${cell.name}-${viewport.name}-overlay.png`))
     } else {
-      fit(`${label}: the interface rendered, not the compact card`, m.drawer && !m.compactCard, `compact=${m.compactCard} drawer=${m.drawer}${log.dump()}`)
-      fit(`${label}: the widget logged nothing`, log.widget().length === 0, log.widget().join(' | '))
-      // A phone's columns are its whole width, and the widget keeps the interface there whatever
-      // the floor says, so the width floor applies only where there is room to meet it.
-      const minWidth = viewport.width >= MIN_WIDTH + 100 ? MIN_WIDTH : Math.round(0.8 * viewport.width)
-
-      fit(
-        `${label}: the element is at least ${minWidth}×${MIN_HEIGHT}`,
-        m.element.width >= minWidth && m.element.height >= MIN_HEIGHT,
-        `${m.element.width}×${m.element.height} at top ${m.element.top}, offset ${m.offset}`,
-      )
-      if (m.element.height < 0.8 * m.viewport.height) {
-        console.log(`  info  ${label}: ${m.viewport.height - m.element.height}px of a ${m.viewport.height}px screen sits above the map; a shorter screen will get the compact card`)
-      }
+      fit(`${label}: the widget kept the full interface`, !compact, `${m.element.height}px below the header at top ${m.element.top}${log.dump()}`)
       fit(`${label}: the search box is on top`, m.inputHitInScope, 'elementFromPoint at the search box lands outside the widget')
+
+      if (m.element.top > 0.2 * m.viewport.height) {
+        console.log(`  info  ${label}: ${m.element.top}px of a ${m.viewport.height}px screen sits above the map; a shorter screen will get the compact card`)
+      }
     }
 
     ok(`${label}: no error panel`, !m.errorPanel, log.dump())
@@ -509,11 +520,7 @@ async function checkSidebar(browser, cell, port) {
     await page.waitForSelector('sahaj-atlas .sy-atlas', { timeout: 45000 }).catch(() => {})
     await sleep(2000)
 
-    const card = await page.evaluate(() => {
-      const scope = document.querySelector('sahaj-atlas .sy-atlas')
-
-      return !!scope && !scope.querySelector('[data-vaul-drawer], [data-sy-frame]') && !!scope.querySelector('button:not([aria-label])')
-    })
+    const card = log.widget().some((line) => line.includes(COMPACT))
 
     fit(`${label}: a 300px column shows the compact card`, card, log.dump())
 
@@ -534,14 +541,18 @@ async function checkSidebar(browser, cell, port) {
  * @param {string} screenshot
  */
 async function checkOverlay(page, label, screenshot) {
-  const { ok, widget } = scope
+  const { widget } = scope
 
+  // The card is "a heading and one button" (`docs/embedding.md`), so its one button is the press.
+  // Everything after it is the widget's overlay, read through its internals: WIDGET verdicts only.
   const pressed = await page
-    .click('sahaj-atlas .sy-atlas button:not([aria-label])', { timeout: 15000 })
+    .locator('sahaj-atlas .sy-atlas button')
+    .first()
+    .click({ timeout: 15000 })
     .then(() => true, (error) => String(error.message).split('\n')[0])
   const opened = pressed === true && (await page.waitForSelector('[data-sy-expanded]', { timeout: 45000 }).then(() => true, () => false))
 
-  ok(`${label}: the card's button opens the overlay`, opened, pressed === true ? '' : pressed)
+  widget(`${label}: the card's button opens the overlay`, opened, pressed === true ? '' : pressed)
 
   if (!opened) return
 
@@ -630,11 +641,6 @@ async function run(browser, cell, index) {
       'server',
       '--blueprint',
       file,
-      // Ignored while a blueprint is given; `preferredVersions` above pins the versions.
-      '--php',
-      '7.4',
-      '--wp',
-      cell.wp ?? '6.7',
       '--mount',
       '.:/wordpress/wp-content/plugins/sahaj-atlas',
       '--port',
@@ -714,5 +720,5 @@ try {
   await browser.close()
 }
 
-console.log(`\n${failures} failure(s), ${knownFailures} known, ${widgetFindings} widget finding(s) to file in SahajAtlasWeb`)
+console.log(`\n${failures} failure(s), ${knownFailures} known, ${widgetFindings} widget finding(s) (SahajAtlasWeb's to settle; check its open tickets before filing)`)
 process.exit(failures > 0 ? 1 : 0)

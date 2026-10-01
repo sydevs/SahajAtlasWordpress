@@ -173,13 +173,13 @@ PHP.
 | Syntax | `pnpm lint` | `token_get_all(…, TOKEN_PARSE)` over every PHP file |
 | Behaviour | `pnpm test` | The behaviour suite, in a booted WordPress 6.7 / PHP 7.4 |
 | Render | `pnpm test:render` | Real HTTP requests against a real server, per theme kind |
-| Browser | `pnpm test:browser` | The production widget in Chromium, in every free theme the fleet runs, plus page builders and hostile conditions. Local only; needs the network, `SAHAJ_ATLAS_TEST_KEY` in `.env.claude.local`, and Chromium (`pnpm exec playwright-core install chromium`, once). `--only <cell,…>` runs a subset, `--list` names them. |
+| Browser | `pnpm test:browser` | The production widget in Chromium, in every free theme the fleet runs, plus page builders and hostile conditions. Local only; needs the network, `SAHAJ_ATLAS_TEST_KEY` (the "Sahaj Atlas (Local Test Key)" client's key, from a SahajCloud admin) in `.env.claude.local`, and Chromium (`pnpm exec playwright-core install chromium`, once). `--only <cell,…>` runs a subset, `--list` names them. |
 
 `pnpm test:all` runs the first three. The browser lane is the one that sees what a theme's CSS,
 the sizing script and the widget do to the page once a browser runs it, which is where every
 live defect so far has been (#36, SahajAtlasWeb#235, SahajAtlasWeb#236). It prints three verdicts: `FAIL`
-is the plugin's, and fails the run; `WIDGET` is a finding about the production widget, to file in
-SahajAtlasWeb; `KNOWN` is a fit check in a cell whose exposure is already ticketed. Invariants —
+is the plugin's, and fails the run; `WIDGET` is a finding about the production widget, SahajAtlasWeb's to
+settle — check its open tickets before filing; `KNOWN` is a fit check in a cell whose exposure is already ticketed. Invariants —
 the page is served, PHP never reaches SahajCloud — fail in every cell. Screenshots land in
 `tests/screenshots/`, gitignored.
 
