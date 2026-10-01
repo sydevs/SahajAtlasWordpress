@@ -184,8 +184,9 @@ More traps apply here. Their inline `⚠` comments carry the full detail.
   that needs an answer stubs it or seeds the transient; an unstubbed call is recorded and fails the
   run. Never reach the real endpoint to make a lane pass. See tests/no-network.php.
 - wp-playground-cli discards stdout when a step fails. See tests/bootstrap.php:5.
-- The `server` command ignores `preferredVersions`. Pass `--php` and `--wp` directly instead. See
-  tests/render.mjs:86.
+- Pin versions with the blueprint's `preferredVersions`. Under @wp-playground/cli 3.1, `server`
+  ignores `--php` and `--wp` when given a blueprint, and a blueprint without the key boots the latest
+  WordPress on PHP 8.5. See tests/render.mjs:102.
 - Activate the plugin through a blueprint step. Do not call `activate_plugin()` after
   `wp-load.php`. See tests/bootstrap.php:42.
 - `$_GET` is already slashed when a plugin reads it, so a fixture that assigns a raw value tests a
