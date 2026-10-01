@@ -4,7 +4,7 @@ Tags: meditation, map, events, classes
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.2.0
+Stable tag: 0.2.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,11 @@ three. If your page builder takes over the Atlas page's layout, set that page to
 blank or canvas template, and place the `[sahaj_atlas]` shortcode on it.
 
 == Changelog ==
+
+= 0.2.1 =
+* Fixed: on the Mesmerize and Mesmerize Pro themes, the Atlas page no longer shows the theme's
+  large header image above the map. The page keeps your site's menu, and the full map now fits
+  on laptops and phones instead of a single "Find a class near you" button.
 
 = 0.2.0 =
 * Your Atlas page now carries a title and description written by Sahaj Atlas, in each visitor's

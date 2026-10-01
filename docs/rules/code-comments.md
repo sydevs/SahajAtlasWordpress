@@ -38,7 +38,7 @@ anything here is far higher than in the TypeScript repos.
 
 - **Never touch `sahaj-atlas.php` lines 1-20.** WordPress core parses that block to register the
   plugin. It looks exactly like a bloated file header.
-- **The 18 `@package SahajAtlas` file headers** are a WordPress Coding Standards requirement.
+- **The 22 `@package SahajAtlas` file headers** are a WordPress Coding Standards requirement.
 - **The 9 `translators:` comments** in `includes/settings.php` and `includes/diagnostics.php` feed
   WP-CLI's i18n extractor, which reads the comment **immediately preceding** a gettext call and
   ships it into the `.pot`. This repo carries 34 `.po`/`.mo` pairs. Delete one, or insert anything
