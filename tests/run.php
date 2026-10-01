@@ -367,6 +367,24 @@ sahaj_ok( 'has no trailing slash', '/' !== substr( $mount, -1 ) );
 sahaj_ok( 'names the host', 0 === strpos( $mount, (string) wp_parse_url( home_url(), PHP_URL_HOST ) ) );
 sahaj_ok( 'and the page path', false !== strpos( $mount, (string) get_page_uri( sahaj_atlas_page_id() ) ) );
 
+// ---------------------------------------------------------------------------------------------
+
+sahaj_group( 'The Atlas page assets' );
+
+$sahaj_asset_query   = isset( $GLOBALS['wp_query'] ) ? $GLOBALS['wp_query'] : null;
+$GLOBALS['wp_query'] = sahaj_query_page();
+
+sahaj_atlas_enqueue_page_assets();
+
+sahaj_ok( 'the measurement script is enqueued', wp_script_is( 'sahaj-atlas-page', 'enqueued' ) );
+
+// ⚠ Group 1 is the footer. The `why` lives at the enqueue, in `includes/embed.php` (#41).
+sahaj_is( 'in the footer, not `<head>`', 1, wp_scripts()->get_data( 'sahaj-atlas-page', 'group' ) );
+
+$GLOBALS['wp_query'] = $sahaj_asset_query;
+
+// ---------------------------------------------------------------------------------------------
+
 require __DIR__ . '/contract.php';
 require __DIR__ . '/sitemap.php';
 require __DIR__ . '/domains.php';

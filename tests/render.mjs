@@ -37,6 +37,7 @@ const RUNS = [
     mounts: [
       './tests/fixtures/sahaj-classic:/wordpress/wp-content/themes/sahaj-classic',
       './tests/fixtures/mesmerize:/wordpress/wp-content/themes/mesmerize',
+      './tests/fixtures/headerless:/wordpress/wp-content/themes/headerless',
     ],
   },
 ]
@@ -102,8 +103,10 @@ async function check(run) {
     'server',
     '--blueprint',
     run.blueprint,
-    // Pinned to the fleet's floor. ⚠ The `server` command ignores `preferredVersions` inside a
-    // blueprint. Without these flags, it boots PHP 8.3 and the latest WordPress instead.
+    // Pinned to the fleet's floor. ⚠ Under @wp-playground/cli 3.1 the blueprint's
+    // `preferredVersions` is what pins it: given a blueprint, `server` ignores these flags, and a
+    // blueprint without the key boots the latest WordPress on PHP 8.5 (measured 2026-10-01). Both
+    // blueprints carry the key; the flags stay for a CLI that reverses the precedence.
     '--php',
     '7.4',
     '--wp',
@@ -147,6 +150,27 @@ async function check(run) {
     const elementAt = html.search(/<sahaj-atlas[\s>]/)
 
     ok('with the element below the header', headerAt >= 0 && elementAt > headerAt, `header ${headerAt}, element ${elementAt}`)
+
+    // ⚠ And the measurement script below the element, because it measures it. `<head>` has neither
+    // the element nor `document.body`, so the first measure finds nothing and the `ResizeObserver`
+    // never attaches (#41). `includes/embed.php` carries the rest.
+    const scriptAt = html.indexOf('assets/atlas-page.js')
+
+    ok('with the script below both', scriptAt > elementAt, `element ${elementAt}, script ${scriptAt}`)
+
+    // ── A classic theme with no header.php ─────────────────────────────────────────────────────
+    // ⚠ `get_header()` there falls through to core's 2010 theme-compat header: a banner of its own
+    // and no viewport tag. The template prints a minimal document instead. Only a rendered page
+    // tells the two apart, because `locate_template()` finds the compat file too.
+    if (run.theme === 'classic') {
+      const response = await fetch(`${base}${PAGE}?sahaj_fixture_theme=headerless`)
+      const bare = await response.text()
+
+      ok('headerless: the page renders', response.status === 200, `status ${response.status}`)
+      ok('headerless: as one document with one element', (bare.match(/<!doctype/gi) ?? []).length === 1 && (bare.match(/<sahaj-atlas[\s>]/g) ?? []).length === 1)
+      ok("headerless: not core's theme-compat header", !bare.includes('id="headerimg"'), bare.slice(0, 300))
+      ok("headerless: but the template's own minimal document", bare.includes('name="viewport"'), bare.slice(0, 300))
+    }
 
     // ── A hero theme (#36) ─────────────────────────────────────────────────────────────────────
     // Mesmerize prints a hero image in `header.php`, which leaves the atlas too short for the map.
