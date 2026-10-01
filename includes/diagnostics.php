@@ -11,6 +11,10 @@
  *   message nobody reads.
  * - A non-empty `allowedDomains` list without this site's domain refuses the widget's requests.
  *   An empty list refuses nothing, the embed report included. Check 4 carries the server's rules.
+ * - A template that is not this plugin's renders the Atlas page, and the element lands after the
+ *   footer with no height. Nothing server-side can tell: the template meta still names ours.
+ * - An optimiser rewrites the loader's script tag, and a module that cannot run logs one console
+ *   error. Checks 6 and 7 read the live page back to see both.
  *
  * The panel makes these problems visible. The browser hides them silently.
  *
@@ -25,6 +29,9 @@ define( 'SAHAJ_ATLAS_CHECK_TTL', 5 * MINUTE_IN_SECONDS );
 
 /** Transient holding the last client record fetched. Keyed by the key, so changing it re-checks. */
 define( 'SAHAJ_ATLAS_CHECK_TRANSIENT', 'sahaj_atlas_client_check' );
+
+/** Transient holding what the last loopback read of the Atlas page found. */
+define( 'SAHAJ_ATLAS_PROBE_TRANSIENT', 'sahaj_atlas_page_probe' );
 
 function sahaj_atlas_render_diagnostics() {
 	echo '<table class="widefat striped" style="max-width:60rem"><tbody>';
@@ -79,7 +86,7 @@ function sahaj_atlas_check_idle( $label ) {
 }
 
 /**
- * The five checks, in the order a volunteer reaches them.
+ * The seven checks, in the order a volunteer reaches them.
  *
  * @return array<int, array{status:string, label:string, detail:string}>
  */
@@ -92,6 +99,8 @@ function sahaj_atlas_checks() {
 		sahaj_atlas_check_path_routing( $client ),
 		sahaj_atlas_check_allowed_domains( $client ),
 		sahaj_atlas_check_page_description( $client ),
+		sahaj_atlas_check_render(),
+		sahaj_atlas_check_loader(),
 	);
 }
 
@@ -416,6 +425,248 @@ function sahaj_atlas_check_page_description( $client ) {
 			esc_html__( 'Sahaj Atlas describes it, in each visitor\'s own language, as %s.', 'sahaj-atlas' ),
 			'<strong>' . esc_html( $title ) . '</strong>'
 		),
+	);
+}
+
+/**
+ * Check 6 — which of the three prints rendered the element on the live page?
+ *
+ * ⚠ This is the one check that reads the rendered page instead of the database. Nothing
+ * server-side can answer it: the page still carries this plugin's template meta while a later
+ * `template_include` filter, a theme-builder layout, or a maintenance-mode plugin renders it
+ * instead. The old check 2 called that page healthy.
+ *
+ * @return array{status:string, label:string, detail:string}
+ */
+function sahaj_atlas_check_render() {
+	$label  = __( 'Map placement', 'sahaj-atlas' );
+	$probe  = sahaj_atlas_page_probe();
+	$excuse = sahaj_atlas_probe_excuse( $label, $probe );
+
+	if ( null !== $excuse ) {
+		return $excuse;
+	}
+
+	if ( '' === $probe['render'] ) {
+		/*
+		 * ⚠ Two diagnoses, not one. The body class says the Atlas page itself answered this
+		 * address. Without it, something else did — a maintenance-mode plugin, or a cache holding
+		 * another page — and telling the volunteer the map is missing would send them looking in
+		 * the wrong place entirely.
+		 */
+		return array(
+			'status' => 'fail',
+			'label'  => $label,
+			'detail' => $probe['page']
+				? esc_html__( 'Your Atlas page loads, but the map is not on it. Send this page\'s address to the Sahaj Atlas maintainers.', 'sahaj-atlas' )
+				: esc_html__( 'Something else answers your Atlas page\'s address, so the map never renders. Check your caching and maintenance-mode plugins first.', 'sahaj-atlas' ),
+		);
+	}
+
+	if ( 'footer' === $probe['render'] ) {
+		return array(
+			'status' => 'fail',
+			'label'  => $label,
+			'detail' => sprintf(
+				/* translators: %s: the name of the plugin's page template, as the editor shows it. */
+				esc_html__( 'The map renders below your footer, where it has no height. Set the Atlas page back to the %s template, or ask your page builder to render the page\'s content.', 'sahaj-atlas' ),
+				'<strong>' . esc_html__( 'Sahaj Atlas (full screen)', 'sahaj-atlas' ) . '</strong>'
+			),
+		);
+	}
+
+	if ( 'content' === $probe['render'] ) {
+		return array(
+			'status' => 'ok',
+			'label'  => $label,
+			'detail' => esc_html__( 'In your page\'s content area, with your own footer below it. Another template renders this page, which is fine.', 'sahaj-atlas' ),
+		);
+	}
+
+	return array(
+		'status' => 'ok',
+		'label'  => $label,
+		'detail' => esc_html__( 'On this plugin\'s own full-screen template: your site header, then the map.', 'sahaj-atlas' ),
+	);
+}
+
+/**
+ * Check 7 — did the loader's script tag survive the page?
+ *
+ * ⚠ `auto.js` is a real ES module, so a classic `<script>` tag cannot run it at all: the page gets
+ * a blank slot and one console error ("Cannot use import statement outside a module"). A module
+ * cannot detect that from inside itself, which is why SahajAtlasWeb#239 handed the detection here.
+ * An "HTML5 cleanup" snippet, a script optimiser, or any `wp_script_attributes` filter can do it.
+ *
+ * @return array{status:string, label:string, detail:string}
+ */
+function sahaj_atlas_check_loader() {
+	$label  = __( 'Map script', 'sahaj-atlas' );
+	$probe  = sahaj_atlas_page_probe();
+	$excuse = sahaj_atlas_probe_excuse( $label, $probe );
+
+	if ( null !== $excuse ) {
+		return $excuse;
+	}
+
+	if ( ! $probe['loader'] ) {
+		return array(
+			'status' => 'fail',
+			'label'  => $label,
+			'detail' => esc_html__( 'Your Atlas page carries no map script, so nothing can load the map. A script optimiser has most likely removed it.', 'sahaj-atlas' ),
+		);
+	}
+
+	// ⚠ One message per fault, never a sentence assembled from fragments. A translator cannot
+	// reorder clauses this plugin glued together, and 34 locales would each get the English shape.
+	if ( ! $probe['module'] ) {
+		return array(
+			'status' => 'fail',
+			'label'  => $label,
+			'detail' => esc_html__( 'Something on your site has changed the map script so the browser refuses to run it. Turn off JavaScript optimisation for your Atlas page.', 'sahaj-atlas' ),
+		);
+	}
+
+	if ( $probe['async'] ) {
+		return array(
+			'status' => 'fail',
+			'label'  => $label,
+			'detail' => esc_html__( 'Something on your site loads the map script asynchronously, which breaks it. Turn off JavaScript optimisation for your Atlas page.', 'sahaj-atlas' ),
+		);
+	}
+
+	if ( ! $probe['keyed'] ) {
+		return array(
+			'status' => 'fail',
+			'label'  => $label,
+			'detail' => esc_html__( 'The map script\'s address has lost your API key, so the Atlas server will refuse it. Turn off JavaScript optimisation for your Atlas page.', 'sahaj-atlas' ),
+		);
+	}
+
+	return array(
+		'status' => 'ok',
+		'label'  => $label,
+		'detail' => esc_html__( 'Loads as a module, with your key.', 'sahaj-atlas' ),
+	);
+}
+
+/**
+ * The row both loopback checks show when the probe has nothing to report.
+ *
+ * One spelling for both, the same reason `sahaj_atlas_check_idle()` has one: a second way of
+ * saying "there is nothing to read yet" is a second thing to keep true.
+ *
+ * @param string              $label The check's own label.
+ * @param array|WP_Error|null $probe Result of the probe.
+ * @return array{status:string, label:string, detail:string}|null Null once the probe has an answer.
+ */
+function sahaj_atlas_probe_excuse( $label, $probe ) {
+	if ( null === $probe ) {
+		return array(
+			'status' => 'idle',
+			'label'  => $label,
+			'detail' => esc_html__( 'Not checked — the API key and the Atlas page come first.', 'sahaj-atlas' ),
+		);
+	}
+
+	if ( is_wp_error( $probe ) ) {
+		/*
+		 * ⚠ A warning, not a failure. This is the server failing to reach itself, which many hosts
+		 * refuse outright, and it says nothing about the page a visitor gets. A red row a volunteer
+		 * cannot act on is the shape that sends them to us about a site that already works.
+		 */
+		return array(
+			'status' => 'warn',
+			'label'  => $label,
+			'detail' => sprintf(
+				/* translators: %s: an error message from the request. */
+				esc_html__( 'This server could not load your Atlas page to check it: %s', 'sahaj-atlas' ),
+				'<em>' . esc_html( $probe->get_error_message() ) . '</em>'
+			),
+		);
+	}
+
+	return null;
+}
+
+/**
+ * Read the Atlas page back as a visitor receives it, cached.
+ *
+ * @param bool $force Skip the cache.
+ * @return array|WP_Error|null Null when there is nothing to probe yet.
+ */
+function sahaj_atlas_page_probe( $force = false ) {
+	if ( '' === sahaj_atlas_api_key() || ! sahaj_atlas_page_is_healthy() ) {
+		return null;
+	}
+
+	$cached = $force ? false : get_transient( SAHAJ_ATLAS_PROBE_TRANSIENT );
+
+	if ( is_array( $cached ) ) {
+		return isset( $cached['error'] )
+			? new WP_Error( 'sahaj_atlas_probe', (string) $cached['error'] )
+			: $cached;
+	}
+
+	$response = wp_remote_get(
+		(string) get_permalink( sahaj_atlas_page_id() ),
+		array(
+			'timeout'     => 10,
+			'redirection' => 3,
+			/*
+			 * ⚠ `sslverify` off, as core's own Site Health loopback test does. A server that cannot
+			 * verify its own host's certificate is common on this fleet, and the body is read only
+			 * to report on the markup this plugin printed into it.
+			 */
+			'sslverify'   => false,
+			'headers'     => array( 'Accept' => 'text/html' ),
+		)
+	);
+
+	if ( is_wp_error( $response ) ) {
+		// Not cached, for the same reason a transport failure on the client read is not: one blip
+		// would pin an unactionable warning on the panel for five minutes.
+		return $response;
+	}
+
+	$code = (int) wp_remote_retrieve_response_code( $response );
+
+	if ( 200 !== $code ) {
+		/* translators: %d: an HTTP status code. */
+		$probe = array( 'error' => sprintf( __( 'HTTP %d', 'sahaj-atlas' ), $code ) );
+	} else {
+		$probe = sahaj_atlas_read_page( (string) wp_remote_retrieve_body( $response ) );
+	}
+
+	set_transient( SAHAJ_ATLAS_PROBE_TRANSIENT, $probe, SAHAJ_ATLAS_CHECK_TTL );
+
+	return isset( $probe['error'] ) ? new WP_Error( 'sahaj_atlas_probe', (string) $probe['error'] ) : $probe;
+}
+
+/**
+ * What the Atlas page's own HTML says about itself.
+ *
+ * @param string $html The page as a visitor received it.
+ * @return array{page:bool, render:string, loader:bool, module:bool, async:bool, keyed:bool}
+ */
+function sahaj_atlas_read_page( $html ) {
+	preg_match( '/<sahaj-atlas\b[^>]*>/', $html, $element );
+	preg_match( '/data-sahaj-atlas-render="([a-z]+)"/', isset( $element[0] ) ? $element[0] : '', $render );
+	preg_match( '#<script\b[^>]*\bsrc="[^"]*/auto\.js[^"]*"[^>]*>#', $html, $loader );
+
+	$tag = isset( $loader[0] ) ? $loader[0] : '';
+
+	return array(
+		'page'   => (bool) preg_match( '/<body[^>]*\bclass="[^"]*\bsahaj-atlas-page\b/', $html ),
+		'render' => isset( $render[1] ) ? $render[1] : '',
+		// ⚠ A flag, never the tag. The tag carries the API key in its `src`, and this array is
+		// written to a transient — the key is already an option, and twice is once too many.
+		'loader' => '' !== $tag,
+		'module' => (bool) preg_match( '/\btype=(["\'])module\1/', $tag ),
+		// ⚠ Whitespace before it, or `data-async` from an optimiser's own marker reads as `async`
+		// and reports a working page broken.
+		'async'  => (bool) preg_match( '/\sasync[\s=>]/', $tag ),
+		'keyed'  => false !== strpos( $tag, 'key=' ),
 	);
 }
 

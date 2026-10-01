@@ -162,7 +162,11 @@ function sahaj_atlas_header_name() {
 }
 
 /**
- * Mark the Atlas page for styling. #39 proposes a diagnostics loopback probe that would read it too.
+ * Mark the Atlas page, for `assets/atlas-page.css` and for the loopback probe.
+ *
+ * ⚠ Gated on the page, not on the template, and that is what makes the sizing survive a template
+ * this plugin did not supply (#39). `sahaj_atlas_read_page()` reads the class back to tell an Atlas
+ * page that rendered without its element from an address something else answered entirely.
  *
  * @param array $classes Body classes.
  * @return array

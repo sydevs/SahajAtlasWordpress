@@ -160,7 +160,7 @@ check, the PHP suite, then the render checks.
 | `includes/routing.php` | Matches `parse_request`, reads `?atlas=`, and suppresses the canonical redirect |
 | `includes/shortcode.php` | Runs `[sahaj_atlas]`, sharing the block's render body |
 | `includes/settings.php` | Holds the two options, the settings screen, and the create-page button |
-| `includes/diagnostics.php` | Runs the five checks |
+| `includes/diagnostics.php` | Runs the seven checks — the last two read the live page back over loopback |
 | `includes/seo.php` | Takes over metadata and renders crawlable body content |
 | `includes/sitemap.php` | Serves `/sahaj-atlas-sitemap.xml`, `robots.txt`, and the SEO-plugin index lines |
 | `includes/updates.php` | Runs Plugin Update Checker against GitHub Releases |
