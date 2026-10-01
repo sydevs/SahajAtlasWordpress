@@ -194,8 +194,10 @@ More traps apply here. Their inline `⚠` comments carry the full detail.
   that needs an answer stubs it or seeds the transient; an unstubbed call is recorded and fails the
   run. Never reach the real endpoint to make a lane pass. See tests/no-network.php.
 - The measure lane proves what the script decides, never what a browser lays out. Its geometry is
-  stubbed, so an assertion about real overlap belongs in the browser lane (#38) — which retires the
-  lane when it lands. See tests/measure.mjs:9.
+  stubbed, so an assertion about real overlap belongs in the browser lane (#38). That lane retires
+  this one only once it runs in CI and covers the same decisions, which PR #44 does not do. The
+  lane reads the script's load position out of `includes/embed.php`, so a fixture cannot keep
+  modelling a page the plugin stopped serving. See tests/measure.mjs:9,13,30.
 - wp-playground-cli discards stdout when a step fails. See tests/bootstrap.php:5.
 - The `server` command ignores `preferredVersions`. Pass `--php` and `--wp` directly instead. See
   tests/render.mjs:107.

@@ -6,11 +6,14 @@
  * ships has no lane, which is why a header overlapping the map (#40) had to be reported from a
  * browser.
  *
- * ⚠ Interim scaffolding. #38 builds the browser lane that measures real overlap in real themes;
- * retire this file when that lands, and do not grow it in the meantime. The geometry here is
- * stubbed, so it proves what the script *decides* — which header it reads, and the arithmetic it
- * does — never what a browser *lays out*. The stub's layout rule is one line; a real theme's
- * layout is not.
+ * ⚠ The geometry here is stubbed, so this lane proves what the script *decides* — which header it
+ * reads, and the arithmetic it does — never what a browser *lays out*. The stub's layout rule is
+ * one line; a real theme's layout is not. Keep an assertion about real overlap out of it.
+ *
+ * ⚠ This is nonetheless the only CI coverage the one shipped script has, so it retires on a
+ * condition, not on a ticket: when a browser lane runs in CI and covers the same decisions. #38's
+ * lane (PR #44) adds `pnpm test:browser` alone — not to `pnpm test:all`, not to the workflow, and
+ * it needs a key and the network — so it does not meet that condition today.
  *
  *   node tests/measure.mjs
  */
