@@ -13,42 +13,53 @@
  */
 ( function () {
 	var root = document.documentElement
-	var lastTop = null
-	var lastOffset = null
+	var publishedTop = null
+	var publishedOffset = null
 	var offset = 0
 	var queued = false
-	var observer = null
+	var observing = false
 
 	/**
 	 * How far down the page an out-of-flow site header reaches, in document pixels.
 	 *
-	 * ⚠ This does guess which element is the header, and the guess is deliberately narrow: the
-	 * first `header`, `#masthead` or `.site-header` above the atlas, and only when it is out of
-	 * flow. Nothing else needs guessing — an in-flow header, an admin bar, a notice or a
-	 * breadcrumb strip all push the atlas element down, so measuring the element's own box covers
-	 * them. An out-of-flow header measures as zero height there, which left the map under it.
+	 * ⚠ This guesses which element is the header, deliberately narrowly: the first `header`,
+	 * `#masthead` or `.site-header` above the atlas, and only when that one is out of flow.
+	 * Everything else above the atlas — an in-flow header, the admin bar, a notice, a breadcrumb
+	 * strip — pushes the element down, so the element's own box already measures it. An
+	 * out-of-flow header measures as nothing there, which is what left the map underneath it.
 	 *
 	 * @param {Element} element The atlas element.
-	 * @param {number} elementTop The element's current top, in document pixels.
 	 * @return {number} The document pixel the header covers down to, or 0 when it covers nothing.
 	 */
-	function coveredTo( element, elementTop ) {
+	function coveredTo( element ) {
 		var candidates = document.querySelectorAll( 'header, #masthead, .site-header' )
+		var band = Math.round( window.innerHeight / 2 )
 		var candidate
 		var position
 		var rect
-		var scroll
+		var bottom
 		var i
 
 		for ( i = 0; i < candidates.length; i++ ) {
 			candidate = candidates[ i ]
 
-			// A header the atlas sits inside, or one the widget printed, is not above the atlas.
-			if ( candidate.contains( element ) || element.contains( candidate ) ) {
+			// A header wrapping the whole page is not a header above the atlas. One the widget
+			// printed inside the atlas fails the test below instead, which reports a header that
+			// the atlas both precedes and contains.
+			if ( candidate.contains( element ) ) {
 				continue
 			}
 
 			if ( ! ( candidate.compareDocumentPosition( element ) & Node.DOCUMENT_POSITION_FOLLOWING ) ) {
+				continue
+			}
+
+			rect = candidate.getBoundingClientRect()
+
+			// ⚠ Skipped, not decided from. A responsive theme prints its mobile header first and
+			// hides it above its breakpoint, so the first candidate is routinely a box with no
+			// height — and deciding from that one leaves the visible header below it unmeasured.
+			if ( rect.height === 0 ) {
 				continue
 			}
 
@@ -60,22 +71,24 @@
 				return 0
 			}
 
-			rect = candidate.getBoundingClientRect()
+			// ⚠ A fixed header holds its viewport band at every scroll position, so that band is
+			// already its document band. An absolute one scrolls with the page, and `+ scrollY`
+			// makes the two comparable — and the answer independent of scroll, which it must be,
+			// since nothing re-measures when the page scrolls.
+			bottom = Math.round( rect.bottom + ( position === 'fixed' ? 0 : window.scrollY ) )
 
-			// ⚠ A fixed header holds its viewport band at every scroll position, so its viewport
-			// rect already is its document band. An absolute one scrolls with the page, and only
-			// `+ scrollY` makes the two comparable — and the result independent of scroll, which it
-			// has to be, because this runs on resize and nothing re-runs it when the page scrolls.
-			scroll = position === 'fixed' ? 0 : window.scrollY
-
-			// A bar pinned below the atlas's top edge covers content, not the atlas's own start.
-			// `position: fixed; bottom: 0` toolbars are common, and offsetting for one would leave
-			// a map one viewport tall with its top half blank.
-			if ( rect.top + scroll > elementTop ) {
+			/*
+			 * ⚠ A band reaching past half the screen is not a header this page can clear. Handing
+			 * that much away leaves the atlas too short for the widget to draw a map in, and it
+			 * answers with the compact card instead — so a covered but full-height map is the better
+			 * failure, and the one the page had before. The same test rejects a
+			 * `position: fixed; bottom: 0` toolbar, whose band is the bottom of the screen.
+			 */
+			if ( bottom > band ) {
 				return 0
 			}
 
-			return Math.max( 0, Math.round( rect.bottom + scroll ) )
+			return Math.max( 0, bottom )
 		}
 
 		return 0
@@ -91,27 +104,31 @@
 		}
 
 		var top = Math.max( 0, Math.round( element.getBoundingClientRect().top + window.scrollY ) )
+		var covered = coveredTo( element )
 
-		/*
-		 * ⚠ Additive, and measured against the element's *current* top, which already carries the
-		 * offset written last time. Remembering an in-flow top and adding to that instead
-		 * double-counts the moment a parent's own top margin collapses with ours and swallows part
-		 * of the shift. This form walks to the right answer from either side: a header that grows
-		 * pushes the atlas further down over the next frames, and one that shrinks on a narrow
-		 * viewport pulls it back up.
-		 */
-		offset = Math.max( 0, offset + coveredTo( element, top ) - top )
-
-		// Writing these values on every call would re-trigger the observer below. Changing the
-		// element's height or its offset also changes the document's height.
-		if ( top === lastTop && offset === lastOffset ) {
-			return
+		// Writing a value that did not change would re-trigger the observer below. The element's
+		// margin and its height each change the document's height.
+		if ( top !== publishedTop ) {
+			publishedTop = top
+			root.style.setProperty( '--sahaj-atlas-top', top + 'px' )
 		}
 
-		lastTop = top
-		lastOffset = offset
-		root.style.setProperty( '--sahaj-atlas-top', top + 'px' )
-		root.style.setProperty( '--sahaj-atlas-offset', offset + 'px' )
+		/*
+		 * ⚠ Additive, against the element's *current* top, which already carries the offset written
+		 * last time. Measuring an in-flow top and adding to that instead double-counts the moment a
+		 * parent's own top margin collapses with ours and swallows part of the shift. This form
+		 * converges from either side, over the observer's next few frames.
+		 *
+		 * ⚠ The clamp is what bounds it. A theme whose own CSS beats this margin leaves the element
+		 * where it was, and an unclamped sum would then climb by the header's height every frame for
+		 * as long as the tab stays open. The offset never needs to exceed the header's bottom edge.
+		 */
+		offset = Math.max( 0, Math.min( covered, offset + covered - top ) )
+
+		if ( offset !== publishedOffset ) {
+			publishedOffset = offset
+			root.style.setProperty( '--sahaj-atlas-offset', offset + 'px' )
+		}
 	}
 
 	function schedule() {
@@ -135,9 +152,9 @@
 		 * `document.body` is still null, so attaching it there skipped the observer silently on
 		 * every page view.
 		 */
-		if ( ! observer && window.ResizeObserver && document.body ) {
-			observer = new window.ResizeObserver( schedule )
-			observer.observe( document.body )
+		if ( ! observing && window.ResizeObserver && document.body ) {
+			observing = true
+			new window.ResizeObserver( schedule ).observe( document.body )
 		}
 	}
 

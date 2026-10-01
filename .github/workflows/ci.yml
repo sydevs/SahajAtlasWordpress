@@ -37,13 +37,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # Both steps run PHP in WebAssembly through @wp-playground/cli. This needs no system PHP or
+      # The PHP steps run in WebAssembly through @wp-playground/cli. This needs no system PHP or
       # Docker. It also matches the oldest client versions: WordPress 6.7 and PHP 7.4.
       - name: Syntax check
         run: pnpm lint
 
-      # Plain node, no WebAssembly: the three steps around it never execute the one script the
-      # plugin ships, so its header arithmetic had no lane at all until #40.
+      # Plain node, not WebAssembly: this is the one shipped script, and no PHP lane executes it.
       - name: Measurement checks (assets/atlas-page.js)
         run: pnpm test:measure
 

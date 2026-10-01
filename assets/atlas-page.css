@@ -18,15 +18,13 @@ body.sahaj-atlas-page sahaj-atlas {
 	display: block;
 	width: 100%;
 	/*
-	 * Clears a header that is out of flow — Astra's and OceanWP's transparent headers, Elementor's
-	 * sticky one, any theme that fixes its nav. Such a header takes no space in the flow, so the
-	 * element's own top is 0 and the map starts underneath it.
+	 * Clears a header the theme takes out of flow, which occupies nothing for the element's own top
+	 * to measure.
 	 *
-	 * ⚠ Margin, never padding. The widget fills this element, and a contained map draws across the
-	 * whole padding box, so padding here would put the map straight back under the header. Nothing
-	 * the widget draws can reach into a margin. `--sahaj-atlas-top` already counts this offset,
-	 * because `assets/atlas-page.js` measures the element after the shift, so the height below
-	 * needs no second term.
+	 * ⚠ Margin, never padding. The widget fills this element and a contained map draws across the
+	 * whole padding box, so padding would put the map straight back under the header; nothing the
+	 * widget draws reaches into a margin. `--sahaj-atlas-top` is measured after the shift, so the
+	 * height below needs no second term.
 	 */
 	margin-top: var(--sahaj-atlas-offset, 0px);
 	/*

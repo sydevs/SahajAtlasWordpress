@@ -138,11 +138,13 @@ the full story.
     every sanitising step below it — core's own `esc_html()` included — and
     `_wp_render_title_tag()` echoes the result raw. Escape inside the filter, or nothing does.
     See seo.php:185.
-21. A header that is out of flow — a transparent or fixed builder header — takes no space, so the
-    element's own top is 0 and the map starts underneath it. `assets/atlas-page.js` reads the first
-    `header`, `#masthead` or `.site-header` above the element and offsets by its bottom edge. The
-    offset is a **margin**, never padding: the widget draws across the whole padding box, so padding
-    puts the map straight back under the header. See atlas-page.css:25, atlas-page.js:24,95.
+21. A header the theme takes out of flow occupies nothing for the element's own top to measure, so
+    `assets/atlas-page.js` measures that header too, and the offset it writes is a **margin**, never
+    padding. Two bounds are load-bearing. The offset is clamped, or a theme that refuses the margin
+    spins the measurement loop forever. And a header reaching past half the screen is refused
+    outright, since handing that much away drops the atlas under the widget's map floor and the
+    visitor gets the compact card — which is the defect #35 fixed, by another route. See
+    atlas-page.css:24, atlas-page.js:25,59,81,117,122.
 
 ## What is built
 
@@ -190,8 +192,8 @@ More traps apply here. Their inline `⚠` comments carry the full detail.
   that needs an answer stubs it or seeds the transient; an unstubbed call is recorded and fails the
   run. Never reach the real endpoint to make a lane pass. See tests/no-network.php.
 - The measure lane proves what the script decides, never what a browser lays out. Its geometry is
-  stubbed, so an assertion about real overlap belongs in the browser lane (#38), not here. See
-  tests/measure.mjs:8.
+  stubbed, so an assertion about real overlap belongs in the browser lane (#38) — which retires the
+  lane when it lands. See tests/measure.mjs:9.
 - wp-playground-cli discards stdout when a step fails. See tests/bootstrap.php:5.
 - The `server` command ignores `preferredVersions`. Pass `--php` and `--wp` directly instead. See
   tests/render.mjs:107.
