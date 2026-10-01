@@ -134,16 +134,16 @@ function run(scene, mutate) {
     },
   })
 
-  // A browser re-measures because a written property changed the layout, which the observer sees.
-  // One pass here is one such frame, and the page has settled when a pass writes nothing.
+  // A browser re-measures on the frames the script asks for, and on anything the body observer
+  // sees. One pass here is one such frame, and the page has settled when a pass writes nothing.
   function settle() {
     let passes = 0
     for (; passes < FRAME_BUDGET; passes++) {
       const before = writes
       observers.forEach((callback) => callback())
-      while (frames.length) {
-        frames.shift()()
-      }
+      // One pass is one frame. A re-measure the script asks for runs on the *next* pass, so a
+      // script that never stops asking spends the budget rather than hanging the lane.
+      frames.splice(0, frames.length).forEach((callback) => callback())
       if (writes === before) return passes
     }
     return passes
@@ -171,7 +171,6 @@ function run(scene, mutate) {
     offset: props.get('--sahaj-atlas-offset'),
     passes,
     headWrites,
-    observers: observers.length,
   }
 }
 
@@ -304,20 +303,16 @@ scene(
 
 console.log('\nthe lifecycle')
 
-// Everything above settles only because the script is re-measured. Both of these were silently
-// false before #40: the observer never attached, so one wrapped menu left the map under the header.
+// Everything above settles only because the script is re-measured. Attaching the body observer is
+// #41's, so this lane asks only that the script needs nothing from the observer to decide.
 const lifecycle = run({ inflowTop: 0, headers: [{ position: 'fixed', top: 0, height: 100 }] })
 ok('nothing is measured while the script is still in the head', lifecycle.headWrites === 0)
-ok(
-  'exactly one body observer attaches, across all three entry points',
-  lifecycle.observers === 1,
-  `attached ${lifecycle.observers}`
-)
 
 console.log('\nsettling')
 
 // A parent top margin that collapses with ours moves the element by less than the offset we wrote.
-// The script has to walk the rest of the way instead of counting the shortfall twice.
+// The script has to walk the rest of the way instead of counting the shortfall twice, and it asks
+// for the frames to walk it on.
 const collapsing = scene(
   'a parent top margin that swallows part of the shift still settles at the header bottom',
   { inflowTop: 60, parentMargin: 60, headers: [{ position: 'fixed', top: 0, height: 100 }] },

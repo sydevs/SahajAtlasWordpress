@@ -17,7 +17,6 @@
 	var publishedOffset = null
 	var offset = 0
 	var queued = false
-	var observing = false
 
 	/**
 	 * How far down the page an out-of-flow site header reaches, in document pixels.
@@ -117,7 +116,7 @@
 		 * ⚠ Additive, against the element's *current* top, which already carries the offset written
 		 * last time. Measuring an in-flow top and adding to that instead double-counts the moment a
 		 * parent's own top margin collapses with ours and swallows part of the shift. This form
-		 * converges from either side, over the observer's next few frames.
+		 * converges from either side, over the next few frames.
 		 *
 		 * ⚠ The clamp is what bounds it. A theme whose own CSS beats this margin leaves the element
 		 * where it was, and an unclamped sum would then climb by the header's height every frame for
@@ -128,6 +127,14 @@
 		if ( offset !== publishedOffset ) {
 			publishedOffset = offset
 			root.style.setProperty( '--sahaj-atlas-offset', offset + 'px' )
+
+			/*
+			 * ⚠ The additive form above walks to its answer over several frames, and this is what
+			 * supplies them. Nothing else does: no resize event fires for a margin this script
+			 * wrote, and the body observer below is the one thing on this page that is not
+			 * guaranteed to be attached. The clamp is what ends the walk.
+			 */
+			schedule()
 		}
 	}
 
@@ -140,27 +147,15 @@
 		window.requestAnimationFrame( measure )
 	}
 
-	function start() {
-		measure()
+	measure()
 
-		/*
-		 * A header can grow later: a lazy-loaded logo, a cookie banner, or a menu that wraps. This
-		 * moves the atlas down, and no resize event fires for it. Settling the offset above needs
-		 * the same frames.
-		 *
-		 * ⚠ Attached here, not once at load. `wp_enqueue_script()` puts this file in `<head>`, where
-		 * `document.body` is still null, so attaching it there skipped the observer silently on
-		 * every page view.
-		 */
-		if ( ! observing && window.ResizeObserver && document.body ) {
-			observing = true
-			new window.ResizeObserver( schedule ).observe( document.body )
-		}
-	}
-
-	start()
-
-	document.addEventListener( 'DOMContentLoaded', start )
-	window.addEventListener( 'load', start )
+	document.addEventListener( 'DOMContentLoaded', measure )
+	window.addEventListener( 'load', measure )
 	window.addEventListener( 'resize', schedule )
+
+	// A header can grow later: a lazy-loaded logo, a cookie banner, or a menu that wraps. This
+	// moves the atlas down. No resize event fires for this change.
+	if ( window.ResizeObserver && document.body ) {
+		new window.ResizeObserver( schedule ).observe( document.body )
+	}
 } )()

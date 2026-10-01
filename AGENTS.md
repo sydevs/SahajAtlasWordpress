@@ -140,11 +140,13 @@ the full story.
     See seo.php:185.
 21. A header the theme takes out of flow occupies nothing for the element's own top to measure, so
     `assets/atlas-page.js` measures that header too, and the offset it writes is a **margin**, never
-    padding. Two bounds are load-bearing. The offset is clamped, or a theme that refuses the margin
+    padding. The offset walks to its answer over several frames, and asks for them itself — no
+    resize event fires for a margin it wrote, and the body observer is not guaranteed to be
+    attached. Two bounds are load-bearing. The offset is clamped, or a theme that refuses the margin
     spins the measurement loop forever. And a header reaching past half the screen is refused
     outright, since handing that much away drops the atlas under the widget's map floor and the
     visitor gets the compact card — which is the defect #35 fixed, by another route. See
-    atlas-page.css:24, atlas-page.js:25,59,81,117,122.
+    atlas-page.css:24, atlas-page.js:24,62,84,120,125,136.
 
 ## What is built
 
