@@ -15,7 +15,14 @@
  */
 
 body.sahaj-atlas-page sahaj-atlas {
-	display: block;
+	/*
+	 * ⚠ `flow-root`, not `block`. The crawlable content the plugin prints inside the element opens
+	 * with a heading whose top margin would collapse through a plain block and push it down. The
+	 * script below measures the element there; the widget then replaces that content, the element
+	 * moves up, and the map stops short of the screen's bottom (#46). `flow-root` keeps every child
+	 * margin inside, and is still the block box with a height that makes the map contained.
+	 */
+	display: flow-root;
 	width: 100%;
 	/*
 	 * Clears a header the theme takes out of flow, which occupies nothing for the element's own top
