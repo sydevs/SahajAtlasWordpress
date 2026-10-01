@@ -635,6 +635,28 @@ sahaj_ok( 'and stays out when a block theme already has one', false === has_acti
 
 remove_action( 'wp_head', '_block_template_render_title_tag', 1 );
 
+/*
+ * ⚠ The Gutenberg plugin's printer, and a printer at priority 0. Both are a duplicate `<title>`
+ * waiting to happen: Gutenberg swaps core's block-template printer for its own under the same
+ * `title-tag` condition, and `has_action()` answers with the priority, so a printer at 0 reads as
+ * absent under a bare truthiness test. Neither arm of the guard is exercised by the case above,
+ * which registers a name the guard knows at a priority that is truthy anyway.
+ */
+foreach ( array(
+	'the Gutenberg plugin\'s printer' => array( 'gutenberg_render_title_tag', 1 ),
+	'a printer at priority 0'         => array( '_block_template_render_title_tag', 0 ),
+) as $sahaj_seo_case => $sahaj_seo_printer ) {
+	sahaj_seo_reset();
+
+	remove_action( 'wp_head', '_wp_render_title_tag', 1 );
+	add_action( 'wp_head', $sahaj_seo_printer[0], $sahaj_seo_printer[1] );
+	sahaj_atlas_seo_restore_title_tag();
+
+	sahaj_ok( "and stays out for $sahaj_seo_case too", false === has_action( 'wp_head', '_wp_render_title_tag' ) );
+
+	remove_action( 'wp_head', $sahaj_seo_printer[0], $sahaj_seo_printer[1] );
+}
+
 // ---------------------------------------------------------------------------------------------
 
 sahaj_group( 'The cache is keyed by what the answer depends on' );

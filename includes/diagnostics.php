@@ -473,6 +473,25 @@ function sahaj_atlas_check_sitemap_discovery() {
 	$parts = (array) wp_parse_url( home_url() );
 
 	if ( '' !== untrailingslashit( isset( $parts['path'] ) ? (string) $parts['path'] : '' ) ) {
+		/*
+		 * ⚠ A subdirectory network has no file for anyone to edit. The robots.txt at the top of
+		 * the domain is WordPress's own, generated for the main site, and the filter that writes
+		 * it runs with the main site's options — so it publishes the main site's sitemap and can
+		 * never publish this one's. Telling a volunteer to edit that address sends them looking
+		 * for a file that does not exist. Submitting the address is the only remedy left.
+		 */
+		if ( is_multisite() ) {
+			return array(
+				'status' => 'warn',
+				'label'  => $label,
+				'detail' => sprintf(
+					/* translators: %s: the address of this site's sitemap. */
+					esc_html__( 'This site is one of a network, so its sitemap cannot be listed in a robots.txt file. Submit this address to Google Search Console and Bing Webmaster Tools instead: %s', 'sahaj-atlas' ),
+					'<code>' . esc_html( sahaj_atlas_sitemap_url() ) . '</code>'
+				),
+			);
+		}
+
 		// The port belongs in an address somebody is told to open. Dropping it names a different file.
 		$origin = $parts['scheme'] . '://' . $parts['host']
 			. ( empty( $parts['port'] ) ? '' : ':' . (int) $parts['port'] );

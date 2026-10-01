@@ -170,6 +170,10 @@ test — untested integration code tends to look correct and fail live. Each SEO
 at our file. `robots.txt` is the load-bearing line, read by every crawler regardless of which SEO
 plugin runs. The Yoast and Rank Math index entries are only a convenience.
 
+Load-bearing, and not always writable. Core serves a virtual `robots.txt` only with rewriting on
+and WordPress at the domain root, and never over a real file. Diagnostics check 6 names each case
+and the line to paste; the ⚠ on `sahaj_atlas_robots_txt()` is the pointer back.
+
 ## Testing
 
 Three lanes run on `@wp-playground/cli` (PHP in WebAssembly). This needs no Docker and no system
