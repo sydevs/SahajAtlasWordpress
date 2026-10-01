@@ -162,7 +162,7 @@ function sahaj_atlas_header_name() {
 }
 
 /**
- * Mark the Atlas page for styling, and for the diagnostics loopback probe to recognise.
+ * Mark the Atlas page for styling. #39 proposes a diagnostics loopback probe that would read it too.
  *
  * @param array $classes Body classes.
  * @return array
