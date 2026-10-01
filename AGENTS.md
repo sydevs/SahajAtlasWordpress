@@ -107,16 +107,16 @@ the full story.
 12. A front-page atlas refuses path routing, or it would turn the host's own 404 page into the
     atlas. See routing.php:227, tests/contract.php:130.
 13. An empty sitemap must return a 404, never an empty `<urlset>` or an index line. See
-    sitemap.php:81, tests/sitemap.php:82.
+    sitemap.php:103, tests/sitemap.php:82.
 14. `allowedDomains` splits on newlines, not commas. An empty list allows every origin — the
     documented default, not a refusal. Treat each entry as an exact host, never a wildcard suffix,
     and mirror `parseAllowedDomains()` / `isHostAllowed()` in SahajCloud instead of re-deriving
-    them. See diagnostics.php:284,613, tests/domains.php.
+    them. See diagnostics.php:284,618, tests/domains.php.
 15. Publish sitemap URLs only for this host. A shared key, or a mis-set `canonical.embed`, can add
     a foreign one. The same guard decides whether the root view may take the Atlas page over at
     all: a root answer whose canonical names another domain is a failed fetch, not a tag to drop,
     because `rel_canonical` is gone by the time the tag is printed. A region may canonicalise
-    elsewhere. The root may not. See sitemap.php:187,209, seo.php:89,147, tests/sitemap.php:20.
+    elsewhere. The root may not. See sitemap.php:209,231, seo.php:89,147, tests/sitemap.php:20.
 16. Suppress the host's SEO plugin only after a successful fetch. Suppressing first, then finding
     the endpoint unreachable, leaves the page with no metadata at all — worse than leaving the
     original, generic metadata in place.
@@ -157,6 +157,16 @@ the full story.
     that presenter leaves a classic theme with no `<title>` element at all. Both halves are
     invisible from inside this plugin: the page returns 200 with a full `<head>` either way. See
     seo.php:102,188, tests/fixtures/fake-yoast.php.
+24. The sitemap's address follows the permalink shape, and two shapes break it. An `index.php`
+    structure — what WordPress offers with no mod_rewrite — is served at `/index.php/…`, so the bare
+    path reaches the filesystem and 404s. `sahaj_atlas_sitemap_url()` prefixes it, and the serve
+    guard needs no matching branch: core strips its index file before setting `$wp->request`. A
+    plain structure builds no rules at all, so the serve handler is unreachable and the two
+    SEO-plugin index entries must be withheld — Yoast's own index still answers at `/?sitemap=1`
+    there, so a crawler does reach ours and fetch the 404. `robots.txt` needs no guard on either
+    shape, and the plain case is diagnostics check 6's to report. Keep one composer: anything that
+    spells this address a second time is free to disagree with it. See sitemap.php:62,77,304,
+    diagnostics.php:529.
 
 ## What is built
 
