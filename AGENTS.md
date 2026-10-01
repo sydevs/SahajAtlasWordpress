@@ -138,6 +138,11 @@ the full story.
     every sanitising step below it — core's own `esc_html()` included — and
     `_wp_render_title_tag()` echoes the result raw. Escape inside the filter, or nothing does.
     See seo.php:185.
+21. A header that is out of flow — a transparent or fixed builder header — takes no space, so the
+    element's own top is 0 and the map starts underneath it. `assets/atlas-page.js` reads the first
+    `header`, `#masthead` or `.site-header` above the element and offsets by its bottom edge. The
+    offset is a **margin**, never padding: the widget draws across the whole padding box, so padding
+    puts the map straight back under the header. See atlas-page.css:25, atlas-page.js:24,95.
 
 ## What is built
 
@@ -147,7 +152,7 @@ check, the PHP suite, then the render checks.
 | Module | Does |
 | --- | --- |
 | `includes/embed.php` | Resolves the page's one embed, builds the script URL, prints the element |
-| `assets/atlas-page.{css,js}` | Sizes the element below the theme's header — the contained-map opt-in |
+| `assets/atlas-page.{css,js}` | Sizes the element below the theme's header, in flow or fixed — the contained-map opt-in |
 | `includes/page.php` | Owns the Atlas page and both template paths |
 | `includes/routing.php` | Matches `parse_request`, reads `?atlas=`, and suppresses the canonical redirect |
 | `includes/shortcode.php` | Runs `[sahaj_atlas]`, sharing the block's render body |
