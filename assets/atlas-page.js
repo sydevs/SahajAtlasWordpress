@@ -22,7 +22,11 @@
 	 * How far down the page an out-of-flow site header reaches, in document pixels.
 	 *
 	 * ⚠ This guesses which element is the header, deliberately narrowly: the first `header`,
-	 * `#masthead` or `.site-header` above the atlas, and only when that one is out of flow.
+	 * `#masthead`, `.site-header` or Elementor theme-builder header above the atlas, and only when
+	 * that one is out of flow. Elementor needs its own selector: a theme-builder header renders in
+	 * a plain `div`, so none of the other three reach it, and a transparent Elementor header is one
+	 * of the cases #40 reports.
+	 *
 	 * Everything else above the atlas — an in-flow header, the admin bar, a notice, a breadcrumb
 	 * strip — pushes the element down, so the element's own box already measures it. An
 	 * out-of-flow header measures as nothing there, which is what left the map underneath it.
@@ -31,7 +35,7 @@
 	 * @return {number} The document pixel the header covers down to, or 0 when it covers nothing.
 	 */
 	function coveredTo( element ) {
-		var candidates = document.querySelectorAll( 'header, #masthead, .site-header' )
+		var candidates = document.querySelectorAll( 'header, #masthead, .site-header, [data-elementor-type="header"]' )
 		var band = Math.round( window.innerHeight / 2 )
 		var candidate
 		var position
