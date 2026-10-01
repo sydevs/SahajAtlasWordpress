@@ -8,8 +8,9 @@
  * sits inside the theme's own `.wp-site-blocks` wrapper instead.
  *
  * This script stays small and has no dependencies. It reads two offsets, writes them to custom
- * properties, and repeats this on resize. If this file fails to load, `assets/atlas-page.css`
- * falls back to full viewport height. The page still works. The header then scrolls above the map.
+ * properties, and repeats that whenever the page resizes or anything above the atlas grows. If this
+ * file fails to load, `assets/atlas-page.css` falls back to full viewport height. The page still
+ * works. The header then scrolls above the map.
  */
 ( function () {
 	var root = document.documentElement
@@ -17,6 +18,7 @@
 	var publishedOffset = null
 	var offset = 0
 	var queued = false
+	var observing = false
 
 	/**
 	 * How far down the page an out-of-flow site header reaches, in document pixels.
@@ -151,15 +153,27 @@
 		window.requestAnimationFrame( measure )
 	}
 
-	measure()
+	/*
+	 * A header can grow later: a lazy-loaded logo, a cookie banner, or a menu that wraps. This moves
+	 * the atlas down, and no resize event fires for it.
+	 *
+	 * ⚠ Attach on the first call that finds a body, not once at load. An optimiser plugin that hoists
+	 * this file into `<head>` runs it before `document.body` exists, and a missed attach is silent.
+	 */
+	function start() {
+		measure()
 
-	document.addEventListener( 'DOMContentLoaded', measure )
-	window.addEventListener( 'load', measure )
-	window.addEventListener( 'resize', schedule )
+		if ( observing || ! window.ResizeObserver || ! document.body ) {
+			return
+		}
 
-	// A header can grow later: a lazy-loaded logo, a cookie banner, or a menu that wraps. This
-	// moves the atlas down. No resize event fires for this change.
-	if ( window.ResizeObserver && document.body ) {
+		observing = true
 		new window.ResizeObserver( schedule ).observe( document.body )
 	}
+
+	start()
+
+	document.addEventListener( 'DOMContentLoaded', start )
+	window.addEventListener( 'load', start )
+	window.addEventListener( 'resize', schedule )
 } )()

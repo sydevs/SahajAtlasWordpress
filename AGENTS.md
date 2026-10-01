@@ -85,7 +85,7 @@ the full story.
    now becomes `position: fixed; inset: 0` and covers the page, which is why the Atlas page had no
    header before #170.
 5. `min-height` is not a height. Use a definite height and `display: block` instead — a custom
-   element defaults to `inline` and cannot size itself. See embed.php:342, render.mjs:298,
+   element defaults to `inline` and cannot size itself. See embed.php:342, render.mjs:321,
    run.php:143.
 6. Never run `wp_kses()` on markup this plugin generates. `safecss_filter_attr()`'s property
    allowlist has no `display` property, so it silently reduced `display:block;height:520px` to
@@ -111,7 +111,7 @@ the full story.
 14. `allowedDomains` splits on newlines, not commas. An empty list allows every origin — the
     documented default, not a refusal. Treat each entry as an exact host, never a wildcard suffix,
     and mirror `parseAllowedDomains()` / `isHostAllowed()` in SahajCloud instead of re-deriving
-    them. See diagnostics.php:262,398, tests/domains.php.
+    them. See diagnostics.php:283,495, tests/domains.php.
 15. Publish sitemap URLs only for this host. A shared key, or a mis-set `canonical.embed`, can add
     a foreign one. The same guard decides whether the root view may take the Atlas page over at
     all: a root answer whose canonical names another domain is a failed fetch, not a tag to drop,
@@ -138,7 +138,10 @@ the full story.
     every sanitising step below it — core's own `esc_html()` included — and
     `_wp_render_title_tag()` echoes the result raw. Escape inside the filter, or nothing does.
     See seo.php:185.
-21. A header the theme takes out of flow occupies nothing for the element's own top to measure, so
+21. Enqueue `assets/atlas-page.js` in the footer. `<head>` has neither the element it measures nor
+    `document.body`, so both the first measure and the observer are lost there — silently. See
+    embed.php:377, atlas-page.js:160.
+22. A header the theme takes out of flow occupies nothing for the element's own top to measure, so
     `assets/atlas-page.js` measures that header too, and the offset it writes is a **margin**, never
     padding. The offset walks to its answer over several frames, and asks for them itself — no
     resize event fires for a margin it wrote, and the body observer is not guaranteed to be
@@ -146,7 +149,7 @@ the full story.
     spins the measurement loop forever. And a header reaching past half the screen is refused
     outright, since handing that much away drops the atlas under the widget's map floor and the
     visitor gets the compact card — which is the defect #35 fixed, by another route. See
-    atlas-page.css:24, atlas-page.js:24,62,84,120,125,136.
+    atlas-page.css:31, atlas-page.js:26,64,86,122,127,138.
 
 ## What is built
 
@@ -216,7 +219,7 @@ More traps apply here. Their inline `⚠` comments carry the full detail.
 - wp-playground-cli discards stdout when a step fails. See tests/bootstrap.php:5.
 - Pin versions with the blueprint's `preferredVersions`. Under @wp-playground/cli 3.1, `server`
   ignores `--php` and `--wp` when given a blueprint, and a blueprint without the key boots the latest
-  WordPress on PHP 8.5. See tests/render.mjs:105.
+  WordPress on PHP 8.5. See tests/render.mjs:106.
 - Activate the plugin through a blueprint step. Do not call `activate_plugin()` after
   `wp-load.php`. See tests/bootstrap.php:42.
 - `$_GET` is already slashed when a plugin reads it, so a fixture that assigns a raw value tests a
