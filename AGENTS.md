@@ -111,7 +111,7 @@ the full story.
 14. `allowedDomains` splits on newlines, not commas. An empty list allows every origin — the
     documented default, not a refusal. Treat each entry as an exact host, never a wildcard suffix,
     and mirror `parseAllowedDomains()` / `isHostAllowed()` in SahajCloud instead of re-deriving
-    them. See diagnostics.php:262,398, tests/domains.php.
+    them. See diagnostics.php:283,495, tests/domains.php.
 15. Publish sitemap URLs only for this host. A shared key, or a mis-set `canonical.embed`, can add
     a foreign one. The same guard decides whether the root view may take the Atlas page over at
     all: a root answer whose canonical names another domain is a failed fetch, not a tag to drop,
