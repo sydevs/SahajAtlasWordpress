@@ -199,10 +199,11 @@ More traps apply here. Their inline `⚠` comments carry the full detail.
 
 - Every lane refuses outbound HTTP by default, through an mu-plugin each blueprint writes. A lane
   that needs an answer stubs it or seeds the transient; an unstubbed call is recorded and fails the
-  run. Never reach the real endpoint to make a lane pass. See tests/no-network.php. The browser
-  lane is the exception for the **browser** only: the theme comes from wordpress.org and the widget
-  from production, while PHP stays offline and the cell's last assertion proves it. See
-  tests/browser.mjs.
+  run. Never reach the real endpoint to make a lane pass. A request to the instance's own host is
+  let through, and is not a way out of it — the diagnostics loopback check reads this server's own
+  Atlas page. See tests/no-network.php. The browser lane is the exception for the **browser** only:
+  the theme comes from wordpress.org and the widget from production, while PHP stays offline and
+  the cell's last assertion proves it. See tests/browser.mjs.
 - Headless Chromium has no WebGL without software-GL flags, and Mapbox then refuses to mount,
   which reads exactly like the widget failing to boot. The browser lane passes the flags. See
   tests/browser.mjs.

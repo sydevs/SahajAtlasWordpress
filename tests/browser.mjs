@@ -105,6 +105,13 @@ add_filter( 'wp_script_attributes', function ( $attributes ) {
 const SIDEBAR_PAGE = `wp_insert_post(array('post_type'=>'page','post_status'=>'publish','post_title'=>'Sidebar host','post_name'=>'sidebar-host','post_content'=>'<div style="width:300px">[sahaj_atlas map="true"]</div>'));`
 
 /**
+ * Hand the Atlas page to Elementor's "Elementor Full Width" template — header, content, footer, no
+ * theme page title. Its slug is `elementor_header_footer`; `elementor_canvas` is the other one, and
+ * drops the header and footer this cell exists to keep (#39).
+ */
+const ELEMENTOR_FULL_WIDTH = `update_post_meta(sahaj_atlas_page_id(), '_wp_page_template', 'elementor_header_footer');`
+
+/**
  * @typedef {object} Cell
  * @property {string} name
  * @property {string} [theme]        wordpress.org slug, installed and activated
@@ -113,6 +120,9 @@ const SIDEBAR_PAGE = `wp_insert_post(array('post_type'=>'page','post_status'=>'p
  * @property {Record<string,string>} [mu]  mu-plugins to write, name → PHP
  * @property {boolean} [sidebar]     also check the in-content compact card
  * @property {boolean} [login]       load the page as admin, with the admin bar
+ * @property {string} [seed]         extra PHP, appended to the shared seed
+ * @property {'template'|'content'} [render]  which print must render the element; `template` default
+ * @property {boolean} [panel]       also read the status panel, as the volunteer sees it
  * @property {string} [known]        why this cell is expected to fail today
  */
 
@@ -133,6 +143,9 @@ const CELLS = [
   { name: 'twentytwentyfive', theme: 'twentytwentyfive' },
   // Page builders, on the WordPress they require.
   { name: 'elementor', theme: 'astra', plugins: ['elementor'], wp: '6.8', sidebar: true },
+  // The builder renders the Atlas page with its own template, so the element comes from the content
+  // area and the theme's footer stays below it (#39).
+  { name: 'elementor-full-width', theme: 'astra', plugins: ['elementor'], wp: '6.8', seed: ELEMENTOR_FULL_WIDTH, render: 'content', panel: true },
   { name: 'beaver-builder', theme: 'astra', plugins: ['beaver-builder-lite-version'], wp: '6.8' },
   // Hostile conditions, each on a theme that passes clean.
   { name: 'async-css', theme: 'astra', mu: { 'async-css': MU.asyncCss } },
@@ -140,7 +153,8 @@ const CELLS = [
   { name: 'root-font', theme: 'astra', mu: { 'root-font': MU.rootFont } },
   { name: 'zindex-wrapper', theme: 'astra', mu: { 'zindex-wrapper': MU.zIndexWrapper }, sidebar: true },
   { name: 'admin-bar', theme: 'astra', login: true },
-  { name: 'strip-module', theme: 'astra', mu: { 'strip-module': MU.stripModule }, known: 'a classic script cannot run the loader, and nothing reports it (SahajAtlasWeb#239)' },
+  // The page is still broken here — only diagnostics now says so, which is the whole fix (#39).
+  { name: 'strip-module', theme: 'astra', mu: { 'strip-module': MU.stripModule }, panel: true, known: 'a classic script cannot run the loader; the status panel reports it, the page stays blank (#39)' },
 ]
 
 // ── The harness ──────────────────────────────────────────────────────────────────────────────
@@ -177,7 +191,8 @@ let knownFailures = 0
  * - `ok` is an invariant: the page is served, PHP never reaches SahajCloud, no error panel. It
  *   fails the run in every cell, `known` or not.
  * - `fit` judges how the plugin's page fits the theme: boot, the card or the interface, the slot,
- *   the header. A cell marked `known` reports these as KNOWN, because its exposure is ticketed.
+ *   the header, which print rendered the element, and what the status panel says about it. A cell
+ *   marked `known` reports these as KNOWN, because its exposure is ticketed.
  * - `widget` judges the production widget: host CSS reaching in, portals, its overlay. It is a
  *   SahajAtlasWeb ticket, never a red plugin lane, so it is counted and printed only.
  *
@@ -230,7 +245,7 @@ async function blueprint(cell) {
   }
 
   steps.push({ step: 'activatePlugin', pluginPath: 'sahaj-atlas/sahaj-atlas.php' })
-  steps.push({ step: 'runPHP', code: await seed(cell.sidebar ? SIDEBAR_PAGE : '') })
+  steps.push({ step: 'runPHP', code: await seed([cell.sidebar ? SIDEBAR_PAGE : '', cell.seed ?? ''].join(' ')) })
 
   // ⚠ The versions live here, not in the `--php`/`--wp` flags: given a blueprint, `server` ignores
   // the flags (see tests/render.mjs). Without this key every cell ran WordPress 7.1 on PHP 8.5.
@@ -593,6 +608,73 @@ async function checkOverlay(page, label, screenshot) {
 }
 
 /**
+ * Read the status panel the way the volunteer does, and judge the two loopback rows.
+ *
+ * ⚠ The panel's own fetch of `clients/me` is refused here — PHP is offline in this lane — so every
+ * row that needs the client record is idle. Only the two rows that read this server's own page have
+ * anything to say, and `tests/no-network.php` lets that one request through.
+ *
+ * @param {import('playwright-core').Browser} browser
+ * @param {Cell} cell
+ * @param {number} port
+ */
+async function checkPanel(browser, cell, port) {
+  const base = `http://127.0.0.1:${port}`
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } })
+  const label = `${cell.name} @ panel`
+
+  try {
+    await stubApi(context, port)
+    await login(context, base)
+
+    const page = await context.newPage()
+
+    await page.goto(`${base}/wp-admin/options-general.php?page=sahaj-atlas`, { waitUntil: 'load', timeout: 90000 })
+    await page.screenshot({ path: join(SCREENSHOTS, `${cell.name}-panel.png`), fullPage: true }).catch(() => {})
+
+    const rows = await page.evaluate(() =>
+      [...document.querySelectorAll('table.widefat tbody tr')].map((row) => ({
+        glyph: row.children[0]?.textContent.trim() ?? '',
+        label: row.children[1]?.textContent.trim() ?? '',
+        detail: row.children[2]?.textContent.trim() ?? '',
+      })),
+    )
+
+    const { fit } = scope
+    const placement = rows.find((row) => /placement/i.test(row.label))
+    const script = rows.find((row) => /script/i.test(row.label))
+
+    fit(`${label}: both loopback rows are shown`, !!placement && !!script, rows.map((row) => `${row.glyph} ${row.label}`).join(' | '))
+
+    if (!placement || !script) return
+
+    // ⚠ `!` on both rows means this server could not fetch its own page, which is a harness
+    // condition and not a verdict about the plugin. Say so and judge nothing, rather than reporting
+    // a red the code did not earn.
+    if (placement.glyph === '!' && script.glyph === '!') {
+      console.log(`  info  ${label}: the loopback fetch did not run here — ${placement.detail}`)
+      return
+    }
+
+    // The element's print path, as the panel reports it rather than as the HTML shows it.
+    const expected = cell.render === 'content' ? /content area/i : /full-screen/i
+
+    fit(`${label}: placement is green`, placement.glyph === '✓', `${placement.glyph} ${placement.detail}`)
+    fit(`${label}: and names the ${cell.render ?? 'template'} path`, expected.test(placement.detail), placement.detail)
+
+    // ⚠ The one cell whose page is genuinely broken is the one whose panel must be red. A green row
+    // there is the silence SahajAtlasWeb#239 handed to the plugin to break.
+    if (cell.name === 'strip-module') {
+      fit(`${label}: the script row is red`, script.glyph === '✗', `${script.glyph} ${script.detail}`)
+    } else {
+      fit(`${label}: the script row is green`, script.glyph === '✓', `${script.glyph} ${script.detail}`)
+    }
+  } finally {
+    await context.close()
+  }
+}
+
+/**
  * @param {import('playwright-core').Browser} browser
  * @param {Cell} cell
  * @param {number} index
@@ -668,15 +750,35 @@ async function run(browser, cell, index) {
     }
 
     const probe = await fetch(`http://127.0.0.1:${port}${PAGE}`)
-    const generator = (await probe.text()).match(/<meta name="generator" content="WordPress ([^"]+)"/)?.[1] ?? '?'
+    const served = await probe.text()
+    const generator = served.match(/<meta name="generator" content="WordPress ([^"]+)"/)?.[1] ?? '?'
 
     console.log(`  info  WordPress ${generator}, ${probe.headers.get('x-powered-by') ?? 'PHP ?'}`)
+
+    // ── Which print rendered the element (#39) ──────────────────────────────────────────────────
+    // Read from the HTML, before a browser runs any of it. A cell whose template this plugin does
+    // not supply must come from the content area, above the footer it keeps; every other cell must
+    // still come from the plugin's own template.
+    {
+      const want = cell.render ?? 'template'
+      const elementAt = served.search(/<sahaj-atlas[\s>]/)
+      const footerAt = served.search(/<footer|wp-block-template-part[^"]*footer|site-footer/)
+
+      scope.fit(`${cell.name}: printed from the ${want} path`, served.includes(`data-sahaj-atlas-render="${want}"`), (served.match(/<sahaj-atlas[^>]*>/) ?? [])[0] ?? 'no element')
+
+      if (want === 'content') {
+        scope.fit(`${cell.name}: the theme's footer is kept`, footerAt >= 0, served.slice(-300))
+        scope.fit(`${cell.name}: with the element above it`, elementAt >= 0 && elementAt < footerAt, `element ${elementAt}, footer ${footerAt}`)
+      }
+    }
 
     for (const viewport of VIEWPORTS) {
       await checkAtlasPage(browser, cell, viewport, port).catch((error) => scope.ok(`${cell.name} @ ${viewport.name}: the check ran to the end`, false, String(error.message).split('\n')[0]))
     }
 
     if (cell.sidebar) await checkSidebar(browser, cell, port).catch((error) => scope.ok(`${cell.name} @ sidebar: the check ran to the end`, false, String(error.message).split('\n')[0]))
+
+    if (cell.panel) await checkPanel(browser, cell, port).catch((error) => scope.ok(`${cell.name} @ panel: the check ran to the end`, false, String(error.message).split('\n')[0]))
 
     const escaped = await readFile(NETWORK_LOG, 'utf8').catch(() => null)
 

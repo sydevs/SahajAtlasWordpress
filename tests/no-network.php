@@ -45,6 +45,16 @@ function sahaj_atlas_test_refuse_http( $pre, $args, $url ) {
 		return $pre;
 	}
 
+	/*
+	 * ⚠ A request to this instance is not a way out of it. The diagnostics loopback check reads the
+	 * Atlas page back from this very server, and refusing that would make every lane report the
+	 * check as "could not reach the page" — the one answer that tells a lane nothing. What #28 cost
+	 * was calls to production SahajCloud and to third parties, and those stay refused below.
+	 */
+	if ( wp_parse_url( $url, PHP_URL_HOST ) === wp_parse_url( home_url(), PHP_URL_HOST ) ) {
+		return $pre;
+	}
+
 	file_put_contents( SAHAJ_ATLAS_NETWORK_LOG, $url . "\n", FILE_APPEND );
 
 	return new WP_Error( 'sahaj_atlas_test_network_blocked', "Refused an outbound request to $url." );
