@@ -38,11 +38,13 @@ anything here is far higher than in the TypeScript repos.
 
 - **Never touch `sahaj-atlas.php` lines 1-20.** WordPress core parses that block to register the
   plugin. It looks exactly like a bloated file header.
-- **The 22 `@package SahajAtlas` file headers** are a WordPress Coding Standards requirement.
-- **The 9 `translators:` comments** in `includes/settings.php` and `includes/diagnostics.php` feed
+- **The 24 `@package SahajAtlas` file headers** are a WordPress Coding Standards requirement.
+- **The 15 `translators:` comments** in `includes/settings.php` and `includes/diagnostics.php` feed
   WP-CLI's i18n extractor, which reads the comment **immediately preceding** a gettext call and
-  ships it into the `.pot`. This repo carries 34 `.po`/`.mo` pairs. Delete one, or insert anything
-  between it and its call, and translator context drops for 34 locales.
+  ships it into `languages/sahaj-atlas.pot`, built into the release zip by
+  `.github/scripts/i18n.sh`. That template is the only context a translator ever gets. Delete one,
+  or insert anything between it and its call, and the string ships with no explanation of its
+  placeholders.
 - **`assets/atlas-page.css` line 4 is a cross-repo contract in a CSS comment.** That giving
   `<sahaj-atlas>` a height is the opt-in for a contained map (SahajAtlasWeb#170) lives in four files
   across three repos. CSS has no type system to carry it.
