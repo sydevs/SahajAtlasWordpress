@@ -3,8 +3,9 @@
  *
  * The render lane reads HTML. It cannot see what a theme's CSS, the sizing script, or the widget
  * do to that HTML once a browser runs it. Every defect found live on shrimataji.org (#36,
- * SahajAtlasWeb#235, SahajAtlasWeb#236) was of that kind. This lane boots one WordPress per cell with a theme
- * installed from wordpress.org, loads the production widget in Chromium, and measures.
+ * SahajAtlasWeb#235, SahajAtlasWeb#236) was of that kind. This lane boots one WordPress per cell
+ * with a theme installed from wordpress.org, loads the production widget in Chromium, and
+ * measures.
  *
  *   SAHAJ_ATLAS_TEST_KEY=… pnpm test:browser [--only astra,mesmerize] [--list]
  *
