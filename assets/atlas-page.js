@@ -62,9 +62,8 @@
 	 * A header can grow later: a lazy-loaded logo, a cookie banner, or a menu that wraps. This moves
 	 * the atlas down, and no resize event fires for it.
 	 *
-	 * ⚠ Attach on the first call that finds a body, not once at load. A cache plugin that hoists
-	 * footer scripts into `<head>` runs this file while `document.body` is still null, and an observer
-	 * that never attached fails silently — the offset then keeps the value it had at load.
+	 * ⚠ Attach on the first call that finds a body, not once at load. An optimiser plugin that hoists
+	 * this file into `<head>` runs it before `document.body` exists, and a missed attach is silent.
 	 */
 	function start() {
 		measure()
