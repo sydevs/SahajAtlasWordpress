@@ -1,12 +1,19 @@
 <?php
 /**
- * An SEO plugin that owns `<title>` the way Yoast does, for the render lane.
+ * An SEO plugin that owns `<title>` the way Yoast does, for a request carrying
+ * `?sahaj_fixture_seo_plugin=yoast`.
  *
  * The plugin claims to replace Yoast, All in One SEO and Rank Math on atlas routes. Nothing
  * verified that claim against a plugin that actually fights for the title, and the two ways it
  * loses are invisible from inside the plugin's own code: a filter registered after ours wins, and
  * a vendor that removes core's `<title>` printer leaves the page with none once we silence the
  * vendor.
+ *
+ * ⚠ Every line below is behind that request flag, `WPSEO_VERSION` included, the way
+ * `tests/fixture-theme.php` gates its theme swap. One classic server then covers both a site with
+ * no SEO plugin and a site with one. Defining the constant unconditionally would send every
+ * request on that server down the Yoast suppression branch, and the lane's existing assertions
+ * would quietly stop testing a site without a vendor.
  *
  * ⚠ Fixture pre-mortem. This assumes Yoast's front end registers, on `init`:
  * `pre_get_document_title` at priority **15** with a callback that takes **no argument**, so it
@@ -30,13 +37,15 @@
  * @package SahajAtlas
  */
 
-define( 'WPSEO_VERSION', '28.6' );
-
 /** What this fixture would put in `<title>` and the description, if it won. */
 define( 'SAHAJ_ATLAS_FAKE_YOAST_TITLE', 'Find a class - Example Site' );
 define( 'SAHAJ_ATLAS_FAKE_YOAST_DESCRIPTION', 'The description Example Site wrote for this page.' );
 
-add_action( 'init', 'sahaj_atlas_fake_yoast_register' );
+if ( isset( $_GET['sahaj_fixture_seo_plugin'] ) && 'yoast' === $_GET['sahaj_fixture_seo_plugin'] ) {
+	define( 'WPSEO_VERSION', '28.6' );
+
+	add_action( 'init', 'sahaj_atlas_fake_yoast_register' );
+}
 
 function sahaj_atlas_fake_yoast_register() {
 	add_filter( 'pre_get_document_title', 'sahaj_atlas_fake_yoast_title', 15 );
