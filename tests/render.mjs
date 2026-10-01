@@ -38,6 +38,22 @@ const RUNS = [
   },
 ]
 
+/**
+ * The same classic instance, with an SEO plugin that fights for `<title>`.
+ *
+ * ⚠ The classic theme, not the block one, because that is where losing the fight costs the page
+ * its `<title>` element outright: it declares `title-tag` and prints no title of its own, so
+ * core's `_wp_render_title_tag` is the only printer, and `tests/fixtures/fake-yoast.php` removes
+ * it. A block theme keeps a printer whatever a vendor removes, because core registers
+ * `_block_template_render_title_tag` later, while it resolves the template.
+ */
+const SEO_PLUGIN_RUN = {
+  theme: 'suppressed SEO plugin',
+  port: 8803,
+  blueprint: 'tests/render-yoast.json',
+  mounts: ['./tests/fixtures/sahaj-classic:/wordpress/wp-content/themes/sahaj-classic'],
+}
+
 const PAGE = '/find-a-class/'
 // ⚠ A route the blueprint seeds an answer for. A route it does not seed sends the SEO fetch to the
 // live endpoint, which is how this lane called production SahajCloud on every run until #28.
@@ -89,11 +105,13 @@ async function waitForAtlasPage(port) {
 }
 
 /**
+ * Boot one instance. One copy of the argument list, because the two flags below are the whole
+ * reason this lane tests the version the fleet runs rather than the newest one.
+ *
  * @param {{theme: string, port: number, blueprint: string, mounts: string[]}} run
+ * @returns {import('node:child_process').ChildProcess}
  */
-async function check(run) {
-  console.log(`\n${run.theme} theme`)
-
+function startInstance(run) {
   const args = [
     'wp-playground-cli',
     'server',
@@ -112,9 +130,18 @@ async function check(run) {
     String(run.port),
   ]
 
+  return spawn('npx', args, { stdio: 'ignore' })
+}
+
+/**
+ * @param {{theme: string, port: number, blueprint: string, mounts: string[]}} run
+ */
+async function check(run) {
+  console.log(`\n${run.theme} theme`)
+
   await rm(NETWORK_LOG, { force: true })
 
-  const server = spawn('npx', args, { stdio: 'ignore' })
+  const server = startInstance(run)
 
   try {
     if (!(await waitForAtlasPage(run.port))) {
@@ -313,9 +340,72 @@ async function check(run) {
   }
 }
 
+/**
+ * The takeover against an SEO plugin that wants `<title>` too.
+ *
+ * ⚠ Both halves of the failure are only visible from out here. The plugin's own code cannot tell
+ * that its `pre_get_document_title` filter ran and then lost, and it cannot tell that silencing
+ * the vendor took the page's only `<title>` printer with it. Either way the page returns 200 with
+ * a full `<head>`, and the atlas route names one title to a crawler and another to a social
+ * preview. The strings come from `tests/fixtures/fake-yoast.php`, whose docblock carries the
+ * fixture pre-mortem and the Yoast source each hook is copied from.
+ *
+ * @param {{theme: string, port: number, blueprint: string, mounts: string[]}} run
+ */
+async function checkSeoPlugin(run) {
+  console.log(`\n${run.theme}`)
+
+  await rm(NETWORK_LOG, { force: true })
+
+  const server = startInstance(run)
+  const vendorTitle = 'Find a class - Example Site'
+  const vendorDescription = 'The description Example Site wrote for this page.'
+
+  try {
+    if (!(await waitForAtlasPage(run.port))) {
+      ok('the Atlas page is served with an SEO plugin active', false, 'timed out waiting for a 200')
+      return
+    }
+
+    const base = `http://127.0.0.1:${run.port}`
+
+    for (const [label, path, title] of [
+      ['the root view', PAGE, 'Free meditation classes near you'],
+      ['a query-routed deep link', QUERY_DEEP, 'Free meditation classes in Amsterdam'],
+    ]) {
+      const html = await (await fetch(base + path, { redirect: 'manual' })).text()
+      const titles = html.match(/<title>([\s\S]*?)<\/title>/g) ?? []
+
+      // ⚠ Count first. A page with no `<title>` at all is what a priority fix alone leaves
+      // behind, and every assertion phrased as "does not contain the vendor's title" passes on it.
+      ok(`${label}: carries exactly one <title>`, titles.length === 1, titles.join(' | ') || 'none')
+      ok(`${label}: and it is the endpoint's`, new RegExp(`<title>\\s*${title}\\s*</title>`).test(html), titles[0] ?? 'none')
+      ok(`${label}: never the SEO plugin's`, !html.includes(vendorTitle))
+
+      // The rest of the vendor's head block has to go with it, or the page describes itself twice.
+      ok(`${label}: and the SEO plugin describes nothing`, !html.includes(vendorDescription))
+      ok(
+        `${label}: while our own description is there`,
+        (html.match(/<meta name="description"/g) ?? []).length === 1,
+        html.match(/<meta name="description"[^>]*>/)?.[0] ?? 'none',
+      )
+    }
+
+    const escaped = await readFile(NETWORK_LOG, 'utf8').catch(() => null)
+
+    ok(`${run.theme}: the refusal is armed at all`, escaped !== null, 'no log — the mu-plugin never loaded')
+    ok(`${run.theme}: no request left the instance`, (escaped ?? '').trim() === '', (escaped ?? '').trim())
+  } finally {
+    server.kill('SIGTERM')
+    await sleep(1500)
+  }
+}
+
 for (const run of RUNS) {
   await check(run)
 }
+
+await checkSeoPlugin(SEO_PLUGIN_RUN)
 
 console.log(`\n${failures} failure(s)`)
 process.exit(failures > 0 ? 1 : 0)

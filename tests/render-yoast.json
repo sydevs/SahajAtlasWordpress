@@ -1,0 +1,31 @@
+{
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "preferredVersions": {
+    "php": "7.4",
+    "wp": "6.7"
+  },
+  "steps": [
+    {
+      "step": "writeFile",
+      "path": "/wordpress/wp-content/mu-plugins/sahaj-atlas-no-network.php",
+      "data": "<?php require '/wordpress/wp-content/plugins/sahaj-atlas/tests/no-network.php';"
+    },
+    {
+      "step": "writeFile",
+      "path": "/wordpress/wp-content/mu-plugins/sahaj-atlas-fake-yoast.php",
+      "data": "<?php require '/wordpress/wp-content/plugins/sahaj-atlas/tests/fixtures/fake-yoast.php';"
+    },
+    {
+      "step": "activateTheme",
+      "themeFolderName": "sahaj-classic"
+    },
+    {
+      "step": "activatePlugin",
+      "pluginPath": "sahaj-atlas/sahaj-atlas.php"
+    },
+    {
+      "step": "runPHP",
+      "code": "<?php require_once '/wordpress/wp-load.php'; update_option('permalink_structure','/%postname%/'); update_option(SAHAJ_ATLAS_OPTION_KEY,'demo-key-abc'); $seo = require '/wordpress/wp-content/plugins/sahaj-atlas/tests/fixtures/seo-answer.php'; set_transient(sahaj_atlas_seo_slot($seo['route']), $seo['answer'], 3600); set_transient(sahaj_atlas_seo_slot($seo['rootRoute']), $seo['root'], 3600); sahaj_atlas_create_page(); global $wp_rewrite; $wp_rewrite->init(); $wp_rewrite->flush_rules(true);"
+    }
+  ]
+}

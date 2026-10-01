@@ -138,6 +138,13 @@ the full story.
     every sanitising step below it — core's own `esc_html()` included — and
     `_wp_render_title_tag()` echoes the result raw. Escape inside the filter, or nothing does.
     See seo.php:185.
+21. Owning `<title>` takes a priority *and* a printer. Yoast registers
+    `pre_get_document_title` at 15, with a callback that takes no argument and so discards
+    whatever ran before it — any priority below the highest vendor's loses. It also removes core's
+    three title printers and emits `<title>` from its own `wpseo_head` presenter, so silencing
+    that presenter leaves a classic theme with no `<title>` element at all. Both halves are
+    invisible from inside this plugin: the page returns 200 with a full `<head>` either way. See
+    seo.php:102,188, tests/fixtures/fake-yoast.php.
 
 ## What is built
 
