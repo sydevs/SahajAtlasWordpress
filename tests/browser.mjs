@@ -136,7 +136,7 @@ const CELLS = [
   { name: 'beaver-builder', theme: 'astra', plugins: ['beaver-builder-lite-version'], wp: '6.8' },
   // Hostile conditions, each on a theme that passes clean.
   { name: 'async-css', theme: 'astra', mu: { 'async-css': MU.asyncCss } },
-  { name: 'fixed-header', theme: 'twentytwenty', mu: { 'fixed-header': MU.fixedHeader }, known: 'a fixed header measures as zero and covers the map (#40)' },
+  { name: 'fixed-header', theme: 'twentytwenty', mu: { 'fixed-header': MU.fixedHeader } },
   { name: 'root-font', theme: 'astra', mu: { 'root-font': MU.rootFont } },
   { name: 'zindex-wrapper', theme: 'astra', mu: { 'zindex-wrapper': MU.zIndexWrapper }, sidebar: true },
   { name: 'admin-bar', theme: 'astra', login: true },
