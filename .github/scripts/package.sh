@@ -86,6 +86,19 @@ POT_STRINGS=$(unzip -p "$OUT/$ZIP" sahaj-atlas/languages/sahaj-atlas.pot | grep 
 [ "$POT_STRINGS" -ge 60 ] ||
 	fail "languages/sahaj-atlas.pot holds $POT_STRINGS strings, fewer than the 60 this plugin wraps."
 
+# ⚠ A `.po` is the one translation file anyone commits, and the one file neither reader can use:
+# PHP reads the `.mo`, `wp.i18n` reads the `.json`. A `.po` that reaches the zip alone is therefore a
+# translation that silently stays English, which is the defect #17 fixed arriving back through the
+# build. This is also what puts `i18n.sh`'s make-mo/make-json branch under CI: the branch has no
+# input until the first `.po` is committed, and that same `.po` is what switches this check on.
+while read -r po; do
+	[ -n "$po" ] || continue
+	LOCALE=${po#sahaj-atlas/languages/sahaj-atlas-}
+	LOCALE=${LOCALE%.po}
+	grep -qxF "sahaj-atlas/languages/sahaj-atlas-$LOCALE.mo" <<<"$LISTING" ||
+		fail "The zip holds sahaj-atlas-$LOCALE.po with no .mo beside it, so i18n.sh built no translation."
+done <<<"$(grep -E '^sahaj-atlas/languages/sahaj-atlas-[^/]+\.po$' <<<"$LISTING" || true)"
+
 LEAKED=$(printf '%s\n' "$LISTING" |
 	grep -E '^sahaj-atlas/(\.git|\.github|\.claude|tests|docs|node_modules|build)/|^sahaj-atlas/(package\.json|pnpm-lock\.yaml|\.mcp\.json|AGENTS\.md|CLAUDE\.md|README\.md)$' ||
 	true)
