@@ -85,7 +85,7 @@ the full story.
    now becomes `position: fixed; inset: 0` and covers the page, which is why the Atlas page had no
    header before #170.
 5. `min-height` is not a height. Use a definite height and `display: block` instead — a custom
-   element defaults to `inline` and cannot size itself. See embed.php:342, render.mjs:298,
+   element defaults to `inline` and cannot size itself. See embed.php:342, render.mjs:314,
    run.php:143.
 6. Never run `wp_kses()` on markup this plugin generates. `safecss_filter_attr()`'s property
    allowlist has no `display` property, so it silently reduced `display:block;height:520px` to
@@ -111,7 +111,7 @@ the full story.
 14. `allowedDomains` splits on newlines, not commas. An empty list allows every origin — the
     documented default, not a refusal. Treat each entry as an exact host, never a wildcard suffix,
     and mirror `parseAllowedDomains()` / `isHostAllowed()` in SahajCloud instead of re-deriving
-    them. See diagnostics.php:262,398, tests/domains.php.
+    them. See diagnostics.php:283,495, tests/domains.php.
 15. Publish sitemap URLs only for this host. A shared key, or a mis-set `canonical.embed`, can add
     a foreign one. The same guard decides whether the root view may take the Atlas page over at
     all: a root answer whose canonical names another domain is a failed fetch, not a tag to drop,
@@ -201,7 +201,7 @@ More traps apply here. Their inline `⚠` comments carry the full detail.
 - wp-playground-cli discards stdout when a step fails. See tests/bootstrap.php:5.
 - Pin versions with the blueprint's `preferredVersions`. Under @wp-playground/cli 3.1, `server`
   ignores `--php` and `--wp` when given a blueprint, and a blueprint without the key boots the latest
-  WordPress on PHP 8.5. See tests/render.mjs:105.
+  WordPress on PHP 8.5. See tests/render.mjs:106.
 - Activate the plugin through a blueprint step. Do not call `activate_plugin()` after
   `wp-load.php`. See tests/bootstrap.php:42.
 - `$_GET` is already slashed when a plugin reads it, so a fixture that assigns a raw value tests a
