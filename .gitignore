@@ -13,9 +13,7 @@ playwright-report/
 build/
 *.zip
 
-# Translation output. `.github/scripts/i18n.sh` builds the template, the .mo and the .json files
-# into the zip at package time, so none of them belongs in a commit. A `.po` a translator writes is
-# the one file here that does.
+# Built into the zip by .github/scripts/i18n.sh. Only a .po is ever committed.
 languages/*.pot
 languages/*.mo
 languages/*.json

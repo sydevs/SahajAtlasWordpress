@@ -26,14 +26,14 @@ fail() {
 
 command -v php >/dev/null || fail 'i18n.sh needs PHP on PATH to run wp-cli.'
 
+# ⚠ Fetched and hashed every run, with no reuse of an existing file. A cache would have to verify
+# the file it kept, or the one line that makes the pin mean anything is the one that gets skipped —
+# and `RUNNER_TEMP` is fresh per job, so a cache could never have hit in CI anyway.
 PHAR=${RUNNER_TEMP:-${TMPDIR:-/tmp}}/wp-cli-$WP_CLI_VERSION.phar
-if [ ! -f "$PHAR" ]; then
-	curl -fsSL --retry 3 -o "$PHAR.part" \
-		"https://github.com/wp-cli/wp-cli/releases/download/v$WP_CLI_VERSION/wp-cli-$WP_CLI_VERSION.phar"
-	echo "$WP_CLI_SHA256  $PHAR.part" | sha256sum -c --quiet ||
-		fail "The wp-cli $WP_CLI_VERSION download does not match the pinned SHA-256."
-	mv "$PHAR.part" "$PHAR"
-fi
+curl -fsSL --retry 3 -o "$PHAR" \
+	"https://github.com/wp-cli/wp-cli/releases/download/v$WP_CLI_VERSION/wp-cli-$WP_CLI_VERSION.phar"
+echo "$WP_CLI_SHA256  $PHAR" | sha256sum -c --quiet ||
+	fail "The wp-cli $WP_CLI_VERSION download does not match the pinned SHA-256."
 
 # ⚠ `--allow-root` is not a shortcut here. wp-cli refuses to run as root to protect a WordPress
 # install, and `i18n` touches none — it reads source files. Without the flag this script fails in

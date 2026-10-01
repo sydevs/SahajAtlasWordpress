@@ -61,9 +61,7 @@ mkdir -p "$OUT/sahaj-atlas"
 rsync -a --exclude-from="$SRC/.distignore" "$SRC/" "$OUT/sahaj-atlas/"
 
 # ⚠ Built into the staged copy, never committed: `make-pot` stamps a POT-Creation-Date, so a
-# committed template would conflict on every branch. Building it here, between staging and zipping,
-# is also the only placement where the zip a PR inspects and the zip a release publishes are built
-# by the same line.
+# committed template would conflict on every branch.
 "$(dirname "$0")/i18n.sh" "$OUT/sahaj-atlas"
 
 (cd "$OUT" && zip -qr "$ZIP" sahaj-atlas)
@@ -79,6 +77,14 @@ LISTING=$(unzip -Z1 "$OUT/$ZIP")
 for required in sahaj-atlas/sahaj-atlas.php sahaj-atlas/vendor/plugin-update-checker/plugin-update-checker.php sahaj-atlas/languages/sahaj-atlas.pot; do
 	grep -qxF "$required" <<<"$LISTING" || fail "The zip is missing $required."
 done
+
+# ⚠ The count, not just the file. A `make-pot` narrowed by a stray `--exclude`, or pointed at the
+# wrong directory, still writes a valid template — one holding nothing but the plugin headers. That
+# ships green and leaves every string untranslatable, which is the defect this check exists for.
+# The floor is well under the real count, so ordinary string churn never trips it.
+POT_STRINGS=$(unzip -p "$OUT/$ZIP" sahaj-atlas/languages/sahaj-atlas.pot | grep -c '^msgid "')
+[ "$POT_STRINGS" -ge 60 ] ||
+	fail "languages/sahaj-atlas.pot holds $POT_STRINGS strings, fewer than the 60 this plugin wraps."
 
 LEAKED=$(printf '%s\n' "$LISTING" |
 	grep -E '^sahaj-atlas/(\.git|\.github|\.claude|tests|docs|node_modules|build)/|^sahaj-atlas/(package\.json|pnpm-lock\.yaml|\.mcp\.json|AGENTS\.md|CLAUDE\.md|README\.md)$' ||
