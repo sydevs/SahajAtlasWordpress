@@ -457,8 +457,6 @@ function sahaj_atlas_check_sitemap_discovery() {
 		);
 	}
 
-	$line = 'Sitemap: ' . sahaj_atlas_sitemap_url();
-
 	if ( ! get_option( 'permalink_structure' ) ) {
 		return array(
 			'status' => 'fail',
@@ -471,15 +469,14 @@ function sahaj_atlas_check_sitemap_discovery() {
 		);
 	}
 
-	$parts  = (array) wp_parse_url( home_url() );
-	$origin = isset( $parts['scheme'], $parts['host'] ) ? $parts['scheme'] . '://' . $parts['host'] : '';
-
-	// The port belongs in an address somebody is told to open. Dropping it names a different file.
-	if ( '' !== $origin && ! empty( $parts['port'] ) ) {
-		$origin .= ':' . (int) $parts['port'];
-	}
+	$line  = 'Sitemap: ' . sahaj_atlas_sitemap_url();
+	$parts = (array) wp_parse_url( home_url() );
 
 	if ( '' !== untrailingslashit( isset( $parts['path'] ) ? (string) $parts['path'] : '' ) ) {
+		// The port belongs in an address somebody is told to open. Dropping it names a different file.
+		$origin = $parts['scheme'] . '://' . $parts['host']
+			. ( empty( $parts['port'] ) ? '' : ':' . (int) $parts['port'] );
+
 		return array(
 			'status' => 'warn',
 			'label'  => $label,

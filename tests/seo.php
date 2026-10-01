@@ -579,13 +579,11 @@ sahaj_is( 'an entity already in the title is left as it arrived', 'Cours &amp; a
 sahaj_group( 'An SEO plugin\'s own `<title>` does not win' );
 
 /**
- * A suppressed SEO plugin's `pre_get_document_title` callback, in its real shape.
+ * A suppressed SEO plugin's `pre_get_document_title` callback.
  *
- * ⚠ Yoast's, not an approximation: priority 15, and a callback that takes no argument at all, so
- * it cannot pass anything through — `register_hooks()` and `filter_title()` in
- * `src/integrations/front-end-integration.php`, confirmed in 28.6. A stand-in registered at 10,
- * or one that returned `$title` when it had a title of its own, would pass against the defect
- * this group exists for.
+ * ⚠ No argument, and priority 15 below. `tests/fixtures/fake-yoast.php` records the shape and the
+ * Yoast source each half is copied from — keep the priority here in step with it. A stand-in at
+ * 10, or one that passed `$title` through, would pass against the defect.
  *
  * @return string
  */
@@ -625,9 +623,9 @@ sahaj_ok( 'core\'s printer goes back when the suppression took the only one', fa
  * at `wp_head`, and it has to leave a page that already has a printer alone. Two `<title>`
  * elements is the failure a check made too early produces.
  */
+// No boot here: `sahaj_seo_reset()` puts core's printer back, and the two lines below are the only
+// state the repair reads.
 sahaj_seo_reset();
-sahaj_seo_stub( $sahaj_seo_root );
-sahaj_atlas_seo_boot();
 
 remove_action( 'wp_head', '_wp_render_title_tag', 1 );
 add_action( 'wp_head', '_block_template_render_title_tag', 1 );

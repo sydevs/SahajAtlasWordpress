@@ -134,6 +134,23 @@ function startInstance(run) {
 }
 
 /**
+ * Nothing reached the network during this instance's requests.
+ *
+ * ⚠ One copy, because this is the guard that stopped the suite calling production SahajCloud on
+ * every run (#28), and a second copy is free to rot. `tests/no-network.php` creates the log as it
+ * loads, so a missing log means the mu-plugin never loaded and the lane is back on the real
+ * endpoint.
+ *
+ * @param {string} label
+ */
+async function assertNoNetwork(label) {
+  const escaped = await readFile(NETWORK_LOG, 'utf8').catch(() => null)
+
+  ok(`${label}: the refusal is armed at all`, escaped !== null, 'no log — the mu-plugin never loaded')
+  ok(`${label}: no request left the instance`, (escaped ?? '').trim() === '', (escaped ?? '').trim())
+}
+
+/**
  * @param {{theme: string, port: number, blueprint: string, mounts: string[]}} run
  */
 async function check(run) {
@@ -327,13 +344,8 @@ async function check(run) {
     }
 
     // ── Nothing reached the network ────────────────────────────────────────────────────────────
-    // ⚠ Last, because it reports on every request above. Why a silent refusal needs an assertion
-    // at all is in `tests/no-network.php` (#28), which also creates the log as it loads — so a
-    // missing log means the mu-plugin never loaded, and this lane is back on the real endpoint.
-    const escaped = await readFile(NETWORK_LOG, 'utf8').catch(() => null)
-
-    ok(`${run.theme}: the refusal is armed at all`, escaped !== null, 'no log — the mu-plugin never loaded')
-    ok(`${run.theme}: no request left the instance`, (escaped ?? '').trim() === '', (escaped ?? '').trim())
+    // Last, because it reports on every request above.
+    await assertNoNetwork(run.theme)
   } finally {
     server.kill('SIGTERM')
     await sleep(1500)
@@ -363,7 +375,7 @@ async function checkSeoPlugin(run) {
 
   try {
     if (!(await waitForAtlasPage(run.port))) {
-      ok('the Atlas page is served with an SEO plugin active', false, 'timed out waiting for a 200')
+      ok(`${run.theme}: the Atlas page is served`, false, 'timed out waiting for a 200')
       return
     }
 
@@ -391,10 +403,7 @@ async function checkSeoPlugin(run) {
       )
     }
 
-    const escaped = await readFile(NETWORK_LOG, 'utf8').catch(() => null)
-
-    ok(`${run.theme}: the refusal is armed at all`, escaped !== null, 'no log — the mu-plugin never loaded')
-    ok(`${run.theme}: no request left the instance`, (escaped ?? '').trim() === '', (escaped ?? '').trim())
+    await assertNoNetwork(run.theme)
   } finally {
     server.kill('SIGTERM')
     await sleep(1500)

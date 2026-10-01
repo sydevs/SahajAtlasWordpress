@@ -208,8 +208,16 @@ function sahaj_atlas_seo_suppress_others() {
  * unless the theme declares `title-tag`, which is exactly when a theme prints its own.
  */
 function sahaj_atlas_seo_restore_title_tag() {
-	if ( has_action( 'wp_head', '_wp_render_title_tag' ) || has_action( 'wp_head', '_block_template_render_title_tag' ) ) {
-		return;
+	/*
+	 * ⚠ All three names, and `false !==` on each. `has_action()` answers with the priority, so a
+	 * printer registered at 0 reads as absent under a bare truthiness test and earns the page a
+	 * second `<title>`. The third name is the Gutenberg plugin's: it swaps core's block-template
+	 * printer for its own under the same `title-tag` condition.
+	 */
+	foreach ( array( '_wp_render_title_tag', '_block_template_render_title_tag', 'gutenberg_render_title_tag' ) as $printer ) {
+		if ( false !== has_action( 'wp_head', $printer ) ) {
+			return;
+		}
 	}
 
 	add_action( 'wp_head', '_wp_render_title_tag', 1 );

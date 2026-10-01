@@ -167,13 +167,11 @@ remove_filter( 'home_url', 'sahaj_sitemap_subfolder' );
 sahaj_is( 'a subfolder install is a warning', 'warn', $sahaj_discovery['status'] );
 sahaj_ok(
 	'naming the robots.txt a crawler actually reads',
-	false !== strpos( $sahaj_discovery['detail'], $sahaj_origin . '/robots.txt' ),
-	$sahaj_discovery['detail']
+	false !== strpos( $sahaj_discovery['detail'], $sahaj_origin . '/robots.txt' )
 );
 sahaj_ok(
 	'and the line to paste, pointing into the subfolder',
-	false !== strpos( $sahaj_discovery['detail'], 'Sitemap: ' . $sahaj_origin . '/test/' . SAHAJ_ATLAS_SITEMAP_PATH ),
-	$sahaj_discovery['detail']
+	false !== strpos( $sahaj_discovery['detail'], 'Sitemap: ' . $sahaj_origin . '/test/' . SAHAJ_ATLAS_SITEMAP_PATH )
 );
 
 // ⚠ Plain permalinks lose both files at once: `rewrite_rules()` returns no rules at all, so the
