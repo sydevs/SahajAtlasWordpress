@@ -59,6 +59,13 @@ ZIP="sahaj-atlas-$VERSION.zip"
 rm -rf "$OUT/sahaj-atlas" "${OUT:?}/$ZIP"
 mkdir -p "$OUT/sahaj-atlas"
 rsync -a --exclude-from="$SRC/.distignore" "$SRC/" "$OUT/sahaj-atlas/"
+
+# ⚠ Built into the staged copy, never committed: `make-pot` stamps a POT-Creation-Date, so a
+# committed template would conflict on every branch. Building it here, between staging and zipping,
+# is also the only placement where the zip a PR inspects and the zip a release publishes are built
+# by the same line.
+"$(dirname "$0")/i18n.sh" "$OUT/sahaj-atlas"
+
 (cd "$OUT" && zip -qr "$ZIP" sahaj-atlas)
 
 LISTING=$(unzip -Z1 "$OUT/$ZIP")
@@ -67,7 +74,9 @@ LISTING=$(unzip -Z1 "$OUT/$ZIP")
 	fail "The zip must hold one top-level folder, sahaj-atlas."
 
 # Without the update checker, an installed copy never hears of the next release.
-for required in sahaj-atlas/sahaj-atlas.php sahaj-atlas/vendor/plugin-update-checker/plugin-update-checker.php; do
+# Without the POT a translator has nothing to start from, and the 60-odd wrapped admin strings stay
+# English in every locale however the site is configured (#17).
+for required in sahaj-atlas/sahaj-atlas.php sahaj-atlas/vendor/plugin-update-checker/plugin-update-checker.php sahaj-atlas/languages/sahaj-atlas.pot; do
 	grep -qxF "$required" <<<"$LISTING" || fail "The zip is missing $required."
 done
 
