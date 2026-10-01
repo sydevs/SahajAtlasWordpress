@@ -239,6 +239,14 @@ sahaj_probe_stub( sahaj_probe_page( '<sahaj-atlas data-sahaj-atlas-render="templ
 
 sahaj_is( 'but data-async-ignore is not async', 'ok', sahaj_probe_check( 'sahaj_atlas_check_loader' )['status'] );
 
+// ⚠ `defer` is a no-op on a module script: the HTML spec defers module scripts already, and
+// `document.currentScript` is null for one either way, so SahajAtlasWeb's loader reaches its own tag
+// through `script[src*="auto.js"]` whether the attribute is there or not (`src/loader/index.ts:346`).
+// Reading it as `async` would turn this row red on a page that works.
+sahaj_probe_stub( sahaj_probe_page( '<sahaj-atlas data-sahaj-atlas-render="template"></sahaj-atlas>', sahaj_probe_loader( ' defer' ) ) );
+
+sahaj_is( 'and defer on a module tag is not async', 'ok', sahaj_probe_check( 'sahaj_atlas_check_loader' )['status'] );
+
 sahaj_probe_stub( sahaj_probe_page( '<sahaj-atlas data-sahaj-atlas-render="template"></sahaj-atlas>', sahaj_probe_loader( '', ' type="module"', 'https://sahajatlas.com/auto.js' ) ) );
 
 sahaj_is( 'an address stripped of the key is a failure', 'fail', sahaj_probe_check( 'sahaj_atlas_check_loader' )['status'] );
