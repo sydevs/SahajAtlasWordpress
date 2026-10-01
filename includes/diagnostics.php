@@ -86,7 +86,7 @@ function sahaj_atlas_check_idle( $label ) {
 }
 
 /**
- * The seven checks, in the order a volunteer reaches them.
+ * The eight checks, in the order a volunteer reaches them.
  *
  * @return array<int, array{status:string, label:string, detail:string}>
  */
@@ -102,6 +102,7 @@ function sahaj_atlas_checks() {
 		sahaj_atlas_check_path_routing( $client ),
 		sahaj_atlas_check_allowed_domains( $client ),
 		sahaj_atlas_check_page_description( $client ),
+		sahaj_atlas_check_sitemap_discovery(),
 		sahaj_atlas_check_render( $probe ),
 		sahaj_atlas_check_loader( $probe ),
 	);
@@ -430,9 +431,126 @@ function sahaj_atlas_check_page_description( $client ) {
 		),
 	);
 }
+/**
+ * Check 6 — can a crawler find the atlas at all?
+ *
+ * ⚠ The `Sitemap:` line in `robots.txt` is the whole discovery path (see `sitemap.php`), and on
+ * part of the fleet it cannot exist. Core adds the `robots.txt` rewrite rule only when rewriting
+ * is on at all and WordPress sits at the domain root — `WP_Rewrite::rewrite_rules()` returns an
+ * empty rule set for a plain permalink structure, and gates the rule itself on an empty
+ * `home_url()` path (`wp-includes/class-wp-rewrite.php:1279-1285`, WordPress 6.7.9). A real
+ * `robots.txt` file on disk never reaches WordPress at all. Each of those is silent: the plugin
+ * registers its filter, the filter never runs, and the atlas is simply never crawled.
+ *
+ * ⚠ So this row names the address a crawler actually reads, and the exact line to paste into it.
+ * A row saying only "your sitemap is not listed" would leave the one person who can fix it with
+ * nothing to do.
+ *
+ * @return array{status:string, label:string, detail:string}
+ */
+function sahaj_atlas_check_sitemap_discovery() {
+	$label = __( 'Sitemap', 'sahaj-atlas' );
+
+	// The same gate `sahaj_atlas_register_sitemap()` applies. Checks 1 and 2 name both causes.
+	if ( ! sahaj_atlas_page_is_healthy() || '' === sahaj_atlas_api_key() ) {
+		return sahaj_atlas_check_idle( $label );
+	}
+
+	// ⚠ `blog_public = 0` is the owner's own answer, and `sahaj_atlas_robots_txt()` honours it.
+	// A warning here would be this plugin arguing with a decision it was told about.
+	if ( ! get_option( 'blog_public' ) ) {
+		return array(
+			'status' => 'idle',
+			'label'  => $label,
+			'detail' => esc_html__(
+				'Not listed, because this site asks search engines not to index it. That is the "Search engine visibility" box under Settings → Reading.',
+				'sahaj-atlas'
+			),
+		);
+	}
+
+	if ( ! get_option( 'permalink_structure' ) ) {
+		return array(
+			'status' => 'fail',
+			'label'  => $label,
+			'detail' => sprintf(
+				/* translators: %s: a link to the Permalinks settings screen. */
+				esc_html__( 'Search engines cannot find your atlas pages. With plain permalinks WordPress serves neither the sitemap file nor a robots.txt, so there is nothing to point a crawler at. Choose any other option under %s.', 'sahaj-atlas' ),
+				'<a href="' . esc_url( admin_url( 'options-permalink.php' ) ) . '">' . esc_html__( 'Settings → Permalinks', 'sahaj-atlas' ) . '</a>'
+			),
+		);
+	}
+
+	$line  = 'Sitemap: ' . sahaj_atlas_sitemap_url();
+	$parts = (array) wp_parse_url( home_url() );
+
+	if ( '' !== untrailingslashit( isset( $parts['path'] ) ? (string) $parts['path'] : '' ) ) {
+		/*
+		 * ⚠ A subdirectory network has no file for anyone to edit. The robots.txt at the top of
+		 * the domain is WordPress's own, generated for the main site, and the filter that writes
+		 * it runs with the main site's options — so it publishes the main site's sitemap and can
+		 * never publish this one's. Telling a volunteer to edit that address sends them looking
+		 * for a file that does not exist. Submitting the address is the only remedy left.
+		 */
+		if ( is_multisite() ) {
+			return array(
+				'status' => 'warn',
+				'label'  => $label,
+				'detail' => sprintf(
+					/* translators: %s: the address of this site's sitemap. */
+					esc_html__( 'This site is one of a network, so its sitemap cannot be listed in a robots.txt file. Submit this address to Google Search Console and Bing Webmaster Tools instead: %s', 'sahaj-atlas' ),
+					'<code>' . esc_html( sahaj_atlas_sitemap_url() ) . '</code>'
+				),
+			);
+		}
+
+		// The port belongs in an address somebody is told to open. Dropping it names a different file.
+		$origin = $parts['scheme'] . '://' . $parts['host']
+			. ( empty( $parts['port'] ) ? '' : ':' . (int) $parts['port'] );
+
+		return array(
+			'status' => 'warn',
+			'label'  => $label,
+			'detail' => sprintf(
+				/* translators: 1: the only robots.txt address a search engine reads. 2: the line to add to that file. */
+				esc_html__( 'WordPress runs in a subfolder here, so it cannot write %1$s — the only robots.txt a search engine reads. Add this line to that file yourself, or ask whoever hosts the site to: %2$s', 'sahaj-atlas' ),
+				'<code>' . esc_html( $origin . '/robots.txt' ) . '</code>',
+				'<code>' . esc_html( $line ) . '</code>'
+			),
+		);
+	}
+
+	// ⚠ `get_home_path()` is `wp-admin`'s, and this panel only ever renders there. `ABSPATH` is
+	// the fallback for a direct call, and the same directory on every install that has not given
+	// WordPress its own folder.
+	$root = function_exists( 'get_home_path' ) ? get_home_path() : ABSPATH;
+
+	if ( file_exists( $root . 'robots.txt' ) ) {
+		return array(
+			'status' => 'warn',
+			'label'  => $label,
+			'detail' => sprintf(
+				/* translators: %s: the line to add to the site's robots.txt file. */
+				esc_html__( 'This site has a real robots.txt file, and WordPress never adds anything to one of those. Add this line to it yourself: %s', 'sahaj-atlas' ),
+				'<code>' . esc_html( $line ) . '</code>'
+			),
+		);
+	}
+
+	return array(
+		'status' => 'ok',
+		'label'  => $label,
+		'detail' => sprintf(
+			/* translators: %s: the address of the sitemap, as a link. */
+			esc_html__( 'Listed in your robots.txt, at %s.', 'sahaj-atlas' ),
+			'<a href="' . esc_url( sahaj_atlas_sitemap_url() ) . '"><code>/' . esc_html( SAHAJ_ATLAS_SITEMAP_PATH ) . '</code></a>'
+		),
+	);
+}
+
 
 /**
- * Check 6 — which of the three prints rendered the element on the live page?
+ * Check 7 — which of the three prints rendered the element on the live page?
  *
  * ⚠ This is the one check that reads the rendered page instead of the database. Nothing
  * server-side can answer it: the page still carries this plugin's template meta while a later
@@ -494,7 +612,7 @@ function sahaj_atlas_check_render( $probe ) {
 }
 
 /**
- * Check 7 — did the loader's script tag survive the page?
+ * Check 8 — did the loader's script tag survive the page?
  *
  * ⚠ `auto.js` is a real ES module, so a classic `<script>` tag cannot run it at all: the page gets
  * a blank slot and one console error ("Cannot use import statement outside a module"). A module
@@ -650,7 +768,7 @@ function sahaj_atlas_page_probe() {
 /**
  * Drop the cached probe when the Atlas page is saved.
  *
- * ⚠ What check 6 asks a volunteer to do is change the page's template, and that is a save. Without
+ * ⚠ What check 7 asks a volunteer to do is change the page's template, and that is a save. Without
  * this the row they just acted on stays red for five minutes, which reads as the fix not working.
  *
  * @param int $post_id The post saved.
@@ -665,7 +783,7 @@ function sahaj_atlas_forget_page_probe( $post_id ) {
  * One attribute's value out of one tag, quoted or not.
  *
  * ⚠ Unquoted values too. An HTML minifier that drops optional quotes is common on this fleet, and
- * a reader that insists on them reads a working page as an absent attribute — check 6 then tells
+ * a reader that insists on them reads a working page as an absent attribute — check 7 then tells
  * the volunteer the map is missing and to send us the address. An empty value and an absent one
  * are the same answer to every caller here.
  *
@@ -715,7 +833,7 @@ function sahaj_atlas_read_page( $html ) {
 		// ⚠ Exact membership, never a word boundary. Core adds `page-template-sahaj-atlas-page` from
 		// the page's template meta, and `\b` matches inside it — so the flag would say this
 		// plugin's own `body_class` filter ran on a page where it never did, and the two diagnoses
-		// in check 6 would collapse into the wrong one.
+		// in check 7 would collapse into the wrong one.
 		'page'   => in_array(
 			'sahaj-atlas-page',
 			preg_split( '/\s+/', sahaj_atlas_tag_attr( isset( $body[0] ) ? $body[0] : '', 'class' ) ),

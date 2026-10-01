@@ -27,9 +27,13 @@ function sahaj_seo_reset() {
 	$GLOBALS['sahaj_atlas_seo'] = null;
 
 	remove_action( 'wp_head', 'sahaj_atlas_seo_emit', 1 );
-	remove_filter( 'pre_get_document_title', 'sahaj_atlas_seo_title' );
+	// ⚠ The priority is part of what has to be undone. `remove_filter` matches callback and
+	// priority together, so the default 10 here would leave the real registration in place and
+	// every later case would inherit the previous one's title.
+	remove_filter( 'pre_get_document_title', 'sahaj_atlas_seo_title', PHP_INT_MAX );
 	remove_filter( 'sahaj_atlas_element_children', 'sahaj_atlas_seo_children' );
 	remove_filter( 'wpseo_canonical', '__return_false' );
+	remove_action( 'wp_head', 'sahaj_atlas_seo_restore_title_tag', 0 );
 
 	// AIOSEO's own switches. An assertion below reads them to tell "this plugin took the page
 	// over" from "it left the host's SEO plugin alone", so a case that inherited them from the
@@ -40,6 +44,7 @@ function sahaj_seo_reset() {
 	// Core's own emitters, at the priorities `wp-includes/default-filters.php` registers them with.
 	add_action( 'wp_head', 'rel_canonical' );
 	add_action( 'wp_head', 'wp_shortlink_wp_head', 10, 0 );
+	add_action( 'wp_head', '_wp_render_title_tag', 1 );
 
 	sahaj_clear_query_route();
 	set_query_var( SAHAJ_ATLAS_ROUTE_VAR, '' );
@@ -568,6 +573,89 @@ sahaj_seo_stub( array_merge( $sahaj_seo_root, array( 'title' => 'Cours &amp; ate
 sahaj_atlas_seo_boot();
 
 sahaj_is( 'an entity already in the title is left as it arrived', 'Cours &amp; ateliers', wp_get_document_title() );
+
+// ---------------------------------------------------------------------------------------------
+
+sahaj_group( 'An SEO plugin\'s own `<title>` does not win' );
+
+/**
+ * A suppressed SEO plugin's `pre_get_document_title` callback.
+ *
+ * ⚠ No argument, and priority 15 below. `tests/fixtures/fake-yoast.php` records the shape and the
+ * Yoast source each half is copied from — keep the priority here in step with it. A stand-in at
+ * 10, or one that passed `$title` through, would pass against the defect.
+ *
+ * @return string
+ */
+function sahaj_seo_vendor_title() {
+	return 'Find a class — SEO plugin';
+}
+
+sahaj_seo_reset();
+sahaj_seo_stub( $sahaj_seo_root );
+add_filter( 'pre_get_document_title', 'sahaj_seo_vendor_title', 15 );
+sahaj_atlas_seo_boot();
+
+sahaj_is( 'the endpoint\'s title outranks a vendor filter at 15', 'Free meditation classes near you', wp_get_document_title() );
+
+remove_filter( 'pre_get_document_title', 'sahaj_seo_vendor_title', 15 );
+
+/*
+ * ⚠ The priority fix alone still ships a page with no title. Yoast removes core's title printers
+ * in the same `register_hooks()` and prints `<title>` from a `wpseo_head` presenter instead, so
+ * emptying `wpseo_head` leaves a classic theme with neither — and nothing ever calls
+ * `wp_get_document_title()`.
+ */
+sahaj_seo_reset();
+sahaj_seo_stub( $sahaj_seo_root );
+sahaj_atlas_seo_boot();
+
+sahaj_is( 'the repair is hooked where the printers are, not at `template_redirect`', 0, has_action( 'wp_head', 'sahaj_atlas_seo_restore_title_tag' ) );
+
+remove_action( 'wp_head', '_wp_render_title_tag', 1 );
+sahaj_atlas_seo_restore_title_tag();
+
+sahaj_ok( 'core\'s printer goes back when the suppression took the only one', false !== has_action( 'wp_head', '_wp_render_title_tag' ) );
+
+/*
+ * ⚠ And never a second one. Core registers `_block_template_render_title_tag` while it resolves
+ * the block template, which is after every `template_redirect` callback — so the decision belongs
+ * at `wp_head`, and it has to leave a page that already has a printer alone. Two `<title>`
+ * elements is the failure a check made too early produces.
+ */
+// No boot here: `sahaj_seo_reset()` puts core's printer back, and the two lines below are the only
+// state the repair reads.
+sahaj_seo_reset();
+
+remove_action( 'wp_head', '_wp_render_title_tag', 1 );
+add_action( 'wp_head', '_block_template_render_title_tag', 1 );
+sahaj_atlas_seo_restore_title_tag();
+
+sahaj_ok( 'and stays out when a block theme already has one', false === has_action( 'wp_head', '_wp_render_title_tag' ) );
+
+remove_action( 'wp_head', '_block_template_render_title_tag', 1 );
+
+/*
+ * ⚠ The Gutenberg plugin's printer, and a printer at priority 0. Both are a duplicate `<title>`
+ * waiting to happen: Gutenberg swaps core's block-template printer for its own under the same
+ * `title-tag` condition, and `has_action()` answers with the priority, so a printer at 0 reads as
+ * absent under a bare truthiness test. Neither arm of the guard is exercised by the case above,
+ * which registers a name the guard knows at a priority that is truthy anyway.
+ */
+foreach ( array(
+	'the Gutenberg plugin\'s printer' => array( 'gutenberg_render_title_tag', 1 ),
+	'a printer at priority 0'         => array( '_block_template_render_title_tag', 0 ),
+) as $sahaj_seo_case => $sahaj_seo_printer ) {
+	sahaj_seo_reset();
+
+	remove_action( 'wp_head', '_wp_render_title_tag', 1 );
+	add_action( 'wp_head', $sahaj_seo_printer[0], $sahaj_seo_printer[1] );
+	sahaj_atlas_seo_restore_title_tag();
+
+	sahaj_ok( "and stays out for $sahaj_seo_case too", false === has_action( 'wp_head', '_wp_render_title_tag' ) );
+
+	remove_action( 'wp_head', $sahaj_seo_printer[0], $sahaj_seo_printer[1] );
+}
 
 // ---------------------------------------------------------------------------------------------
 

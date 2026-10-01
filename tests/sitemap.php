@@ -119,3 +119,85 @@ sahaj_is(
 	null,
 	sahaj_route_for( SAHAJ_ATLAS_SITEMAP_PATH )
 );
+
+// ---------------------------------------------------------------------------------------------
+
+sahaj_group( 'The panel names a site whose `Sitemap:` line cannot exist' );
+
+/**
+ * Move the whole site into a subfolder, the way a host that installed WordPress under `/test/`
+ * has it.
+ *
+ * ⚠ A filter, not `update_option( 'home', … )`. The lane's WordPress pins its own address through
+ * `pre_option_home`, so writing the option changes nothing a later `home_url()` call reads, and
+ * every assertion below passes against the unmoved site. `home_url` is also exactly the one value
+ * the check reads, and rewriting only the authority keeps the sitemap path the site would really
+ * serve.
+ *
+ * @param string $url A URL built from the home address.
+ * @return string
+ */
+function sahaj_sitemap_subfolder( $url ) {
+	return (string) preg_replace( '#^(https?://[^/]+)#', '$1/test', (string) $url, 1 );
+}
+
+update_option( SAHAJ_ATLAS_OPTION_KEY, 'test-key-123' );
+update_option( 'permalink_structure', '/%postname%/' );
+update_option( 'blog_public', '1' );
+
+$sahaj_origin    = untrailingslashit( home_url() );
+$sahaj_discovery = sahaj_atlas_check_sitemap_discovery();
+
+sahaj_is( 'a root install with pretty permalinks is listed', 'ok', $sahaj_discovery['status'] );
+sahaj_ok( 'and the row names the file', false !== strpos( $sahaj_discovery['detail'], SAHAJ_ATLAS_SITEMAP_PATH ) );
+
+/*
+ * ⚠ `WP_Rewrite::rewrite_rules()` gates the `robots.txt` rule on an empty `home_url()` path
+ * (`wp-includes/class-wp-rewrite.php:1285`, WordPress 6.7.9), so a subfolder install serves its
+ * robots.txt at an address no crawler reads. shrimataji.org runs in `/test/`. The row has to name
+ * the file at the top of the domain *and* the line to paste into it, because a volunteer can
+ * derive neither.
+ */
+add_filter( 'home_url', 'sahaj_sitemap_subfolder' );
+
+$sahaj_discovery = sahaj_atlas_check_sitemap_discovery();
+
+remove_filter( 'home_url', 'sahaj_sitemap_subfolder' );
+
+sahaj_is( 'a subfolder install is a warning', 'warn', $sahaj_discovery['status'] );
+sahaj_ok(
+	'naming the robots.txt a crawler actually reads',
+	false !== strpos( $sahaj_discovery['detail'], $sahaj_origin . '/robots.txt' )
+);
+sahaj_ok(
+	'and the line to paste, pointing into the subfolder',
+	false !== strpos( $sahaj_discovery['detail'], 'Sitemap: ' . $sahaj_origin . '/test/' . SAHAJ_ATLAS_SITEMAP_PATH )
+);
+
+// ⚠ Plain permalinks lose both files at once: `rewrite_rules()` returns no rules at all, so the
+// sitemap path 404s as well. The one branch that is a failure rather than a warning, because
+// there is no line a volunteer could paste that would be served.
+update_option( 'permalink_structure', '' );
+
+$sahaj_discovery = sahaj_atlas_check_sitemap_discovery();
+
+sahaj_is( 'plain permalinks are a failure', 'fail', $sahaj_discovery['status'] );
+sahaj_ok( 'and the row names the one screen that fixes it', false !== strpos( $sahaj_discovery['detail'], 'options-permalink.php' ) );
+sahaj_ok( 'never offering a line that could not be served anyway', false === strpos( $sahaj_discovery['detail'], 'Sitemap: ' ) );
+
+update_option( 'permalink_structure', '/%postname%/' );
+
+// A site that asked not to be indexed gets no argument about it. `sahaj_atlas_robots_txt()`
+// honours that switch, so the row reports the same answer rather than a second opinion.
+update_option( 'blog_public', '0' );
+
+sahaj_is( 'a site that asks not to be indexed is not a warning', 'idle', sahaj_atlas_check_sitemap_discovery()['status'] );
+
+update_option( 'blog_public', '1' );
+
+// No key means there is no sitemap to announce, and checks 1 and 2 already name why.
+update_option( SAHAJ_ATLAS_OPTION_KEY, '' );
+
+sahaj_is( 'and nothing at all until there is a key', 'idle', sahaj_atlas_check_sitemap_discovery()['status'] );
+
+update_option( SAHAJ_ATLAS_OPTION_KEY, 'test-key-123' );

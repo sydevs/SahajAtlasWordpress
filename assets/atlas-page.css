@@ -25,6 +25,16 @@ body.sahaj-atlas-page sahaj-atlas {
 	display: flow-root;
 	width: 100%;
 	/*
+	 * Clears a header the theme takes out of flow, which occupies nothing for the element's own top
+	 * to measure.
+	 *
+	 * ⚠ Margin, never padding. The widget fills this element and a contained map draws across the
+	 * whole padding box, so padding would put the map straight back under the header; nothing the
+	 * widget draws reaches into a margin. `--sahaj-atlas-top` is measured after the shift, so the
+	 * height below needs no second term.
+	 */
+	margin-top: var(--sahaj-atlas-offset, 0px);
+	/*
 	 * The viewport, less whatever the theme's header occupies. `--sahaj-atlas-top` is written by
 	 * `assets/atlas-page.js`; the `0px` fallback is the honest answer if that never runs, and gives
 	 * a full-height map with the header scrolled above it rather than a collapsed one.

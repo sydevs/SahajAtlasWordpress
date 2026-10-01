@@ -190,7 +190,7 @@ sahaj_ok( 'so it reads as an address something else answers', false !== strpos( 
 sahaj_group( 'Saving the Atlas page drops the cached answer' );
 
 /*
- * ⚠ What check 6 asks a volunteer to do is change the page's template, which is a save. Without
+ * ⚠ What check 7 asks a volunteer to do is change the page's template, which is a save. Without
  * this the row they just acted on stays red for five minutes, and reads as the fix not working.
  */
 sahaj_probe_stub( sahaj_probe_page( '<sahaj-atlas data-sahaj-atlas-render="footer"></sahaj-atlas>', sahaj_probe_loader() ) );
@@ -262,7 +262,7 @@ sahaj_group( 'A minifier that drops optional quotes still reads' );
 /*
  * ⚠ Both rows read attributes back out of markup an optimiser may have rewritten, and dropping
  * optional quotes is what an HTML minifier does to a value with no spaces in it. A reader that
- * insists on quotes calls a working page broken, and check 6's advice is then to send us the
+ * insists on quotes calls a working page broken, and check 7's advice is then to send us the
  * address. A multi-class body keeps its quotes, so this page carries the single class a minifier
  * can really strip.
  */

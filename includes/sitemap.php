@@ -228,6 +228,11 @@ function sahaj_atlas_flush_sitemap_cache() {
  * below are a convenience for site owners who read their SEO plugin's report — they are not the
  * discovery path.
  *
+ * ⚠ And on part of the fleet this filter never runs: core serves a virtual `robots.txt` only with
+ * rewriting on and WordPress at the domain root, and never when a real file is there.
+ * `sahaj_atlas_check_sitemap_discovery()` models those conditions for the panel. A change here
+ * leaves that model stale, and it is the only thing that tells a volunteer the line is missing.
+ *
  * @param string $output The robots.txt body.
  * @param bool   $public Whether the site is set to be indexed.
  * @return string
