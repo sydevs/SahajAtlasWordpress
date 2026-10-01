@@ -140,17 +140,26 @@ the full story.
     See seo.php:185.
 21. Enqueue `assets/atlas-page.js` in the footer. `<head>` has neither the element it measures nor
     `document.body`, so both the first measure and the observer are lost there — silently. See
-    embed.php:377, atlas-page.js:65.
+    embed.php:377, atlas-page.js:160.
+22. A header the theme takes out of flow occupies nothing for the element's own top to measure, so
+    `assets/atlas-page.js` measures that header too, and the offset it writes is a **margin**, never
+    padding. The offset walks to its answer over several frames, and asks for them itself — no
+    resize event fires for a margin it wrote, and the body observer is not guaranteed to be
+    attached. Two bounds are load-bearing. The offset is clamped, or a theme that refuses the margin
+    spins the measurement loop forever. And a header reaching past half the screen is refused
+    outright, since handing that much away drops the atlas under the widget's map floor and the
+    visitor gets the compact card — which is the defect #35 fixed, by another route. See
+    atlas-page.css:31, atlas-page.js:26,64,86,122,127,138.
 
 ## What is built
 
 Every module below is implemented and tested. `pnpm test:all` runs the full gate: the syntax
-check, the PHP suite, then the render checks.
+check, the measurement checks, the PHP suite, then the render checks.
 
 | Module | Does |
 | --- | --- |
 | `includes/embed.php` | Resolves the page's one embed, builds the script URL, prints the element |
-| `assets/atlas-page.{css,js}` | Sizes the element below the theme's header — the contained-map opt-in |
+| `assets/atlas-page.{css,js}` | Sizes the element below the theme's header, in flow or fixed — the contained-map opt-in |
 | `includes/page.php` | Owns the Atlas page and both template paths |
 | `includes/routing.php` | Matches `parse_request`, reads `?atlas=`, and suppresses the canonical redirect |
 | `includes/shortcode.php` | Runs `[sahaj_atlas]`, sharing the block's render body |
@@ -169,16 +178,17 @@ plugin runs. The Yoast and Rank Math index entries are only a convenience.
 ## Testing
 
 Four lanes run on `@wp-playground/cli` (PHP in WebAssembly). This needs no Docker and no system
-PHP.
+PHP. The fifth runs the one shipped script in plain node.
 
 | Lane | Command | Covers |
 | --- | --- | --- |
 | Syntax | `pnpm lint` | `token_get_all(…, TOKEN_PARSE)` over every PHP file |
+| Measure | `pnpm test:measure` | `assets/atlas-page.js`'s header arithmetic, against a stubbed geometry |
 | Behaviour | `pnpm test` | The behaviour suite, in a booted WordPress 6.7 / PHP 7.4 |
 | Render | `pnpm test:render` | Real HTTP requests against a real server, per theme kind |
 | Browser | `pnpm test:browser` | The production widget in Chromium, in every free theme the fleet runs, plus page builders and hostile conditions. Local only; needs the network, `SAHAJ_ATLAS_TEST_KEY` (the "Sahaj Atlas (Local Test Key)" client's key, from a SahajCloud admin) in `.env.claude.local`, and Chromium (`pnpm exec playwright-core install chromium`, once). `--only <cell,…>` runs a subset, `--list` names them. |
 
-`pnpm test:all` runs the first three. The browser lane is the one that sees what a theme's CSS,
+`pnpm test:all` runs the first four. The browser lane is the one that sees what a theme's CSS,
 the sizing script and the widget do to the page once a browser runs it, which is where every
 live defect so far has been (#36, SahajAtlasWeb#235, SahajAtlasWeb#236). It prints three verdicts: `FAIL`
 is the plugin's, and fails the run; `WIDGET` is a finding about the production widget, SahajAtlasWeb's to
@@ -201,6 +211,11 @@ More traps apply here. Their inline `⚠` comments carry the full detail.
 - Headless Chromium has no WebGL without software-GL flags, and Mapbox then refuses to mount,
   which reads exactly like the widget failing to boot. The browser lane passes the flags. See
   tests/browser.mjs.
+- The measure lane proves what the script decides, never what a browser lays out. Its geometry is
+  stubbed, so an assertion about real overlap belongs in the browser lane (#38, PR #44). That lane
+  retires this one only once it runs in CI and covers the same decisions; it is local-only, so it
+  does not. The lane reads the script's load position out of `includes/embed.php`, so a fixture
+  cannot keep modelling a page the plugin stopped serving. See tests/measure.mjs:9,13,30.
 - wp-playground-cli discards stdout when a step fails. See tests/bootstrap.php:5.
 - Pin versions with the blueprint's `preferredVersions`. Under @wp-playground/cli 3.1, `server`
   ignores `--php` and `--wp` when given a blueprint, and a blueprint without the key boots the latest
