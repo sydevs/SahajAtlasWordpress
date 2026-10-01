@@ -22,6 +22,10 @@ build/
 # Never commit a real key
 .env
 .env.local
+.env.claude.local
+
+# Screenshots the browser lane writes, one per theme and viewport
+tests/screenshots/
 
 # Captured output from the WordPress test run
 .test-output.txt

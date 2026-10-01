@@ -102,8 +102,10 @@ async function check(run) {
     'server',
     '--blueprint',
     run.blueprint,
-    // Pinned to the fleet's floor. ⚠ The `server` command ignores `preferredVersions` inside a
-    // blueprint. Without these flags, it boots PHP 8.3 and the latest WordPress instead.
+    // Pinned to the fleet's floor. ⚠ Under @wp-playground/cli 3.1 the blueprint's
+    // `preferredVersions` is what pins it: given a blueprint, `server` ignores these flags, and a
+    // blueprint without the key boots the latest WordPress on PHP 8.5 (measured 2026-10-01). Both
+    // blueprints carry the key; the flags stay for a CLI that reverses the precedence.
     '--php',
     '7.4',
     '--wp',

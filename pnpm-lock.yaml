@@ -11,6 +11,9 @@ importers:
       '@wp-playground/cli':
         specifier: ^3.1.51
         version: 3.1.51
+      playwright-core:
+        specifier: 1.57.0
+        version: 1.57.0
 
 packages:
 
@@ -693,6 +696,11 @@ packages:
   pify@4.0.1:
     resolution: {integrity: sha512-uB80kBFb/tfd68bVleG9T5GGsGPjJrLAUpR5PZIrhBnIaRTQRjqdJSsIKkOP6OAIFbj7GOrcudc5pNjZ+geV2g==}
     engines: {node: '>=6'}
+
+  playwright-core@1.57.0:
+    resolution: {integrity: sha512-agTcKlMw/mjBWOnD6kFZttAAGHgi/Nw0CZ2o6JqWSbMlI219lAFLZZCyqByTsvVAJq5XA5H8cA6PrvBRpBWEuQ==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   possible-typed-array-names@1.1.0:
     resolution: {integrity: sha512-/+5VFTchJDoVj3bhoqi6UeymcD00DAwb1nJwamzPvHEszJ4FpF6SNNbUbOS8yI56qHzdV8eK0qEfOSiodkTdxg==}
@@ -1718,6 +1726,8 @@ snapshots:
   path-to-regexp@0.1.13: {}
 
   pify@4.0.1: {}
+
+  playwright-core@1.57.0: {}
 
   possible-typed-array-names@1.1.0: {}
 

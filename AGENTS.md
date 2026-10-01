@@ -165,7 +165,7 @@ plugin runs. The Yoast and Rank Math index entries are only a convenience.
 
 ## Testing
 
-Three lanes run on `@wp-playground/cli` (PHP in WebAssembly). This needs no Docker and no system
+Four lanes run on `@wp-playground/cli` (PHP in WebAssembly). This needs no Docker and no system
 PHP.
 
 | Lane | Command | Covers |
@@ -173,6 +173,15 @@ PHP.
 | Syntax | `pnpm lint` | `token_get_all(…, TOKEN_PARSE)` over every PHP file |
 | Behaviour | `pnpm test` | The behaviour suite, in a booted WordPress 6.7 / PHP 7.4 |
 | Render | `pnpm test:render` | Real HTTP requests against a real server, per theme kind |
+| Browser | `pnpm test:browser` | The production widget in Chromium, in every free theme the fleet runs, plus page builders and hostile conditions. Local only; needs the network, `SAHAJ_ATLAS_TEST_KEY` (the "Sahaj Atlas (Local Test Key)" client's key, from a SahajCloud admin) in `.env.claude.local`, and Chromium (`pnpm exec playwright-core install chromium`, once). `--only <cell,…>` runs a subset, `--list` names them. |
+
+`pnpm test:all` runs the first three. The browser lane is the one that sees what a theme's CSS,
+the sizing script and the widget do to the page once a browser runs it, which is where every
+live defect so far has been (#36, SahajAtlasWeb#235, SahajAtlasWeb#236). It prints three verdicts: `FAIL`
+is the plugin's, and fails the run; `WIDGET` is a finding about the production widget, SahajAtlasWeb's to
+settle — check its open tickets before filing; `KNOWN` is a fit check in a cell whose exposure is already ticketed. Invariants —
+the page is served, PHP never reaches SahajCloud — fail in every cell. Screenshots land in
+`tests/screenshots/`, gitignored.
 
 A new assertion is not finished until it has failed once. Reintroduce the real defect, watch it
 fail, then restore the fix. This step matters: the first version of `tests/lint.php` passed every
@@ -182,10 +191,17 @@ More traps apply here. Their inline `⚠` comments carry the full detail.
 
 - Every lane refuses outbound HTTP by default, through an mu-plugin each blueprint writes. A lane
   that needs an answer stubs it or seeds the transient; an unstubbed call is recorded and fails the
-  run. Never reach the real endpoint to make a lane pass. See tests/no-network.php.
+  run. Never reach the real endpoint to make a lane pass. See tests/no-network.php. The browser
+  lane is the exception for the **browser** only: the theme comes from wordpress.org and the widget
+  from production, while PHP stays offline and the cell's last assertion proves it. See
+  tests/browser.mjs.
+- Headless Chromium has no WebGL without software-GL flags, and Mapbox then refuses to mount,
+  which reads exactly like the widget failing to boot. The browser lane passes the flags. See
+  tests/browser.mjs.
 - wp-playground-cli discards stdout when a step fails. See tests/bootstrap.php:5.
-- The `server` command ignores `preferredVersions`. Pass `--php` and `--wp` directly instead. See
-  tests/render.mjs:107.
+- Pin versions with the blueprint's `preferredVersions`. Under @wp-playground/cli 3.1, `server`
+  ignores `--php` and `--wp` when given a blueprint, and a blueprint without the key boots the latest
+  WordPress on PHP 8.5. See tests/render.mjs:105.
 - Activate the plugin through a blueprint step. Do not call `activate_plugin()` after
   `wp-load.php`. See tests/bootstrap.php:42.
 - `$_GET` is already slashed when a plugin reads it, so a fixture that assigns a raw value tests a
