@@ -92,6 +92,19 @@ under Settings → Sahaj Atlas. Country, city and class pages stay with Sahaj At
 your SEO plugin has never seen those addresses, and would describe every one of them as your
 Atlas page.
 
+= Search engines are not finding my atlas pages =
+
+Nothing on your site links into the atlas, so a sitemap is the only way a search engine learns
+those pages exist. The plugin publishes one and adds a `Sitemap:` line to your `robots.txt`.
+
+WordPress can only write that line when your permalinks are not set to "Plain" and WordPress runs
+at the top level of your domain. If it runs in a subfolder, or your site has a real `robots.txt`
+file, WordPress never writes the line and nothing says so.
+
+The status panel's "Sitemap" row names which of those applies, and shows the exact line to add.
+Paste it at the end of the `robots.txt` file at the top of your domain — the one at
+`yoursite.org/robots.txt`, not one inside the subfolder. Search engines read no other.
+
 = I use Elementor / WPBakery / Beaver Builder =
 
 That is fine. The Atlas page does not use a page builder, and the shortcode works inside all
