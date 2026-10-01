@@ -116,7 +116,7 @@ the full story.
     a foreign one. The same guard decides whether the root view may take the Atlas page over at
     all: a root answer whose canonical names another domain is a failed fetch, not a tag to drop,
     because `rel_canonical` is gone by the time the tag is printed. A region may canonicalise
-    elsewhere. The root may not. See sitemap.php:187,209, seo.php:89,140, tests/sitemap.php:20.
+    elsewhere. The root may not. See sitemap.php:187,209, seo.php:89,147, tests/sitemap.php:20.
 16. Suppress the host's SEO plugin only after a successful fetch. Suppressing first, then finding
     the endpoint unreachable, leaves the page with no metadata at all — worse than leaving the
     original, generic metadata in place.
@@ -133,11 +133,11 @@ the full story.
 19. An empty route on the Atlas page is the root view, not "no route". That includes a `?atlas=`
     the sanitiser refused, which falls back to the root rather than to nothing — the page is the
     root view either way, and the refused value must reach neither the endpoint nor the canonical.
-    See seo.php:60, tests/seo.php:302.
+    See seo.php:60, tests/seo.php:303.
 20. A non-empty `pre_get_document_title` return short-circuits `wp_get_document_title()` before
     every sanitising step below it — core's own `esc_html()` included — and
     `_wp_render_title_tag()` echoes the result raw. Escape inside the filter, or nothing does.
-    See seo.php:185.
+    See seo.php:229.
 21. Owning `<title>` takes a priority *and* a printer. Yoast registers
     `pre_get_document_title` at 15, with a callback that takes no argument and so discards
     whatever ran before it — any priority below the highest vendor's loses. It also removes core's
