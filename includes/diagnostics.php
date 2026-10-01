@@ -427,9 +427,10 @@ function sahaj_atlas_check_page_description( $client ) {
  * part of the fleet it cannot exist. Core adds the `robots.txt` rewrite rule only when rewriting
  * is on at all and WordPress sits at the domain root — `WP_Rewrite::rewrite_rules()` returns an
  * empty rule set for a plain permalink structure, and gates the rule itself on an empty
- * `home_url()` path (`wp-includes/class-wp-rewrite.php:1279-1285`, WordPress 6.7.9). A real
- * `robots.txt` file on disk never reaches WordPress at all. Each of those is silent: the plugin
- * registers its filter, the filter never runs, and the atlas is simply never crawled.
+ * `home_url()` path (`wp-includes/class-wp-rewrite.php:1279-1285`, WordPress 6.7.9). A rule core
+ * did write still needs the server to route `/robots.txt` to it, which an `index.php` structure
+ * says it cannot. A real `robots.txt` file on disk never reaches WordPress at all. Each of those is
+ * silent: the plugin registers its filter, the filter never runs, and the atlas is never crawled.
  *
  * ⚠ So this row names the address a crawler actually reads, and the exact line to paste into it.
  * A row saying only "your sitemap is not listed" would leave the one person who can fix it with
@@ -438,6 +439,8 @@ function sahaj_atlas_check_page_description( $client ) {
  * @return array{status:string, label:string, detail:string}
  */
 function sahaj_atlas_check_sitemap_discovery() {
+	global $wp_rewrite;
+
 	$label = __( 'Sitemap', 'sahaj-atlas' );
 
 	// The same gate `sahaj_atlas_register_sitemap()` applies. Checks 1 and 2 name both causes.
@@ -527,8 +530,28 @@ function sahaj_atlas_check_sitemap_discovery() {
 		);
 	}
 
-	// ⚠ The path comes out of the URL, never `SAHAJ_ATLAS_SITEMAP_PATH` — an `index.php` site
-	// publishes a prefixed one, and naming the bare path here would show a volunteer a 404.
+	/*
+	 * ⚠ An `index.php` structure is what WordPress offers when mod_rewrite is unavailable, and then
+	 * `/robots.txt` reaches the filesystem rather than WordPress — core's rule for it maps to
+	 * `index.php?robots=1`, and on such a server nothing routes there. A site can also choose this
+	 * structure with mod_rewrite present, where the line is published; the two are indistinguishable
+	 * from here. So warn and name the line, rather than claim either.
+	 */
+	if ( $wp_rewrite->using_index_permalinks() ) {
+		return array(
+			'status' => 'warn',
+			'label'  => $label,
+			'detail' => sprintf(
+				/* translators: 1: the only robots.txt address a search engine reads. 2: the line to add to that file. */
+				esc_html__( 'Your permalinks keep index.php in the address, which usually means this server cannot rewrite URLs — and then a search engine asking for %1$s never reaches WordPress. Open that address, and if it does not already name your sitemap, add this line to it: %2$s', 'sahaj-atlas' ),
+				'<code>' . esc_html( untrailingslashit( home_url() ) . '/robots.txt' ) . '</code>',
+				'<code>' . esc_html( $line ) . '</code>'
+			),
+		);
+	}
+
+	// ⚠ The path comes out of the composer's URL, never `SAHAJ_ATLAS_SITEMAP_PATH`. Link text that
+	// spells the address a second time is free to disagree with the `href` beside it.
 	return array(
 		'status' => 'ok',
 		'label'  => $label,

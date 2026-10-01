@@ -222,9 +222,22 @@ $sahaj_prefixed = 'index.php/' . SAHAJ_ATLAS_SITEMAP_PATH;
 sahaj_is( 'an index.php site publishes the prefixed path', home_url( '/' . $sahaj_prefixed ), sahaj_atlas_sitemap_url() );
 sahaj_ok( 'robots.txt announces that address', false !== strpos( sahaj_atlas_robots_txt( '', true ), $sahaj_prefixed ) );
 sahaj_ok( 'the SEO-plugin index entry carries it too', false !== strpos( sahaj_atlas_yoast_sitemap_index( '' ), $sahaj_prefixed ) );
+
+/*
+ * ⚠ The row cannot answer `ok` on this shape. `/robots.txt` reaches the filesystem on the server an
+ * `index.php` structure implies, so the line the other three readers publish is never served, and
+ * the row that used to say "Listed in your robots.txt" was naming a file nobody writes.
+ */
+$sahaj_discovery = sahaj_atlas_check_sitemap_discovery();
+
+sahaj_is( 'the panel row stops claiming robots.txt carries it', 'warn', $sahaj_discovery['status'] );
 sahaj_ok(
-	'and the panel row names it instead of the bare path',
-	false !== strpos( sahaj_atlas_check_sitemap_discovery()['detail'], '<code>/' . $sahaj_prefixed . '</code>' )
+	'offering the line to paste, at the prefixed address',
+	false !== strpos( $sahaj_discovery['detail'], 'Sitemap: ' . home_url( '/' . $sahaj_prefixed ) )
+);
+sahaj_ok(
+	'and naming the robots.txt a crawler actually reads',
+	false !== strpos( $sahaj_discovery['detail'], '<code>' . untrailingslashit( home_url() ) . '/robots.txt</code>' )
 );
 
 /*
