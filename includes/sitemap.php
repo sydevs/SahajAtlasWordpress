@@ -300,6 +300,22 @@ function sahaj_atlas_rank_math_sitemap_index( $index ) {
  * @return string
  */
 function sahaj_atlas_sitemap_index_entry() {
+	/*
+	 * ⚠ Plain permalinks make our file unservable, so there is nothing to point at. `WP_Rewrite`
+	 * builds no rules for an empty structure, and `WP::parse_request()` sets `$wp->request` only
+	 * when the rule set is non-empty — so `sahaj_atlas_maybe_serve_sitemap()` is never reached and
+	 * the address 404s. The entry is not hypothetical on this shape: Yoast's own index still
+	 * answers at `/?sitemap=1`, because `sitemap` is a registered query var even when the pretty
+	 * URL 404s, so a crawler that finds the index really does fetch our 404.
+	 *
+	 * The `robots_txt` filter needs no such guard. Core serves no virtual `robots.txt` on this
+	 * shape either, so it never runs, and `sahaj_atlas_check_sitemap_discovery()` is what tells the
+	 * volunteer.
+	 */
+	if ( ! get_option( 'permalink_structure' ) ) {
+		return '';
+	}
+
 	$urls = sahaj_atlas_sitemap_urls();
 
 	if ( ! $urls ) {

@@ -286,6 +286,20 @@ sahaj_is(
 	)['status']
 );
 
+// ---------------------------------------------------------------------------------------------
+
+sahaj_group( 'Plain permalinks publish nothing, because nothing can be served' );
+
+/*
+ * ⚠ Not hypothetical on this shape. Yoast's index answers at `/?sitemap=1` even though its pretty
+ * URL 404s, because `sitemap` is a registered query var — so a crawler reaches the index, and with
+ * it our entry, and fetches a 404 we submitted on purpose.
+ */
+sahaj_set_permalink_structure( '' );
+
+sahaj_is( 'Yoast gains no entry', '<sitemapindex>', sahaj_atlas_yoast_sitemap_index( '<sitemapindex>' ) );
+sahaj_is( 'and neither does Rank Math', '<sitemapindex>', sahaj_atlas_rank_math_sitemap_index( '<sitemapindex>' ) );
+
 // Leave the suite on the shape the files after this one were written against.
 sahaj_set_permalink_structure( '/%postname%/' );
 set_transient( SAHAJ_ATLAS_SITEMAP_TRANSIENT, array(), MINUTE_IN_SECONDS );
