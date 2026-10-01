@@ -148,12 +148,12 @@ async function check(run) {
 
     ok('with the element below the header', headerAt >= 0 && elementAt > headerAt, `header ${headerAt}, element ${elementAt}`)
 
-    // ⚠ And the measurement script below the element. Enqueued in `<head>`, it ran before either
-    // the element or `document.body` existed: its first measure found nothing, and its
-    // `ResizeObserver` never attached, so a header that grew after load was never re-measured (#41).
-    const scriptAt = html.search(/assets\/atlas-page\.js/)
+    // ⚠ And the measurement script below the element, because it measures it. `<head>` has neither
+    // the element nor `document.body`, so the first measure finds nothing and the `ResizeObserver`
+    // never attaches (#41). `includes/embed.php` carries the rest.
+    const scriptAt = html.indexOf('assets/atlas-page.js')
 
-    ok('and the measurement script below the element', scriptAt > elementAt, `element ${elementAt}, script ${scriptAt}`)
+    ok('with the script below both', scriptAt > elementAt, `element ${elementAt}, script ${scriptAt}`)
 
     // ── A hero theme (#36) ─────────────────────────────────────────────────────────────────────
     // Mesmerize prints a hero image in `header.php`, which leaves the atlas too short for the map.

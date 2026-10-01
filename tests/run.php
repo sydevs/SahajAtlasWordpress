@@ -371,23 +371,17 @@ sahaj_ok( 'and the page path', false !== strpos( $mount, (string) get_page_uri( 
 
 sahaj_group( 'The Atlas page assets' );
 
+$sahaj_asset_query   = isset( $GLOBALS['wp_query'] ) ? $GLOBALS['wp_query'] : null;
 $GLOBALS['wp_query'] = sahaj_query_page();
-$GLOBALS['wp_query']->the_post();
 
 sahaj_atlas_enqueue_page_assets();
 
-sahaj_ok( 'the measurement script is enqueued on the Atlas page', wp_script_is( 'sahaj-atlas-page', 'enqueued' ) );
+sahaj_ok( 'the measurement script is enqueued', wp_script_is( 'sahaj-atlas-page', 'enqueued' ) );
 
-/*
- * ⚠ The footer group, never `<head>`. The script measures `<sahaj-atlas>` and observes
- * `document.body`, and in `<head>` neither exists yet: the first measure finds no element and the
- * `ResizeObserver` never attaches, so a header that grows after load keeps the offset it had at
- * load time. The script now re-tries the observer, but a `<head>` placement still wastes its first
- * measure, so the group is what this asserts.
- */
-sahaj_is( 'in the footer, below the element it measures', 1, wp_scripts()->get_data( 'sahaj-atlas-page', 'group' ) );
+// ⚠ Group 1 is the footer. The `why` lives at the enqueue, in `includes/embed.php` (#41).
+sahaj_is( 'in the footer, not `<head>`', 1, wp_scripts()->get_data( 'sahaj-atlas-page', 'group' ) );
 
-wp_reset_postdata();
+$GLOBALS['wp_query'] = $sahaj_asset_query;
 
 // ---------------------------------------------------------------------------------------------
 

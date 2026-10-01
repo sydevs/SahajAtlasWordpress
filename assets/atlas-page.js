@@ -8,14 +8,15 @@
  * sits inside the theme's own `.wp-site-blocks` wrapper instead.
  *
  * This script stays small and has no dependencies. It reads the element's offset, writes it to a
- * custom property, and repeats this on resize. If this file fails to load, `assets/atlas-page.css`
- * falls back to full viewport height. The page still works. The header then scrolls above the map.
+ * custom property, and repeats that whenever the page resizes or anything above the atlas grows. If
+ * this file fails to load, `assets/atlas-page.css` falls back to full viewport height. The page
+ * still works. The header then scrolls above the map.
  */
 ( function () {
 	var root = document.documentElement
 	var last = null
 	var queued = false
-	var observer = null
+	var observing = false
 
 	function measure() {
 		queued = false
@@ -61,22 +62,19 @@
 	 * A header can grow later: a lazy-loaded logo, a cookie banner, or a menu that wraps. This moves
 	 * the atlas down, and no resize event fires for it.
 	 *
-	 * ⚠ Attach on whichever call first finds a body, instead of once at load. `document.body` is
-	 * null while this file runs in `<head>`, and an observer that never attached fails silently: the
-	 * offset then keeps its load-time value for the life of the page.
+	 * ⚠ Attach on the first call that finds a body, not once at load. A cache plugin that hoists
+	 * footer scripts into `<head>` runs this file while `document.body` is still null, and an observer
+	 * that never attached fails silently — the offset then keeps the value it had at load.
 	 */
-	function observe() {
-		if ( observer || ! window.ResizeObserver || ! document.body ) {
+	function start() {
+		measure()
+
+		if ( observing || ! window.ResizeObserver || ! document.body ) {
 			return
 		}
 
-		observer = new window.ResizeObserver( schedule )
-		observer.observe( document.body )
-	}
-
-	function start() {
-		measure()
-		observe()
+		observing = true
+		new window.ResizeObserver( schedule ).observe( document.body )
 	}
 
 	start()

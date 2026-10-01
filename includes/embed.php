@@ -369,10 +369,10 @@ function sahaj_atlas_enqueue_page_assets() {
 
 	wp_enqueue_style( 'sahaj-atlas-page', SAHAJ_ATLAS_URL . 'assets/atlas-page.css', array(), SAHAJ_ATLAS_VERSION );
 	/*
-	 * ⚠ The footer, not `<head>`. The script measures `<sahaj-atlas>` and observes `document.body`,
-	 * and in `<head>` neither exists yet: the first measure finds no element, and the observer never
-	 * attaches, so a header that grows after load is never re-measured. Nothing about this file needs
-	 * to run before the first paint — the stylesheet's `0px` fallback covers that.
+	 * ⚠ The footer, never `<head>`. The script measures `<sahaj-atlas>` and observes `document.body`,
+	 * and `<head>` has neither yet, so its first measure finds nothing and its observer never attaches
+	 * (#41). Nothing here needs to run before the first paint — the stylesheet's `0px` fallback is
+	 * what covers that.
 	 */
 	wp_enqueue_script( 'sahaj-atlas-page', SAHAJ_ATLAS_URL . 'assets/atlas-page.js', array(), SAHAJ_ATLAS_VERSION, true );
 }
