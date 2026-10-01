@@ -273,7 +273,9 @@ Ask, do not guess, when these docs and the code disagree. The code is what ships
 - **A `.po` file is the only translation anyone commits.** `.github/scripts/i18n.sh` builds the
   `.pot` template, the `.mo` PHP reads and the `.json` files `wp.i18n` reads into the staged plugin
   at package time, so `.gitignore` refuses all three. `package.sh` calls that script between staging
-  and zipping, which is why the zip CI inspects and the zip a release publishes cannot disagree.
+  and zipping, which is why the zip CI inspects and the zip a release publishes cannot disagree. It
+  then refuses a zip holding a `.po` with no `.mo` beside it — the shape a translation takes when it
+  ships unread.
 - PHP follows WordPress coding standards, with real tabs — `.editorconfig` enforces this.
 - Pass every value reaching markup through the escape its sink wants: `esc_attr()` for an
   attribute, `esc_url()` for a URL, `esc_html()` for text — the `<title>` element included. The one
