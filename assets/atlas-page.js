@@ -15,6 +15,7 @@
 	var root = document.documentElement
 	var last = null
 	var queued = false
+	var observer = null
 
 	function measure() {
 		queued = false
@@ -56,15 +57,31 @@
 		window.requestAnimationFrame( measure )
 	}
 
-	measure()
+	/*
+	 * A header can grow later: a lazy-loaded logo, a cookie banner, or a menu that wraps. This moves
+	 * the atlas down, and no resize event fires for it.
+	 *
+	 * ⚠ Attach on whichever call first finds a body, instead of once at load. `document.body` is
+	 * null while this file runs in `<head>`, and an observer that never attached fails silently: the
+	 * offset then keeps its load-time value for the life of the page.
+	 */
+	function observe() {
+		if ( observer || ! window.ResizeObserver || ! document.body ) {
+			return
+		}
 
-	document.addEventListener( 'DOMContentLoaded', measure )
-	window.addEventListener( 'load', measure )
-	window.addEventListener( 'resize', schedule )
-
-	// A header can grow later: a lazy-loaded logo, a cookie banner, or a menu that wraps. This
-	// moves the atlas down. No resize event fires for this change.
-	if ( window.ResizeObserver && document.body ) {
-		new window.ResizeObserver( schedule ).observe( document.body )
+		observer = new window.ResizeObserver( schedule )
+		observer.observe( document.body )
 	}
+
+	function start() {
+		measure()
+		observe()
+	}
+
+	start()
+
+	document.addEventListener( 'DOMContentLoaded', start )
+	window.addEventListener( 'load', start )
+	window.addEventListener( 'resize', schedule )
 } )()
