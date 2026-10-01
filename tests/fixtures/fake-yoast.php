@@ -37,12 +37,12 @@
  * @package SahajAtlas
  */
 
-/** What this fixture would put in `<title>` and the description, if it won. */
-define( 'SAHAJ_ATLAS_FAKE_YOAST_TITLE', 'Find a class - Example Site' );
-define( 'SAHAJ_ATLAS_FAKE_YOAST_DESCRIPTION', 'The description Example Site wrote for this page.' );
-
 if ( isset( $_GET['sahaj_fixture_seo_plugin'] ) && 'yoast' === $_GET['sahaj_fixture_seo_plugin'] ) {
 	define( 'WPSEO_VERSION', '28.6' );
+
+	/** What this fixture would put in `<title>` and the description, if it won. */
+	define( 'SAHAJ_ATLAS_FAKE_YOAST_TITLE', 'Find a class - Example Site' );
+	define( 'SAHAJ_ATLAS_FAKE_YOAST_DESCRIPTION', 'The description Example Site wrote for this page.' );
 
 	add_action( 'init', 'sahaj_atlas_fake_yoast_register' );
 }
