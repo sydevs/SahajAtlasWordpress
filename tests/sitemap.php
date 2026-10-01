@@ -201,3 +201,91 @@ update_option( SAHAJ_ATLAS_OPTION_KEY, '' );
 sahaj_is( 'and nothing at all until there is a key', 'idle', sahaj_atlas_check_sitemap_discovery()['status'] );
 
 update_option( SAHAJ_ATLAS_OPTION_KEY, 'test-key-123' );
+
+// ---------------------------------------------------------------------------------------------
+
+sahaj_group( 'The published address follows the permalink shape' );
+
+/**
+ * Set the permalink structure the way a real request has it.
+ *
+ * ⚠ `update_option()` alone is not enough. `$wp_rewrite->permalink_structure` is read once during
+ * setup and never re-read, so `using_index_permalinks()` keeps answering for the structure the
+ * instance booted with — and every assertion below would pass against the wrong shape. A real
+ * request and the Permalinks screen both reach `WP_Rewrite::init()`, so a fixture has to as well.
+ *
+ * @param string $structure A permalink structure, or '' for plain.
+ */
+function sahaj_set_permalink_structure( $structure ) {
+	global $wp_rewrite;
+
+	update_option( 'permalink_structure', $structure );
+	$wp_rewrite->init();
+}
+
+// A non-empty set, so every refusal below is the permalink shape and never the empty-set guard.
+set_transient( SAHAJ_ATLAS_SITEMAP_TRANSIENT, $sahaj_rows, MINUTE_IN_SECONDS );
+
+sahaj_set_permalink_structure( '/%postname%/' );
+
+sahaj_is( 'mod_rewrite permalinks publish the bare path', home_url( '/' . SAHAJ_ATLAS_SITEMAP_PATH ), sahaj_atlas_sitemap_url() );
+
+/*
+ * ⚠ `/index.php/%postname%/` is what WordPress offers when mod_rewrite is unavailable. The bare
+ * path reaches the filesystem there and 404s; only the prefixed one reaches `parse_request`. Every
+ * address the plugin publishes comes from one composer, so all four follow it at once.
+ */
+sahaj_set_permalink_structure( '/index.php/%postname%/' );
+
+$sahaj_prefixed = 'index.php/' . SAHAJ_ATLAS_SITEMAP_PATH;
+
+sahaj_is( 'an index.php site publishes the prefixed path', home_url( '/' . $sahaj_prefixed ), sahaj_atlas_sitemap_url() );
+sahaj_ok( 'robots.txt announces that address', false !== strpos( sahaj_atlas_robots_txt( '', true ), $sahaj_prefixed ) );
+sahaj_ok( 'the SEO-plugin index entry carries it too', false !== strpos( sahaj_atlas_yoast_sitemap_index( '' ), $sahaj_prefixed ) );
+sahaj_ok(
+	'and the panel row names it instead of the bare path',
+	false !== strpos( sahaj_atlas_check_sitemap_discovery()['detail'], '<code>/' . $sahaj_prefixed . '</code>' )
+);
+
+/*
+ * ⚠ The serve guard needs no branch for this shape, which is the whole reason one line fixes it.
+ * WordPress strips its index file before setting `$wp->request`, so the handler compares
+ * `sahaj-atlas-sitemap.xml` on both shapes. Measured against a real request for
+ * `/index.php/sahaj-atlas-sitemap.xml`: this handler answered it.
+ */
+$sahaj_serve_wp          = new WP();
+$sahaj_serve_wp->request = SAHAJ_ATLAS_SITEMAP_PATH;
+
+ob_start();
+$sahaj_served = sahaj_atlas_maybe_serve_sitemap( $sahaj_serve_wp );
+$sahaj_serve_body = (string) ob_get_clean();
+
+sahaj_ok( 'and the request for it is still served', $sahaj_served );
+sahaj_ok( 'with the sitemap document', false !== strpos( $sahaj_serve_body, '<urlset' ) );
+
+// ---------------------------------------------------------------------------------------------
+
+sahaj_group( 'Clean URLs are not what breaks on an index.php site' );
+
+/*
+ * ⚠ The row reporting `ok` here looks like the wrong claim and is not. Path routing genuinely
+ * works on this shape: `get_page_uri()` has no index file in it and `WP::parse_request()` strips
+ * the one in the request, so the two agree. Reaching for `using_mod_rewrite_permalinks()` in this
+ * row, or in `sahaj_atlas_path_routing_viable()`, would switch a working feature off and send a
+ * volunteer to a settings screen they have no reason to visit.
+ */
+sahaj_set_permalink_structure( '/index.php/%postname%/' );
+
+sahaj_ok( 'the registered mount carries the index.php segment', false !== strpos( sahaj_atlas_mount_key(), '/index.php/' ) );
+sahaj_is( 'a deep link still resolves', '/gb/london', sahaj_route_for( 'find-a-class/gb/london' ) );
+sahaj_is(
+	'and the Clean URLs row reports it on',
+	'ok',
+	sahaj_atlas_check_path_routing(
+		array( 'canonical' => array( 'enabled' => true, 'embed' => sahaj_atlas_mount_key() ) )
+	)['status']
+);
+
+// Leave the suite on the shape the files after this one were written against.
+sahaj_set_permalink_structure( '/%postname%/' );
+set_transient( SAHAJ_ATLAS_SITEMAP_TRANSIENT, array(), MINUTE_IN_SECONDS );

@@ -56,8 +56,30 @@ function sahaj_atlas_register_sitemap() {
 	add_filter( 'rank_math/sitemap/index', 'sahaj_atlas_rank_math_sitemap_index' );
 }
 
+/**
+ * The one address the plugin publishes for its sitemap.
+ *
+ * ⚠ An `index.php` structure is what WordPress offers when mod_rewrite is unavailable, so
+ * `/sahaj-atlas-sitemap.xml` reaches the filesystem there and 404s, while
+ * `/index.php/sahaj-atlas-sitemap.xml` reaches `parse_request` like every other URL on such a
+ * site. `sahaj_atlas_maybe_serve_sitemap()` needs no matching branch: WordPress strips its index
+ * file before setting `$wp->request`, so the guard there compares the same string on both shapes.
+ * Yoast prefixes its own index the same way (`get_base_url()`, `inc/sitemaps/class-sitemaps-router.php`).
+ *
+ * ⚠ `robots.txt`, both SEO-plugin index entries, and the diagnostics row all read this composer, so
+ * nothing else needs to know the shape. Keep it that way — a second spelling is a second answer.
+ *
+ * @return string
+ */
 function sahaj_atlas_sitemap_url() {
-	return home_url( '/' . SAHAJ_ATLAS_SITEMAP_PATH );
+	global $wp_rewrite;
+
+	// ⚠ The predicate reads `$wp_rewrite->permalink_structure`, cached at setup — not the option
+	// every other permalink check here reads. They agree on a real request. Writing the option
+	// mid-request needs `WP_Rewrite::init()` too, or this answers for the structure it booted with.
+	$prefix = $wp_rewrite->using_index_permalinks() ? $wp_rewrite->index . '/' : '';
+
+	return home_url( '/' . $prefix . SAHAJ_ATLAS_SITEMAP_PATH );
 }
 
 /**

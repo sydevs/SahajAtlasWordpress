@@ -526,13 +526,18 @@ function sahaj_atlas_check_sitemap_discovery() {
 		);
 	}
 
+	// ⚠ The path comes out of the URL, never out of `SAHAJ_ATLAS_SITEMAP_PATH`. An `index.php` site
+	// is published at `/index.php/sahaj-atlas-sitemap.xml`, and a row naming the bare path there
+	// would show a volunteer an address that 404s, under a link to the one that works.
+	$url = sahaj_atlas_sitemap_url();
+
 	return array(
 		'status' => 'ok',
 		'label'  => $label,
 		'detail' => sprintf(
 			/* translators: %s: the address of the sitemap, as a link. */
 			esc_html__( 'Listed in your robots.txt, at %s.', 'sahaj-atlas' ),
-			'<a href="' . esc_url( sahaj_atlas_sitemap_url() ) . '"><code>/' . esc_html( SAHAJ_ATLAS_SITEMAP_PATH ) . '</code></a>'
+			'<a href="' . esc_url( $url ) . '"><code>' . esc_html( (string) wp_parse_url( $url, PHP_URL_PATH ) ) . '</code></a>'
 		),
 	);
 }
