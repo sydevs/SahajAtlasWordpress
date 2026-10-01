@@ -112,6 +112,16 @@ const SIDEBAR_PAGE = `wp_insert_post(array('post_type'=>'page','post_status'=>'p
 const ELEMENTOR_FULL_WIDTH = `update_post_meta(sahaj_atlas_page_id(), '_wp_page_template', 'elementor_header_footer');`
 
 /**
+ * Seed the `clients/me` answer a `panel` cell needs.
+ *
+ * ⚠ Only the status panel reads this record, and PHP is offline in this lane — an unseeded panel
+ * load makes an unstubbed request that `tests/no-network.php` records, which fails every cell's
+ * SahajCloud invariant. The slot comes from `sahaj_atlas_client_slot()` rather than a copy of its
+ * key rule, so a change there cannot leave this seeding a slot nobody reads.
+ */
+const PANEL_SEED = `set_transient(sahaj_atlas_client_slot(sahaj_atlas_api_key()), array('name'=>'Browser lane','allowedDomains'=>'','canonical'=>array('enabled'=>true,'embed'=>sahaj_atlas_mount_key())), 3600);`
+
+/**
  * @typedef {object} Cell
  * @property {string} name
  * @property {string} [theme]        wordpress.org slug, installed and activated
@@ -245,7 +255,7 @@ async function blueprint(cell) {
   }
 
   steps.push({ step: 'activatePlugin', pluginPath: 'sahaj-atlas/sahaj-atlas.php' })
-  steps.push({ step: 'runPHP', code: await seed([cell.sidebar ? SIDEBAR_PAGE : '', cell.seed ?? ''].join(' ')) })
+  steps.push({ step: 'runPHP', code: await seed([cell.sidebar ? SIDEBAR_PAGE : '', cell.panel ? PANEL_SEED : '', cell.seed ?? ''].join(' ')) })
 
   // ⚠ The versions live here, not in the `--php`/`--wp` flags: given a blueprint, `server` ignores
   // the flags (see tests/render.mjs). Without this key every cell ran WordPress 7.1 on PHP 8.5.

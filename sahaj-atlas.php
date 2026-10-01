@@ -109,6 +109,7 @@ add_action( 'wp_footer', 'sahaj_atlas_render_element_fallback', 1 );
 add_action( 'wp_enqueue_scripts', 'sahaj_atlas_enqueue_page_assets' );
 add_filter( 'body_class', 'sahaj_atlas_body_class' );
 add_filter( 'template_include', 'sahaj_atlas_template_include' );
+add_action( 'save_post', 'sahaj_atlas_forget_page_probe' );
 add_action( 'admin_menu', 'sahaj_atlas_admin_menu' );
 add_action( 'admin_post_sahaj_atlas_create_page', 'sahaj_atlas_handle_create_page' );
 add_action( 'admin_notices', 'sahaj_atlas_admin_notices' );

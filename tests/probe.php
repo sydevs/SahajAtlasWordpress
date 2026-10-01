@@ -85,6 +85,16 @@ $GLOBALS['sahaj_probe_rows'] = array(
 	'Map script'    => 'sahaj_atlas_check_loader',
 );
 
+/**
+ * One row, from one probe — the way `sahaj_atlas_checks()` asks for it.
+ *
+ * @param string $check Either check function.
+ * @return array{status:string, label:string, detail:string}
+ */
+function sahaj_probe_check( $check ) {
+	return $check( sahaj_atlas_page_probe() );
+}
+
 add_filter( 'pre_http_request', 'sahaj_probe_http_stub', 10, 3 );
 
 update_option( SAHAJ_ATLAS_OPTION_KEY, 'test-key-123' );
@@ -95,16 +105,22 @@ sahaj_group( 'The loopback probe reads the page a visitor gets' );
 
 sahaj_probe_stub( sahaj_probe_page( '<sahaj-atlas data-sahaj-atlas-render="template"></sahaj-atlas>', sahaj_probe_loader() ) );
 
-$sahaj_probe_render = sahaj_atlas_check_render();
+$sahaj_probe_render = sahaj_probe_check( 'sahaj_atlas_check_render' );
 
 sahaj_is( 'it asks for the Atlas page itself', (string) get_permalink( sahaj_atlas_page_id() ), isset( $GLOBALS['sahaj_probe_requests'][0] ) ? $GLOBALS['sahaj_probe_requests'][0] : '' );
 sahaj_is( 'once', 1, count( $GLOBALS['sahaj_probe_requests'] ) );
 
-// ⚠ Both rows come from one fetch. Two would double a 10-second timeout on a host that refuses
-// loopback requests, on a settings screen a volunteer is watching.
-sahaj_atlas_check_loader();
+// ⚠ Both rows come from one probe, because the second fetch is what doubles a 10-second timeout on
+// a host that refuses loopback requests — and a transport failure is deliberately never cached, so
+// the transient cannot stop it.
+sahaj_probe_check( 'sahaj_atlas_check_loader' );
 
-sahaj_is( 'and the second check reuses that answer', 1, count( $GLOBALS['sahaj_probe_requests'] ) );
+sahaj_is( 'and the second row costs no second fetch', 1, count( $GLOBALS['sahaj_probe_requests'] ) );
+
+$sahaj_probe_shared = sahaj_atlas_page_probe();
+
+sahaj_is( 'the placement row reads the probe it is handed', 'ok', sahaj_atlas_check_render( $sahaj_probe_shared )['status'] );
+sahaj_is( 'and so does the loader row', 'ok', sahaj_atlas_check_loader( $sahaj_probe_shared )['status'] );
 
 // ⚠ As core's own Site Health loopback test does. A server that cannot verify its own host's
 // certificate is common on this fleet, and the body is read only to report on our own markup.
@@ -119,7 +135,7 @@ sahaj_ok( 'and says so', false !== strpos( $sahaj_probe_render['detail'], 'full-
 
 sahaj_probe_stub( sahaj_probe_page( '<sahaj-atlas data-sahaj-atlas-render="content"></sahaj-atlas>', sahaj_probe_loader() ) );
 
-$sahaj_probe_content = sahaj_atlas_check_render();
+$sahaj_probe_content = sahaj_probe_check( 'sahaj_atlas_check_render' );
 
 // ⚠ Green, not a warning. A page builder rendering the Atlas page with its own template and footer
 // is the documented outcome now, not a degraded one — `readme.txt` says the same.
@@ -128,7 +144,7 @@ sahaj_ok( 'and is named as the content area', false !== strpos( $sahaj_probe_con
 
 sahaj_probe_stub( sahaj_probe_page( '<sahaj-atlas data-sahaj-atlas-render="footer"></sahaj-atlas>', sahaj_probe_loader() ) );
 
-$sahaj_probe_footer = sahaj_atlas_check_render();
+$sahaj_probe_footer = sahaj_probe_check( 'sahaj_atlas_check_render' );
 
 sahaj_is( 'the footer fallback is a failure', 'fail', $sahaj_probe_footer['status'] );
 sahaj_ok( 'naming the footer', false !== strpos( $sahaj_probe_footer['detail'], 'footer' ) );
@@ -139,7 +155,7 @@ sahaj_group( 'A page with no element at all gets the right diagnosis' );
 
 sahaj_probe_stub( sahaj_probe_page( '', sahaj_probe_loader() ) );
 
-$sahaj_probe_none = sahaj_atlas_check_render();
+$sahaj_probe_none = sahaj_probe_check( 'sahaj_atlas_check_render' );
 
 sahaj_is( 'an Atlas page with no element is a failure', 'fail', $sahaj_probe_none['status'] );
 sahaj_ok( 'and the volunteer is sent to us', false !== strpos( $sahaj_probe_none['detail'], 'maintainers' ) );
@@ -151,11 +167,52 @@ sahaj_ok( 'and the volunteer is sent to us', false !== strpos( $sahaj_probe_none
  */
 sahaj_probe_stub( sahaj_probe_page( '', sahaj_probe_loader(), false ) );
 
-$sahaj_probe_stolen = sahaj_atlas_check_render();
+$sahaj_probe_stolen = sahaj_probe_check( 'sahaj_atlas_check_render' );
 
 sahaj_is( 'an address something else answers is a failure', 'fail', $sahaj_probe_stolen['status'] );
 sahaj_ok( 'and names caching and maintenance-mode plugins', false !== strpos( $sahaj_probe_stolen['detail'], 'maintenance-mode' ) );
 sahaj_ok( 'not us', false === strpos( $sahaj_probe_stolen['detail'], 'maintainers' ) );
+
+/*
+ * ⚠ Core adds `page-template-sahaj-atlas-page` from the page's template meta, and a `\b` match
+ * reads our own class inside it. The two diagnoses above would then collapse into the wrong one on
+ * every page whose meta still names this plugin's template — which is every page the fix is about.
+ */
+sahaj_probe_stub( '<!doctype html><html><head></head><body class="page page-template-sahaj-atlas-page"></body></html>' );
+
+$sahaj_probe_prefixed = sahaj_probe_check( 'sahaj_atlas_check_render' );
+
+sahaj_ok( 'core\'s page-template class is not ours', false === strpos( $sahaj_probe_prefixed['detail'], 'maintainers' ) );
+sahaj_ok( 'so it reads as an address something else answers', false !== strpos( $sahaj_probe_prefixed['detail'], 'maintenance-mode' ) );
+
+// ---------------------------------------------------------------------------------------------
+
+sahaj_group( 'Saving the Atlas page drops the cached answer' );
+
+/*
+ * ⚠ What check 6 asks a volunteer to do is change the page's template, which is a save. Without
+ * this the row they just acted on stays red for five minutes, and reads as the fix not working.
+ */
+sahaj_probe_stub( sahaj_probe_page( '<sahaj-atlas data-sahaj-atlas-render="footer"></sahaj-atlas>', sahaj_probe_loader() ) );
+sahaj_probe_check( 'sahaj_atlas_check_render' );
+
+sahaj_ok( 'the answer is cached', is_array( get_transient( SAHAJ_ATLAS_PROBE_TRANSIENT ) ) );
+
+do_action( 'save_post', sahaj_atlas_page_id() );
+
+sahaj_ok( 'saving the Atlas page forgets it', false === get_transient( SAHAJ_ATLAS_PROBE_TRANSIENT ) );
+
+// ⚠ Insert before priming the cache, not after: `wp_insert_post()` fires `save_post` itself, and
+// the assertion below would then be reading a transient that insert had already cleared.
+$sahaj_probe_other = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Probe other' ) );
+
+sahaj_probe_check( 'sahaj_atlas_check_render' );
+
+do_action( 'save_post', $sahaj_probe_other );
+
+sahaj_ok( 'saving any other page does not', is_array( get_transient( SAHAJ_ATLAS_PROBE_TRANSIENT ) ) );
+
+wp_delete_post( $sahaj_probe_other, true );
 
 // ---------------------------------------------------------------------------------------------
 
@@ -163,32 +220,32 @@ sahaj_group( 'The loader row reads the printed script tag' );
 
 sahaj_probe_stub( sahaj_probe_page( '<sahaj-atlas data-sahaj-atlas-render="template"></sahaj-atlas>', sahaj_probe_loader() ) );
 
-sahaj_is( 'an intact module tag is healthy', 'ok', sahaj_atlas_check_loader()['status'] );
+sahaj_is( 'an intact module tag is healthy', 'ok', sahaj_probe_check( 'sahaj_atlas_check_loader' )['status'] );
 
 // ⚠ The defect SahajAtlasWeb#239 handed here: `auto.js` opens with a top-level `import`, which is a
 // SyntaxError in a classic script. The page gets a blank slot and one console error, and the module
 // cannot report on itself from inside a tag that never ran.
 sahaj_probe_stub( sahaj_probe_page( '<sahaj-atlas data-sahaj-atlas-render="template"></sahaj-atlas>', sahaj_probe_loader( '', '' ) ) );
 
-sahaj_is( 'a tag stripped of type="module" is a failure', 'fail', sahaj_atlas_check_loader()['status'] );
+sahaj_is( 'a tag stripped of type="module" is a failure', 'fail', sahaj_probe_check( 'sahaj_atlas_check_loader' )['status'] );
 
 sahaj_probe_stub( sahaj_probe_page( '<sahaj-atlas data-sahaj-atlas-render="template"></sahaj-atlas>', sahaj_probe_loader( ' async' ) ) );
 
-sahaj_is( 'an asynchronous tag is a failure', 'fail', sahaj_atlas_check_loader()['status'] );
+sahaj_is( 'an asynchronous tag is a failure', 'fail', sahaj_probe_check( 'sahaj_atlas_check_loader' )['status'] );
 
 // ⚠ An optimiser's own marker attribute must not read as `async`. A confident wrong red sends a
 // volunteer to us about a site that already works.
 sahaj_probe_stub( sahaj_probe_page( '<sahaj-atlas data-sahaj-atlas-render="template"></sahaj-atlas>', sahaj_probe_loader( ' data-async-ignore="1"' ) ) );
 
-sahaj_is( 'but data-async-ignore is not async', 'ok', sahaj_atlas_check_loader()['status'] );
+sahaj_is( 'but data-async-ignore is not async', 'ok', sahaj_probe_check( 'sahaj_atlas_check_loader' )['status'] );
 
 sahaj_probe_stub( sahaj_probe_page( '<sahaj-atlas data-sahaj-atlas-render="template"></sahaj-atlas>', sahaj_probe_loader( '', ' type="module"', 'https://sahajatlas.com/auto.js' ) ) );
 
-sahaj_is( 'an address stripped of the key is a failure', 'fail', sahaj_atlas_check_loader()['status'] );
+sahaj_is( 'an address stripped of the key is a failure', 'fail', sahaj_probe_check( 'sahaj_atlas_check_loader' )['status'] );
 
 sahaj_probe_stub( sahaj_probe_page( '<sahaj-atlas data-sahaj-atlas-render="template"></sahaj-atlas>' ) );
 
-sahaj_is( 'and no tag at all is a failure', 'fail', sahaj_atlas_check_loader()['status'] );
+sahaj_is( 'and no tag at all is a failure', 'fail', sahaj_probe_check( 'sahaj_atlas_check_loader' )['status'] );
 
 // ---------------------------------------------------------------------------------------------
 
@@ -201,7 +258,7 @@ sahaj_group( 'Neither row turns red on something the volunteer cannot act on' );
 sahaj_probe_stub( 'Forbidden', 403 );
 
 foreach ( $GLOBALS['sahaj_probe_rows'] as $sahaj_probe_label => $sahaj_probe_check ) {
-	$sahaj_probe_unreachable = $sahaj_probe_check();
+	$sahaj_probe_unreachable = sahaj_probe_check( $sahaj_probe_check );
 
 	sahaj_is( "$sahaj_probe_label: an unreachable page is a warning", 'warn', $sahaj_probe_unreachable['status'] );
 	sahaj_ok( "$sahaj_probe_label: carrying what went wrong", false !== strpos( $sahaj_probe_unreachable['detail'], '403' ) );
@@ -214,7 +271,7 @@ update_option( SAHAJ_ATLAS_OPTION_KEY, '' );
 $GLOBALS['sahaj_probe_requests'] = array();
 
 foreach ( $GLOBALS['sahaj_probe_rows'] as $sahaj_probe_label => $sahaj_probe_check ) {
-	$sahaj_probe_idle = $sahaj_probe_check();
+	$sahaj_probe_idle = sahaj_probe_check( $sahaj_probe_check );
 
 	sahaj_is( "$sahaj_probe_label: idle until the key works", 'idle', $sahaj_probe_idle['status'] );
 	sahaj_is( "$sahaj_probe_label: under its own label", $sahaj_probe_label, $sahaj_probe_idle['label'] );

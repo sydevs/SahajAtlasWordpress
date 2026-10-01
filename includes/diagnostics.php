@@ -92,6 +92,9 @@ function sahaj_atlas_check_idle( $label ) {
  */
 function sahaj_atlas_checks() {
 	$client = sahaj_atlas_client_record();
+	// ⚠ One probe, handed to both rows. Asking twice would spend two ten-second timeouts on the
+	// host that refuses a loopback request, on a screen a volunteer is watching.
+	$probe = sahaj_atlas_page_probe();
 
 	return array(
 		sahaj_atlas_check_key( $client ),
@@ -99,8 +102,8 @@ function sahaj_atlas_checks() {
 		sahaj_atlas_check_path_routing( $client ),
 		sahaj_atlas_check_allowed_domains( $client ),
 		sahaj_atlas_check_page_description( $client ),
-		sahaj_atlas_check_render(),
-		sahaj_atlas_check_loader(),
+		sahaj_atlas_check_render( $probe ),
+		sahaj_atlas_check_loader( $probe ),
 	);
 }
 
@@ -436,11 +439,11 @@ function sahaj_atlas_check_page_description( $client ) {
  * `template_include` filter, a theme-builder layout, or a maintenance-mode plugin renders it
  * instead. The old check 2 called that page healthy.
  *
+ * @param array|WP_Error|null $probe Result of the loopback probe.
  * @return array{status:string, label:string, detail:string}
  */
-function sahaj_atlas_check_render() {
+function sahaj_atlas_check_render( $probe ) {
 	$label  = __( 'Map placement', 'sahaj-atlas' );
-	$probe  = sahaj_atlas_page_probe();
 	$excuse = sahaj_atlas_probe_excuse( $label, $probe );
 
 	if ( null !== $excuse ) {
@@ -498,11 +501,11 @@ function sahaj_atlas_check_render() {
  * cannot detect that from inside itself, which is why SahajAtlasWeb#239 handed the detection here.
  * An "HTML5 cleanup" snippet, a script optimiser, or any `wp_script_attributes` filter can do it.
  *
+ * @param array|WP_Error|null $probe Result of the loopback probe.
  * @return array{status:string, label:string, detail:string}
  */
-function sahaj_atlas_check_loader() {
+function sahaj_atlas_check_loader( $probe ) {
 	$label  = __( 'Map script', 'sahaj-atlas' );
-	$probe  = sahaj_atlas_page_probe();
 	$excuse = sahaj_atlas_probe_excuse( $label, $probe );
 
 	if ( null !== $excuse ) {
@@ -592,15 +595,18 @@ function sahaj_atlas_probe_excuse( $label, $probe ) {
 /**
  * Read the Atlas page back as a visitor receives it, cached.
  *
- * @param bool $force Skip the cache.
+ * ⚠ Asked once per panel render, by `sahaj_atlas_checks()`, and handed to both rows. A transport
+ * failure is deliberately not cached — it would pin an unactionable warning for five minutes — so
+ * a second caller here would cost a second ten-second timeout.
+ *
  * @return array|WP_Error|null Null when there is nothing to probe yet.
  */
-function sahaj_atlas_page_probe( $force = false ) {
+function sahaj_atlas_page_probe() {
 	if ( '' === sahaj_atlas_api_key() || ! sahaj_atlas_page_is_healthy() ) {
 		return null;
 	}
 
-	$cached = $force ? false : get_transient( SAHAJ_ATLAS_PROBE_TRANSIENT );
+	$cached = get_transient( SAHAJ_ATLAS_PROBE_TRANSIENT );
 
 	if ( is_array( $cached ) ) {
 		return isset( $cached['error'] )
@@ -624,8 +630,6 @@ function sahaj_atlas_page_probe( $force = false ) {
 	);
 
 	if ( is_wp_error( $response ) ) {
-		// Not cached, for the same reason a transport failure on the client read is not: one blip
-		// would pin an unactionable warning on the panel for five minutes.
 		return $response;
 	}
 
@@ -644,6 +648,20 @@ function sahaj_atlas_page_probe( $force = false ) {
 }
 
 /**
+ * Drop the cached probe when the Atlas page is saved.
+ *
+ * ⚠ What check 6 asks a volunteer to do is change the page's template, and that is a save. Without
+ * this the row they just acted on stays red for five minutes, which reads as the fix not working.
+ *
+ * @param int $post_id The post saved.
+ */
+function sahaj_atlas_forget_page_probe( $post_id ) {
+	if ( sahaj_atlas_is_atlas_page( $post_id ) ) {
+		delete_transient( SAHAJ_ATLAS_PROBE_TRANSIENT );
+	}
+}
+
+/**
  * What the Atlas page's own HTML says about itself.
  *
  * @param string $html The page as a visitor received it.
@@ -653,11 +671,16 @@ function sahaj_atlas_read_page( $html ) {
 	preg_match( '/<sahaj-atlas\b[^>]*>/', $html, $element );
 	preg_match( '/data-sahaj-atlas-render="([a-z]+)"/', isset( $element[0] ) ? $element[0] : '', $render );
 	preg_match( '#<script\b[^>]*\bsrc="[^"]*/auto\.js[^"]*"[^>]*>#', $html, $loader );
+	preg_match( '/<body[^>]*\bclass="([^"]*)"/', $html, $body );
 
 	$tag = isset( $loader[0] ) ? $loader[0] : '';
 
 	return array(
-		'page'   => (bool) preg_match( '/<body[^>]*\bclass="[^"]*\bsahaj-atlas-page\b/', $html ),
+		// ⚠ Exact membership, never a word boundary. Core adds `page-template-sahaj-atlas-page` from
+		// the page's template meta, and `\b` matches inside it — so the flag would say this
+		// plugin's own `body_class` filter ran on a page where it never did, and the two diagnoses
+		// in check 6 would collapse into the wrong one.
+		'page'   => in_array( 'sahaj-atlas-page', preg_split( '/\s+/', isset( $body[1] ) ? $body[1] : '' ), true ),
 		'render' => isset( $render[1] ) ? $render[1] : '',
 		// ⚠ A flag, never the tag. The tag carries the API key in its `src`, and this array is
 		// written to a transient — the key is already an option, and twice is once too many.
@@ -808,6 +831,19 @@ function sahaj_atlas_canonical_embed( $client ) {
 }
 
 /**
+ * The cache slot a client record lands in, keyed by the key so changing it re-checks.
+ *
+ * ⚠ Named, like `sahaj_atlas_seo_slot()`, so a lane seeds the slot through this function instead of
+ * copying the rule. A hand-written key that drifts sends every seeded lane to the real endpoint.
+ *
+ * @param string $key The API key.
+ * @return string
+ */
+function sahaj_atlas_client_slot( $key ) {
+	return SAHAJ_ATLAS_CHECK_TRANSIENT . '_' . substr( md5( $key ), 0, 12 );
+}
+
+/**
  * Read `GET /api/clients/me`, cached.
  *
  * @param bool $force Skip the cache.
@@ -820,7 +856,7 @@ function sahaj_atlas_client_record( $force = false ) {
 		return null;
 	}
 
-	$slot   = SAHAJ_ATLAS_CHECK_TRANSIENT . '_' . substr( md5( $key ), 0, 12 );
+	$slot   = sahaj_atlas_client_slot( $key );
 	$cached = $force ? false : get_transient( $slot );
 
 	if ( is_array( $cached ) ) {
