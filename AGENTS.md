@@ -138,9 +138,8 @@ the full story.
     every sanitising step below it — core's own `esc_html()` included — and
     `_wp_render_title_tag()` echoes the result raw. Escape inside the filter, or nothing does.
     See seo.php:185.
-21. Enqueue `assets/atlas-page.js` in the footer, and attach its `ResizeObserver` on the first call
-    that finds a body. `<head>` has neither the element it measures nor `document.body`, so both the
-    first measure and the observer are lost there — silently, which is why this shipped. See
+21. Enqueue `assets/atlas-page.js` in the footer. `<head>` has neither the element it measures nor
+    `document.body`, so both the first measure and the observer are lost there — silently. See
     embed.php:377, atlas-page.js:65.
 
 ## What is built
