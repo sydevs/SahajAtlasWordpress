@@ -400,6 +400,14 @@ function sahaj_atlas_register_block() {
 		true
 	);
 
+	/*
+	 * ⚠ A `.mo` never reaches JavaScript. `wp.i18n.__()` reads a `.json` file, which core requests
+	 * only for a handle that was named here. Without this call `blocks/embed/editor.js` renders
+	 * English whatever translation is installed. `.github/scripts/i18n.sh` builds the `.json` files
+	 * from the same `.po` the PHP side loads.
+	 */
+	wp_set_script_translations( 'sahaj-atlas-editor', 'sahaj-atlas', SAHAJ_ATLAS_DIR . 'languages' );
+
 	wp_register_style(
 		'sahaj-atlas-editor-style',
 		SAHAJ_ATLAS_URL . 'blocks/embed/editor.css',

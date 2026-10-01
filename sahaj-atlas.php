@@ -11,6 +11,7 @@
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       sahaj-atlas
+ * Domain Path:       /languages
  * Update URI:        https://github.com/sydevs/SahajAtlasWordpress
  *
  * @package SahajAtlas
@@ -82,6 +83,7 @@ add_action( 'init', 'sahaj_atlas_init' );
  * Everything that needs a translated string, a block, or a registered setting.
  */
 function sahaj_atlas_init() {
+	sahaj_atlas_load_textdomain();
 	sahaj_atlas_register_block();
 	sahaj_atlas_register_shortcode();
 	sahaj_atlas_register_settings();
@@ -89,6 +91,22 @@ function sahaj_atlas_init() {
 	sahaj_atlas_register_route_var();
 	sahaj_atlas_register_sitemap();
 	sahaj_atlas_register_updates();
+}
+
+/**
+ * Load the admin UI's translations from the plugin's own `languages/` directory.
+ *
+ * ⚠ Without this call the registry only ever looks in `WP_LANG_DIR/plugins/`, where a wordpress.org
+ * language pack would land. This plugin ships from GitHub Releases, so no pack ever arrives and a
+ * `.mo` inside the zip is never found. `Domain Path` in the header above is only a hint to
+ * tooling — it loads nothing by itself.
+ *
+ * ⚠ Called from `init`, never earlier: see the rule at the top of this file.
+ *
+ * @return bool True when a translation file for the current locale was read.
+ */
+function sahaj_atlas_load_textdomain() {
+	return load_plugin_textdomain( 'sahaj-atlas', false, dirname( plugin_basename( SAHAJ_ATLAS_FILE ) ) . '/languages' );
 }
 
 /** Hooks that must bind before `init` and produce no translated text. */
