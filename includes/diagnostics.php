@@ -662,6 +662,34 @@ function sahaj_atlas_forget_page_probe( $post_id ) {
 }
 
 /**
+ * One attribute's value out of one tag, quoted or not.
+ *
+ * ⚠ Unquoted values too. An HTML minifier that drops optional quotes is common on this fleet, and
+ * a reader that insists on them reads a working page as an absent attribute — check 6 then tells
+ * the volunteer the map is missing and to send us the address. An empty value and an absent one
+ * are the same answer to every caller here.
+ *
+ * @param string $tag  One tag, opening angle bracket to closing.
+ * @param string $name The attribute to read.
+ * @return string The value, or `''`.
+ */
+function sahaj_atlas_tag_attr( $tag, $name ) {
+	$pattern = '/\b' . preg_quote( $name, '/' ) . '=(?:"([^"]*)"|\'([^\']*)\'|([^\s>]+))/';
+
+	if ( ! preg_match( $pattern, $tag, $value ) ) {
+		return '';
+	}
+
+	foreach ( array( 1, 2, 3 ) as $quoting ) {
+		if ( isset( $value[ $quoting ] ) && '' !== $value[ $quoting ] ) {
+			return $value[ $quoting ];
+		}
+	}
+
+	return '';
+}
+
+/**
  * What the Atlas page's own HTML says about itself.
  *
  * @param string $html The page as a visitor received it.
@@ -669,27 +697,40 @@ function sahaj_atlas_forget_page_probe( $post_id ) {
  */
 function sahaj_atlas_read_page( $html ) {
 	preg_match( '/<sahaj-atlas\b[^>]*>/', $html, $element );
-	preg_match( '/data-sahaj-atlas-render="([a-z]+)"/', isset( $element[0] ) ? $element[0] : '', $render );
-	preg_match( '#<script\b[^>]*\bsrc="[^"]*/auto\.js[^"]*"[^>]*>#', $html, $loader );
-	preg_match( '/<body[^>]*\bclass="([^"]*)"/', $html, $body );
+	preg_match( '/<body\b[^>]*>/', $html, $body );
+	preg_match_all( '/<script\b[^>]*>/', $html, $scripts );
 
-	$tag = isset( $loader[0] ) ? $loader[0] : '';
+	$tag = '';
+
+	foreach ( $scripts[0] as $script ) {
+		if ( false !== strpos( sahaj_atlas_tag_attr( $script, 'src' ), '/auto.js' ) ) {
+			$tag = $script;
+			break;
+		}
+	}
+
+	$source = sahaj_atlas_tag_attr( $tag, 'src' );
 
 	return array(
 		// ⚠ Exact membership, never a word boundary. Core adds `page-template-sahaj-atlas-page` from
 		// the page's template meta, and `\b` matches inside it — so the flag would say this
 		// plugin's own `body_class` filter ran on a page where it never did, and the two diagnoses
 		// in check 6 would collapse into the wrong one.
-		'page'   => in_array( 'sahaj-atlas-page', preg_split( '/\s+/', isset( $body[1] ) ? $body[1] : '' ), true ),
-		'render' => isset( $render[1] ) ? $render[1] : '',
+		'page'   => in_array(
+			'sahaj-atlas-page',
+			preg_split( '/\s+/', sahaj_atlas_tag_attr( isset( $body[0] ) ? $body[0] : '', 'class' ) ),
+			true
+		),
+		'render' => sahaj_atlas_tag_attr( isset( $element[0] ) ? $element[0] : '', 'data-sahaj-atlas-render' ),
 		// ⚠ A flag, never the tag. The tag carries the API key in its `src`, and this array is
 		// written to a transient — the key is already an option, and twice is once too many.
 		'loader' => '' !== $tag,
-		'module' => (bool) preg_match( '/\btype=(["\'])module\1/', $tag ),
+		'module' => 'module' === strtolower( trim( sahaj_atlas_tag_attr( $tag, 'type' ) ) ),
 		// ⚠ Whitespace before it, or `data-async` from an optimiser's own marker reads as `async`
-		// and reports a working page broken.
+		// and reports a working page broken. `defer` is not here: the HTML spec ignores it on a
+		// module script, so matching it would turn this row red on a page that works.
 		'async'  => (bool) preg_match( '/\sasync[\s=>]/', $tag ),
-		'keyed'  => false !== strpos( $tag, 'key=' ),
+		'keyed'  => false !== strpos( $source, 'key=' ),
 	);
 }
 

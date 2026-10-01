@@ -249,6 +249,30 @@ sahaj_is( 'and no tag at all is a failure', 'fail', sahaj_probe_check( 'sahaj_at
 
 // ---------------------------------------------------------------------------------------------
 
+sahaj_group( 'A minifier that drops optional quotes still reads' );
+
+/*
+ * ⚠ Both rows read attributes back out of markup an optimiser may have rewritten, and dropping
+ * optional quotes is what an HTML minifier does to a value with no spaces in it. A reader that
+ * insists on quotes calls a working page broken, and check 6's advice is then to send us the
+ * address. A multi-class body keeps its quotes, so this page carries the single class a minifier
+ * can really strip.
+ */
+sahaj_probe_stub(
+	'<!doctype html><html><head></head><body class=sahaj-atlas-page><header>Site</header>'
+		. '<sahaj-atlas data-sahaj-atlas-render=content></sahaj-atlas>'
+		. '<script type=module src=https://sahajatlas.com/auto.js?key=test-key-123 id=sahaj-atlas-js-module></script>'
+		. '</body></html>'
+);
+
+$sahaj_probe_minified = sahaj_probe_check( 'sahaj_atlas_check_render' );
+
+sahaj_is( 'the placement row reads an unquoted render marker', 'ok', $sahaj_probe_minified['status'] );
+sahaj_ok( 'and still names the content area', false !== strpos( $sahaj_probe_minified['detail'], 'content area' ) );
+sahaj_is( 'the loader row reads an unquoted type and address', 'ok', sahaj_probe_check( 'sahaj_atlas_check_loader' )['status'] );
+
+// ---------------------------------------------------------------------------------------------
+
 sahaj_group( 'Neither row turns red on something the volunteer cannot act on' );
 
 /*
