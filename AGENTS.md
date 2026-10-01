@@ -147,7 +147,7 @@ the full story.
 ## What is built
 
 Every module below is implemented and tested. `pnpm test:all` runs the full gate: the syntax
-check, the PHP suite, then the render checks.
+check, the measurement checks, the PHP suite, then the render checks.
 
 | Module | Does |
 | --- | --- |
@@ -171,11 +171,12 @@ plugin runs. The Yoast and Rank Math index entries are only a convenience.
 ## Testing
 
 Three lanes run on `@wp-playground/cli` (PHP in WebAssembly). This needs no Docker and no system
-PHP.
+PHP. The fourth runs the one shipped script in plain node.
 
 | Lane | Command | Covers |
 | --- | --- | --- |
 | Syntax | `pnpm lint` | `token_get_all(…, TOKEN_PARSE)` over every PHP file |
+| Measure | `pnpm test:measure` | `assets/atlas-page.js`'s header arithmetic, against a stubbed geometry |
 | Behaviour | `pnpm test` | The behaviour suite, in a booted WordPress 6.7 / PHP 7.4 |
 | Render | `pnpm test:render` | Real HTTP requests against a real server, per theme kind |
 
@@ -188,6 +189,9 @@ More traps apply here. Their inline `⚠` comments carry the full detail.
 - Every lane refuses outbound HTTP by default, through an mu-plugin each blueprint writes. A lane
   that needs an answer stubs it or seeds the transient; an unstubbed call is recorded and fails the
   run. Never reach the real endpoint to make a lane pass. See tests/no-network.php.
+- The measure lane proves what the script decides, never what a browser lays out. Its geometry is
+  stubbed, so an assertion about real overlap belongs in the browser lane (#38), not here. See
+  tests/measure.mjs:8.
 - wp-playground-cli discards stdout when a step fails. See tests/bootstrap.php:5.
 - The `server` command ignores `preferredVersions`. Pass `--php` and `--wp` directly instead. See
   tests/render.mjs:107.

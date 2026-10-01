@@ -42,6 +42,11 @@ jobs:
       - name: Syntax check
         run: pnpm lint
 
+      # Plain node, no WebAssembly: the three steps around it never execute the one script the
+      # plugin ships, so its header arithmetic had no lane at all until #40.
+      - name: Measurement checks (assets/atlas-page.js)
+        run: pnpm test:measure
+
       - name: Integration tests (WordPress 6.7, PHP 7.4)
         run: pnpm test
 
