@@ -199,8 +199,26 @@ $GLOBALS['wp_query']->the_post();
 
 sahaj_ok( 'adds a body class on the Atlas page', in_array( 'sahaj-atlas-page', sahaj_atlas_body_class( array( 'page' ) ), true ) );
 
+/*
+ * ⚠ Another page, never a page archive. `sahaj_atlas_is_atlas_page()` returns false before it
+ * compares ids when `is_page()` is false, so an archive query passes however broken the comparison
+ * is — and passed while the guard read only `is_page()`.
+ */
+$sahaj_other_page = get_posts(
+	array(
+		'post_type'   => 'page',
+		'post_status' => 'publish',
+		'numberposts' => 1,
+		'exclude'     => array( $page_id ),
+		'fields'      => 'ids',
+	)
+);
+
+sahaj_ok( 'the site has another page to compare against', ! empty( $sahaj_other_page ) );
+
 wp_reset_postdata();
-$GLOBALS['wp_query'] = new WP_Query( array( 'post_type' => 'page', 'post__not_in' => array( $page_id ) ) );
+$GLOBALS['wp_query'] = new WP_Query( array( 'page_id' => (int) $sahaj_other_page[0] ) );
+$GLOBALS['wp_query']->the_post();
 
 sahaj_ok( 'and not on any other page', ! in_array( 'sahaj-atlas-page', sahaj_atlas_body_class( array( 'page' ) ), true ) );
 
@@ -260,7 +278,7 @@ define( '_CRYOUT_THEME_NAME', 'esotera' );
 // Every other page on the site keeps the band. The filters are added per request, so a page that is
 // not the Atlas page must come out of this call with none of them.
 wp_reset_postdata();
-$GLOBALS['wp_query'] = new WP_Query( array( 'post_type' => 'page', 'post__not_in' => array( $page_id ) ) );
+$GLOBALS['wp_query'] = new WP_Query( array( 'page_id' => (int) $sahaj_other_page[0] ) );
 $GLOBALS['wp_query']->the_post();
 
 sahaj_atlas_quiet_theme_bands();
