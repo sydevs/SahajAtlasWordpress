@@ -332,8 +332,11 @@ async function stubApi(context, port) {
  * because the widget comes unpinned from production.
  *
  * Runs inside the page. Returns plain data so the assertions can print the numbers they judged.
+ *
+ * @param {string|null} band  a `band` cell's selector, counted in the same snapshot as the geometry
+ *                            the band assertions are reasoned about beside
  */
-function measure() {
+function measure(band) {
   const element = document.querySelector('sahaj-atlas')
 
   if (!element) return { element: null }
@@ -366,6 +369,7 @@ function measure() {
     viewport: { width: window.innerWidth, height: window.innerHeight },
     offset: getComputedStyle(document.documentElement).getPropertyValue('--sahaj-atlas-top').trim(),
     headerBottom: headerBottom === null ? null : Math.round(headerBottom),
+    bands: band ? document.querySelectorAll(band).length : null,
     scope: !!scope,
     ready: document.documentElement.getAttribute('data-sahaj-atlas-ready'),
     errorPanel: !!scope?.querySelector('[role="alert"]'),
@@ -462,11 +466,11 @@ async function checkAtlasPage(browser, cell, viewport, port) {
     if (booted) await page.waitForFunction(() => document.documentElement.hasAttribute('data-sahaj-atlas-ready'), null, { timeout: 30000 }).catch(() => {})
     await sleep(2500)
 
-    let m = await page.evaluate(measure)
+    let m = await page.evaluate(measure, cell.band ?? null)
 
     if (m.scope && !m.inputHitInScope) {
       await sleep(1500)
-      m = await page.evaluate(measure)
+      m = await page.evaluate(measure, cell.band ?? null)
     }
 
     await page.screenshot({ path: join(SCREENSHOTS, `${cell.name}-${viewport.name}.png`) }).catch(() => {})
@@ -509,14 +513,10 @@ async function checkAtlasPage(browser, cell, viewport, port) {
     )
 
     if (cell.band) {
-      const bands = await page.evaluate((selector) => document.querySelectorAll(selector).length, cell.band)
+      fit(`${label}: the theme's band is switched off`, m.bands === 0, `${m.bands} × \`${cell.band}\` still above the map`)
 
-      fit(`${label}: the theme's band is switched off`, bands === 0, `${bands} × \`${cell.band}\` still above the map`)
-
-      // ⚠ The header check above passes when no header is found at all, which is the one failure
-      // switching a band off can cause. With the band gone, a header found here is the masthead —
-      // two of these four bands are themselves a `<header>`, so this only reads as the masthead
-      // once the assertion above holds.
+      // ⚠ Two of these four bands are themselves a `<header>`, so "a header was found" only means
+      // the masthead once the band assertion above holds.
       fit(`${label}: and its masthead outlived the band`, m.headerBottom !== null, `no header above the element at top ${m.element.top}`)
     }
 

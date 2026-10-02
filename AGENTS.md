@@ -178,14 +178,9 @@ the full story.
     composer, and one `sahaj_atlas_sitemap_is_servable()` beside it — anything that spells either
     answer a second time is free to disagree with it. See sitemap.php:62,77,86,287,333,
     diagnostics.php:545,564.
-26. Dropping a theme's hero does not reclaim the space it held. Esotera's default
-    `esotera-cropped-headerimage` gives the empty box a definite 550px, so the map stays too short
-    and the visitor still gets the compact card. The fix is two switches, both the theme's own: the
-    filter that yields no image, and the class whose rule releases the box. Filter the image away
-    rather than remove the action that prints it — `esotera-over-menu` is added only when that same
-    filter yields one, and it is what lifts the masthead out of flow and recolours it to read
-    against the image. Remove the action, and the menu is left light-on-light over nothing. See
-    page.php:183,197,230.
+26. Dropping a theme's hero does not reclaim the space it held, so the fix is two of the theme's
+    own switches: the filter that yields no image, and the class whose rule releases the box. Which
+    switch, and why not the shorter route, are both load-bearing. See page.php:193,215.
 
 ## What is built
 

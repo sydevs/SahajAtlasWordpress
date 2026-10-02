@@ -114,7 +114,7 @@ On that page only, and on purpose: the map needs the height, and without it visi
 your site is untouched.
 
 The plugin asks your theme to leave the image out, using the theme's own switch for it. A theme with
-no such switch keeps its header image, and nothing breaks.
+no such switch keeps its header image.
 
 = I use Elementor / WPBakery / Beaver Builder =
 

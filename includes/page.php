@@ -153,8 +153,10 @@ function sahaj_atlas_template_include( $template ) {
  * parent's variant would drop, so a child theme keeps it. Add a theme only after checking its
  * source.
  *
- * ⚠ A theme that ships no variant may still publish a hook for the band.
- * `sahaj_atlas_quiet_theme_bands()` is that half, and most themes answer there instead.
+ * ⚠ This lever reaches only the plugin's own classic template, which is the only caller of
+ * `get_header()`. A theme that ships no variant answers at `sahaj_atlas_quiet_theme_bands()`
+ * instead, which runs on every render path — block themes and a template this plugin did not
+ * supply included.
  *
  * @return string|null The header name, or null for the theme's default `header.php`.
  */
@@ -167,13 +169,12 @@ function sahaj_atlas_header_name() {
 /**
  * Switch a theme's decorative band off on the Atlas page, through the theme's own switch.
  *
- * A hero image or a page-title strip leaves the atlas too short for the map, and the visitor gets
- * the widget's compact card. Only decoration the theme itself lets a page turn off may go. The
- * site's branding and navigation never do.
+ * A hero image or a page-title strip starves the map, as `sahaj_atlas_header_name()` describes.
+ * Only decoration the theme itself lets a page turn off may go. Branding and navigation never do.
  *
  * ⚠ A hook the theme publishes, never a CSS rule of ours over the theme's own: the rest of the
  * header is laid out around whatever the theme decided to print, so hiding one piece of it leaves
- * the others misplaced. That is the same reason `sahaj_atlas_header_name()` asks for a variant.
+ * the others misplaced.
  *
  * ⚠ Not gated on the active theme. A filter nobody applies costs nothing, and a gate is one more
  * list to drift. Every name below is read from that theme's source, and `pnpm test:browser`
@@ -186,7 +187,8 @@ function sahaj_atlas_quiet_theme_bands() {
 	}
 
 	/*
-	 * Esotera and Fluida — Cryout themes, 5 fleet sites.
+	 * Esotera and Fluida — Cryout themes, 5 fleet sites. Two switches, and neither works alone, so
+	 * they are registered together: the image, and the box it left behind.
 	 *
 	 * ⚠ Filter the image away. Do not remove the `cryout_headerimage_hook` action that prints it,
 	 * though that is the shorter route: Esotera's `esotera-over-menu` body class, on by default,
@@ -196,6 +198,7 @@ function sahaj_atlas_quiet_theme_bands() {
 	 */
 	if ( defined( '_CRYOUT_THEME_NAME' ) ) {
 		add_filter( _CRYOUT_THEME_NAME . '_header_image_url', '__return_false' );
+		add_filter( 'body_class', 'sahaj_atlas_cryout_release_class' );
 	}
 
 	// OceanWP's page-title strip. The theme gates it on this filter for its own distraction-free
@@ -204,6 +207,26 @@ function sahaj_atlas_quiet_theme_bands() {
 
 	// Seva Lite's page-title strip, breadcrumbs included.
 	add_filter( 'seva_lite_page_title', '__return_false' );
+}
+
+/**
+ * Release the height a Cryout theme reserves for its hero, whether or not a hero prints.
+ *
+ * ⚠ Dropping the image buys nothing on its own: Esotera's default `esotera-cropped-headerimage`
+ * gives `#header-image-main-inside` a definite 550px. This class is the theme's own release for
+ * that box — its stylesheet carries the rule, and its PHP never writes the class — so switching it
+ * on is the theme's mechanism, not a rule of ours.
+ *
+ * ⚠ Registered by `sahaj_atlas_quiet_theme_bands()`, never from file scope. That is what keeps the
+ * two halves from disagreeing: the class is added exactly where the image was dropped.
+ *
+ * @param array $classes Body classes.
+ * @return array
+ */
+function sahaj_atlas_cryout_release_class( $classes ) {
+	$classes[] = _CRYOUT_THEME_NAME . '-metahide-headerimg';
+
+	return $classes;
 }
 
 /**
@@ -219,17 +242,6 @@ function sahaj_atlas_quiet_theme_bands() {
 function sahaj_atlas_body_class( $classes ) {
 	if ( sahaj_atlas_is_atlas_page() ) {
 		$classes[] = 'sahaj-atlas-page';
-
-		/*
-		 * ⚠ A Cryout theme reserves the hero's height whether or not a hero prints, so dropping the
-		 * image in `sahaj_atlas_quiet_theme_bands()` buys nothing on its own: Esotera's default
-		 * `esotera-cropped-headerimage` gives `#header-image-main-inside` a definite 550px. This
-		 * class is the theme's own release for that box: its stylesheet carries the rule, and its PHP
-		 * never writes the class. Switching it on is the theme's mechanism, not a rule of ours.
-		 */
-		if ( defined( '_CRYOUT_THEME_NAME' ) ) {
-			$classes[] = _CRYOUT_THEME_NAME . '-metahide-headerimg';
-		}
 	}
 
 	return $classes;
