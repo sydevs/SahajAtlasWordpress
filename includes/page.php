@@ -187,8 +187,8 @@ function sahaj_atlas_quiet_theme_bands() {
 	}
 
 	/*
-	 * Esotera and Fluida — Cryout themes, 5 fleet sites. Two switches, and neither works alone, so
-	 * they are registered together: the image, and the box it left behind.
+	 * Esotera and Fluida — Cryout themes, 5 fleet sites. Dropping the image is half the fix;
+	 * `sahaj_atlas_body_class()` releases the box it leaves behind.
 	 *
 	 * ⚠ Filter the image away. Do not remove the `cryout_headerimage_hook` action that prints it,
 	 * though that is the shorter route: Esotera's `esotera-over-menu` body class, on by default,
@@ -198,7 +198,6 @@ function sahaj_atlas_quiet_theme_bands() {
 	 */
 	if ( defined( '_CRYOUT_THEME_NAME' ) ) {
 		add_filter( _CRYOUT_THEME_NAME . '_header_image_url', '__return_false' );
-		add_filter( 'body_class', 'sahaj_atlas_cryout_release_class' );
 	}
 
 	// OceanWP's page-title strip. The theme gates it on this filter for its own distraction-free
@@ -210,38 +209,31 @@ function sahaj_atlas_quiet_theme_bands() {
 }
 
 /**
- * Release the height a Cryout theme reserves for its hero, whether or not a hero prints.
- *
- * ⚠ Dropping the image buys nothing on its own: Esotera's default `esotera-cropped-headerimage`
- * gives `#header-image-main-inside` a definite 550px. This class is the theme's own release for
- * that box — its stylesheet carries the rule, and its PHP never writes the class — so switching it
- * on is the theme's mechanism, not a rule of ours.
- *
- * ⚠ Registered by `sahaj_atlas_quiet_theme_bands()`, never from file scope. That is what keeps the
- * two halves from disagreeing: the class is added exactly where the image was dropped.
- *
- * @param array $classes Body classes.
- * @return array
- */
-function sahaj_atlas_cryout_release_class( $classes ) {
-	$classes[] = _CRYOUT_THEME_NAME . '-metahide-headerimg';
-
-	return $classes;
-}
-
-/**
  * Mark the Atlas page, for `assets/atlas-page.css` and for the loopback probe.
  *
  * ⚠ Gated on the page, not on the template, and that is what makes the sizing survive a template
  * this plugin did not supply (#39). `sahaj_atlas_read_page()` reads the class back to tell an Atlas
  * page that rendered without its element from an address something else answered entirely.
  *
+ * ⚠ `<theme>-metahide-headerimg` releases the height a Cryout theme reserves for its hero, whether
+ * or not a hero prints: the default `<theme>-cropped-headerimage` gives `#header-image-main-inside`
+ * a definite 550px, and dropping the image in `sahaj_atlas_quiet_theme_bands()` buys nothing on its
+ * own. The theme's stylesheet carries the rule and its PHP never writes the class, so switching it
+ * on is the theme's own mechanism. It rides the same gate as `sahaj-atlas-page` because a gate that
+ * could drop it has already taken the sizing CSS with it.
+ *
  * @param array $classes Body classes.
  * @return array
  */
 function sahaj_atlas_body_class( $classes ) {
-	if ( sahaj_atlas_is_atlas_page() ) {
-		$classes[] = 'sahaj-atlas-page';
+	if ( ! sahaj_atlas_is_atlas_page() ) {
+		return $classes;
+	}
+
+	$classes[] = 'sahaj-atlas-page';
+
+	if ( defined( '_CRYOUT_THEME_NAME' ) ) {
+		$classes[] = _CRYOUT_THEME_NAME . '-metahide-headerimg';
 	}
 
 	return $classes;

@@ -260,16 +260,14 @@ sahaj_group( 'The Atlas page switches a theme band off, through the theme itself
  * The band switches, as one list: the theme's own hook, the callback, and what each assertion calls
  * it. Adding a theme to `sahaj_atlas_quiet_theme_bands()` is then one row here, not three edits.
  *
- * ⚠ `body_class` is the odd one out, and deliberately so. `sahaj_atlas_cryout_release_class()` is
- * registered beside the Cryout image filter rather than from file scope, so dropping the image and
- * releasing the box it held cannot disagree.
+ * ⚠ The Cryout release class is not here. It rides `sahaj_atlas_body_class()`, which is registered
+ * from file scope and gated on the page itself, so it is asserted against that function's return.
  *
  * @return array[] Hook name, callback, and the words each assertion uses for it.
  */
 function sahaj_band_switches() {
 	return array(
 		array( 'esotera_header_image_url', '__return_false', 'a Cryout hero image' ),
-		array( 'body_class', 'sahaj_atlas_cryout_release_class', 'the height that hero reserved' ),
 		array( 'ocean_display_page_header', '__return_false', "OceanWP's page-title bar" ),
 		array( 'seva_lite_page_title', '__return_false', "Seva Lite's" ),
 	);
@@ -284,10 +282,10 @@ $GLOBALS['wp_query'] = sahaj_query_page();
 
 sahaj_atlas_quiet_theme_bands();
 
-sahaj_ok( 'a theme that is not a Cryout theme gets no release class', false === has_filter( 'body_class', 'sahaj_atlas_cryout_release_class' ) );
+sahaj_ok( 'a theme that is not a Cryout theme gets no release class', array( 'sahaj-atlas-page' ) === sahaj_atlas_body_class( array() ) );
 
-// The two theme-agnostic switches landed on that call. Take them off, or the next pass reads them
-// as a leak onto another page.
+// The theme-agnostic switches landed on that call. Take them off, or the next pass reads them as a
+// leak onto another page.
 foreach ( sahaj_band_switches() as list( $sahaj_hook, $sahaj_callback ) ) {
 	remove_filter( $sahaj_hook, $sahaj_callback );
 }
@@ -305,6 +303,8 @@ foreach ( sahaj_band_switches() as list( $sahaj_hook, $sahaj_callback, $sahaj_na
 	sahaj_ok( "another page keeps $sahaj_name", false === has_filter( $sahaj_hook, $sahaj_callback ) );
 }
 
+sahaj_ok( 'another page keeps the height that hero reserved', ! in_array( 'esotera-metahide-headerimg', sahaj_atlas_body_class( array() ), true ) );
+
 wp_reset_postdata();
 $GLOBALS['wp_query'] = sahaj_query_page();
 
@@ -318,7 +318,7 @@ foreach ( sahaj_band_switches() as list( $sahaj_hook, $sahaj_callback, $sahaj_na
 
 // The release class names the theme, so the one switch that is not a bare `__return_false` is also
 // checked for what it produces.
-sahaj_is( 'the release class names the active Cryout theme', array( 'esotera-metahide-headerimg' ), sahaj_atlas_cryout_release_class( array() ) );
+sahaj_is( 'the Atlas page drops the height that hero reserved', array( 'sahaj-atlas-page', 'esotera-metahide-headerimg' ), sahaj_atlas_body_class( array() ) );
 
 // ---------------------------------------------------------------------------------------------
 
