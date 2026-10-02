@@ -135,6 +135,8 @@ const PANEL_SEED = `set_transient(sahaj_atlas_client_slot(sahaj_atlas_api_key())
  * @property {string} [seed]         extra PHP, appended to the shared seed
  * @property {'template'|'content'} [render]  which print must render the element; `template` default
  * @property {boolean} [panel]       also read the status panel, as the volunteer sees it
+ * @property {string} [band]         a selector for the band the Atlas page switches off, which must
+ *                                   match nothing there while a header still does
  * @property {string} [known]        why this cell is expected to fail today
  */
 
@@ -142,13 +144,15 @@ const PANEL_SEED = `set_transient(sahaj_atlas_client_slot(sahaj_atlas_api_key())
 const CELLS = [
   // Every free theme the fleet runs (#37's scan), plus the two bundled block themes.
   { name: 'astra', theme: 'astra', sidebar: true },
-  // OceanWP's page-title bar takes 205px above the map; the interface still fits (#37).
-  { name: 'oceanwp', theme: 'oceanwp' },
   { name: 'mesmerize', theme: 'mesmerize' },
-  { name: 'esotera', theme: 'esotera', known: 'header.php prints #header-image-main and ships no hero-less variant (#37)' },
-  { name: 'fluida', theme: 'fluida', known: 'header image and breadcrumb bar from header.php (#37)' },
   { name: 'popularfx', theme: 'popularfx' },
-  { name: 'seva-lite', theme: 'seva-lite', known: 'page-title bar from header.php, in a boxed container (#37)' },
+  // The four themes whose band `sahaj_atlas_quiet_theme_bands()` switches off (#37). Each selector
+  // is the band's own markup, read from that theme's source — never the box it sits in, which the
+  // theme prints either way.
+  { name: 'oceanwp', theme: 'oceanwp', band: 'header.page-header' },
+  { name: 'esotera', theme: 'esotera', band: '#header-image-main .header-image' },
+  { name: 'fluida', theme: 'fluida', band: '#header-image-main .header-image' },
+  { name: 'seva-lite', theme: 'seva-lite', band: 'header.page-header' },
   { name: 'enigma', theme: 'enigma' },
   { name: 'twentytwenty', theme: 'twentytwenty' },
   { name: 'twentytwentyfour', theme: 'twentytwentyfour' },
@@ -373,8 +377,11 @@ function installLaneDom() {
  * because the widget comes unpinned from production.
  *
  * Runs inside the page. Returns plain data so the assertions can print the numbers they judged.
+ *
+ * @param {string|null} band  a `band` cell's selector, counted in the same snapshot as the geometry
+ *                            the band assertions are reasoned about beside
  */
-function measure() {
+function measure(band) {
   const element = document.querySelector('sahaj-atlas')
 
   if (!element) return { element: null }
@@ -410,6 +417,7 @@ function measure() {
     viewport: { width: window.innerWidth, height: window.innerHeight },
     offset: getComputedStyle(document.documentElement).getPropertyValue('--sahaj-atlas-top').trim(),
     headerBottom: headerBottom === null ? null : Math.round(headerBottom),
+    bands: band ? document.querySelectorAll(band).length : null,
     scope: !!scope,
     ready: document.documentElement.getAttribute('data-sahaj-atlas-ready'),
     errorPanel: !!scope?.querySelector('[role="alert"]'),
@@ -506,11 +514,11 @@ async function checkAtlasPage(browser, cell, viewport, port) {
     if (booted) await page.waitForFunction(() => document.documentElement.hasAttribute('data-sahaj-atlas-ready'), null, { timeout: 30000 }).catch(() => {})
     await sleep(2500)
 
-    let m = await page.evaluate(measure)
+    let m = await page.evaluate(measure, cell.band ?? null)
 
     if (m.scope && !m.inputHitInScope) {
       await sleep(1500)
-      m = await page.evaluate(measure)
+      m = await page.evaluate(measure, cell.band ?? null)
     }
 
     await page.screenshot({ path: join(SCREENSHOTS, `${cell.name}-${viewport.name}.png`) }).catch(() => {})
@@ -551,6 +559,15 @@ async function checkAtlasPage(browser, cell, viewport, port) {
       m.headerBottom === null || m.headerBottom <= m.element.top + 1,
       m.headerBottom === null ? 'no header found' : `header bottom ${m.headerBottom}, element top ${m.element.top}`,
     )
+
+    if (cell.band) {
+      fit(`${label}: the theme's band is switched off`, m.bands === 0, `${m.bands} × \`${cell.band}\` still above the map`)
+
+      // ⚠ Two of these four bands are themselves a `<header>`, so "a header was found" only means
+      // the masthead once the band assertion above holds.
+      fit(`${label}: and its masthead outlived the band`, m.headerBottom !== null, `no header above the element at top ${m.element.top}`)
+    }
+
     fit(`${label}: no script error`, log.errors().length === 0, log.errors().join(' | '))
     widget(`${label}: every drawer and dialog is inside the widget`, m.strayPortals === 0, `${m.strayPortals} outside`)
     widget(`${label}: <html> carries no theme class or brand vars`, !/\b(light|dark)\b/.test(m.htmlClass) && !m.htmlVars.includes('--primary'), `class="${m.htmlClass}" style="${m.htmlVars.slice(0, 80)}"`)

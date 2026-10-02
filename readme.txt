@@ -107,6 +107,15 @@ of your domain — the one at `yoursite.org/robots.txt`, not one inside the subf
 engines read no other. If your site is one of a network, there is no such file to edit: submit the
 address the row shows to Google Search Console and Bing Webmaster Tools instead.
 
+= My theme's header image or page title is missing on the Atlas page =
+
+On that page only, and on purpose: the map needs the height, and without it visitors get a single
+"Find a class near you" button instead of the map. Your logo and menu stay, and every other page on
+your site is untouched.
+
+The plugin asks your theme to leave the image out, using the theme's own switch for it. A theme with
+no such switch keeps its header image.
+
 = I use Elementor / WPBakery / Beaver Builder =
 
 That is fine, and there is nothing to set up. The Atlas page does not use a page builder.
