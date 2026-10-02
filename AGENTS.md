@@ -180,7 +180,7 @@ the full story.
     diagnostics.php:545,564.
 26. Dropping a theme's hero does not reclaim the space it held, so the fix is two of the theme's
     own switches: the filter that yields no image, and the class whose rule releases the box. Which
-    switch, and why not the shorter route, are both load-bearing. See page.php:193,215.
+    switch, and why not the shorter route, are both load-bearing. See page.php:193,218.
 
 ## What is built
 
