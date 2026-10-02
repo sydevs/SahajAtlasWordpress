@@ -158,6 +158,38 @@ async function check(run) {
 
     ok('with the script below both', scriptAt > elementAt, `element ${elementAt}, script ${scriptAt}`)
 
+    // ── Another template renders the page (#39) ────────────────────────────────────────────────
+    // The plugin owns the Atlas page's template, but anything can take it: a page builder's canvas
+    // template, a theme-builder layout, or a volunteer switching the template back. The theme then
+    // renders header, content and footer, and the element belongs in the content area — not after
+    // the footer, where the sizing script measures its top at the document's full height and the
+    // map computes to nothing. `tests/fixture-template.php` takes the page over the way each theme
+    // kind really loses it.
+    {
+      const response = await fetch(`${base}${PAGE}?sahaj_fixture_template=theme`)
+      const taken = await response.text()
+      const elementAt = taken.search(/<sahaj-atlas[\s>]/)
+      const footerAt = taken.search(/<footer|wp-block-template-part[^"]*footer|site-footer/)
+
+      ok(`${run.theme}: taken over: the page renders`, response.status === 200, `status ${response.status}`)
+      ok(`${run.theme}: taken over: with one document and one element`, (taken.match(/<!doctype/gi) ?? []).length === 1 && (taken.match(/<sahaj-atlas[\s>]/g) ?? []).length === 1)
+
+      // The fixture only proves it took the page over if the footer the plugin's template omits is
+      // back. Without this, every assertion here would pass on the plugin's own template.
+      ok(`${run.theme}: taken over: the theme's footer is back`, footerAt >= 0, taken.slice(-300))
+      ok(`${run.theme}: taken over: the element is above it`, elementAt >= 0 && elementAt < footerAt, `element ${elementAt}, footer ${footerAt}`)
+      ok(`${run.theme}: taken over: printed from the content area`, taken.includes('data-sahaj-atlas-render="content"'), (taken.match(/<sahaj-atlas[^>]*>/) ?? [])[0] ?? 'no element')
+
+      // ⚠ `wpautop()` must not reach it. A `<p>` wrapper adds a margin above and below, and the map
+      // is sized to the viewport less its own top — so the margins push its bottom edge, where the
+      // mobile drag handle sits, below the fold.
+      ok(`${run.theme}: taken over: and not wrapped in a paragraph`, !/<p>\s*<sahaj-atlas/.test(taken))
+
+      // The sizing still applies: the body class and the stylesheet are gated on the page, not on
+      // the template.
+      ok(`${run.theme}: taken over: still sized`, taken.includes('sahaj-atlas-page') && taken.includes('assets/atlas-page.css'))
+    }
+
     // ── A classic theme with no header.php ─────────────────────────────────────────────────────
     // ⚠ `get_header()` there falls through to core's 2010 theme-compat header: a banner of its own
     // and no viewport tag. The template prints a minimal document instead. Only a rendered page
@@ -269,7 +301,7 @@ async function check(run) {
 
     ok(
       'and the element carries crawlable content for a visitor with no JavaScript',
-      /<sahaj-atlas><section><h1>Free meditation classes near you<\/h1><p>Every class is free/.test(html),
+      /<sahaj-atlas[^>]*><section><h1>Free meditation classes near you<\/h1><p>Every class is free/.test(html),
     )
 
     // ⚠ The root is described as the root, never as a region. A gate keyed on "is there a route"
