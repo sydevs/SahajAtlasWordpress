@@ -772,7 +772,9 @@ async function run(browser, cell, index) {
     {
       const want = cell.render ?? 'template'
       const elementAt = served.search(/<sahaj-atlas[\s>]/)
-      const footerAt = served.search(/<footer|wp-block-template-part[^"]*footer|site-footer/)
+      // ⚠ Markup only. Astra's inline CSS in <head> names `.site-footer`, so a bare match finds the
+      // footer before the element on every page, and finds one where the theme printed none.
+      const footerAt = served.search(/<footer[\s>]|<[a-z]+\s[^>]*class="[^"]*(?:wp-block-template-part[^"]*footer|site-footer)/)
 
       scope.fit(`${cell.name}: printed from the ${want} path`, served.includes(`data-sahaj-atlas-render="${want}"`), (served.match(/<sahaj-atlas[^>]*>/) ?? [])[0] ?? 'no element')
 
