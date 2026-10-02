@@ -111,7 +111,7 @@ set_transient( SAHAJ_ATLAS_SITEMAP_TRANSIENT, array(), MINUTE_IN_SECONDS );
 
 sahaj_group( 'The sitemap path is not an atlas route' );
 
-update_option( 'permalink_structure', '/%postname%/' );
+sahaj_set_permalink_structure( '/%postname%/' );
 sahaj_mount_atlas_page_at( 'find-a-class' );
 
 sahaj_is(
@@ -142,7 +142,7 @@ function sahaj_sitemap_subfolder( $url ) {
 }
 
 update_option( SAHAJ_ATLAS_OPTION_KEY, 'test-key-123' );
-update_option( 'permalink_structure', '/%postname%/' );
+sahaj_set_permalink_structure( '/%postname%/' );
 update_option( 'blog_public', '1' );
 
 $sahaj_origin    = untrailingslashit( home_url() );
@@ -177,13 +177,25 @@ sahaj_ok(
 // ⚠ Plain permalinks lose both files at once: `rewrite_rules()` returns no rules at all, so the
 // sitemap path 404s as well. The one branch that is a failure rather than a warning, because
 // there is no line a volunteer could paste that would be served.
-update_option( 'permalink_structure', '' );
+sahaj_set_permalink_structure( '' );
 
 $sahaj_discovery = sahaj_atlas_check_sitemap_discovery();
 
 sahaj_is( 'plain permalinks are a failure', 'fail', $sahaj_discovery['status'] );
 sahaj_ok( 'and the row names the one screen that fixes it', false !== strpos( $sahaj_discovery['detail'], 'options-permalink.php' ) );
 sahaj_ok( 'never offering a line that could not be served anyway', false === strpos( $sahaj_discovery['detail'], 'Sitemap: ' ) );
+
+sahaj_set_permalink_structure( '/%postname%/' );
+
+/*
+ * ⚠ A bare option write on purpose — the desync `sahaj_set_permalink_structure()` exists to avoid.
+ * One predicate answers servability, and it reads the cached rewrite state, because that is the
+ * shape a request is routed by. A row that followed the option instead would call a working site
+ * broken.
+ */
+update_option( 'permalink_structure', '' );
+
+sahaj_is( 'the row follows the booted shape, never a bare option write', 'ok', sahaj_atlas_check_sitemap_discovery()['status'] );
 
 update_option( 'permalink_structure', '/%postname%/' );
 
@@ -201,3 +213,99 @@ update_option( SAHAJ_ATLAS_OPTION_KEY, '' );
 sahaj_is( 'and nothing at all until there is a key', 'idle', sahaj_atlas_check_sitemap_discovery()['status'] );
 
 update_option( SAHAJ_ATLAS_OPTION_KEY, 'test-key-123' );
+
+// ---------------------------------------------------------------------------------------------
+
+sahaj_group( 'The published address follows the permalink shape' );
+
+// A non-empty set, so every refusal below is the permalink shape and never the empty-set guard.
+set_transient( SAHAJ_ATLAS_SITEMAP_TRANSIENT, $sahaj_rows, MINUTE_IN_SECONDS );
+
+sahaj_set_permalink_structure( '/%postname%/' );
+
+sahaj_is( 'mod_rewrite permalinks publish the bare path', home_url( '/' . SAHAJ_ATLAS_SITEMAP_PATH ), sahaj_atlas_sitemap_url() );
+
+// ⚠ One composer feeds all four published addresses, so each assertion below pins a different
+// reader of it, not a different rule. The why is at `sahaj_atlas_sitemap_url()`.
+sahaj_set_permalink_structure( '/index.php/%postname%/' );
+
+$sahaj_prefixed = 'index.php/' . SAHAJ_ATLAS_SITEMAP_PATH;
+
+sahaj_is( 'an index.php site publishes the prefixed path', home_url( '/' . $sahaj_prefixed ), sahaj_atlas_sitemap_url() );
+sahaj_ok( 'robots.txt announces that address', false !== strpos( sahaj_atlas_robots_txt( '', true ), $sahaj_prefixed ) );
+sahaj_ok( 'the SEO-plugin index entry carries it too', false !== strpos( sahaj_atlas_yoast_sitemap_index( '' ), $sahaj_prefixed ) );
+
+/*
+ * ⚠ The row cannot answer `ok` on this shape. `/robots.txt` reaches the filesystem on the server an
+ * `index.php` structure implies, so the line the other three readers publish is never served, and
+ * the row that used to say "Listed in your robots.txt" was naming a file nobody writes.
+ */
+$sahaj_discovery = sahaj_atlas_check_sitemap_discovery();
+
+sahaj_is( 'the panel row stops claiming robots.txt carries it', 'warn', $sahaj_discovery['status'] );
+sahaj_ok(
+	'offering the line to paste, at the prefixed address',
+	false !== strpos( $sahaj_discovery['detail'], 'Sitemap: ' . home_url( '/' . $sahaj_prefixed ) )
+);
+sahaj_ok(
+	'and naming the robots.txt a crawler actually reads',
+	false !== strpos( $sahaj_discovery['detail'], '<code>' . untrailingslashit( home_url() ) . '/robots.txt</code>' )
+);
+
+/*
+ * ⚠ What this cannot prove: the lane routes every request through PHP, so the bare path answers
+ * here too and only a server without mod_rewrite 404s it. Measured separately against a booted
+ * instance — a real request for `/index.php/sahaj-atlas-sitemap.xml` was served the XML.
+ */
+$sahaj_serve_wp          = new WP();
+$sahaj_serve_wp->request = SAHAJ_ATLAS_SITEMAP_PATH;
+
+ob_start();
+$sahaj_served = sahaj_atlas_maybe_serve_sitemap( $sahaj_serve_wp );
+$sahaj_serve_body = (string) ob_get_clean();
+
+sahaj_ok( 'and the request for it is still served', $sahaj_served );
+sahaj_ok( 'with the sitemap document', false !== strpos( $sahaj_serve_body, '<urlset' ) );
+
+// ---------------------------------------------------------------------------------------------
+
+sahaj_group( 'Clean URLs are not what breaks on an index.php site' );
+
+/*
+ * ⚠ The row reporting `ok` here looks like the wrong claim and is not. Path routing genuinely
+ * works on this shape: `get_page_uri()` has no index file in it and `WP::parse_request()` strips
+ * the one in the request, so the two agree. Reaching for `using_mod_rewrite_permalinks()` in this
+ * row, or in `sahaj_atlas_path_routing_viable()`, would switch a working feature off and send a
+ * volunteer to a settings screen they have no reason to visit.
+ */
+sahaj_set_permalink_structure( '/index.php/%postname%/' );
+
+sahaj_ok( 'the registered mount carries the index.php segment', false !== strpos( sahaj_atlas_mount_key(), '/index.php/' ) );
+sahaj_is( 'a deep link still resolves', '/gb/london', sahaj_route_for( 'find-a-class/gb/london' ) );
+sahaj_is(
+	'and the Clean URLs row reports it on',
+	'ok',
+	sahaj_atlas_check_path_routing(
+		array( 'canonical' => array( 'enabled' => true, 'embed' => sahaj_atlas_mount_key() ) )
+	)['status']
+);
+
+// ---------------------------------------------------------------------------------------------
+
+sahaj_group( 'Plain permalinks publish nothing, because nothing can be served' );
+
+// ⚠ Withholding, not a missing feature: whether this shape should instead get a servable sitemap
+// at `/?sahaj_atlas_sitemap=1` is open on #50. Until it is answered, an entry here is a 404.
+sahaj_set_permalink_structure( '' );
+
+sahaj_is( 'Yoast gains no entry', '<sitemapindex>', sahaj_atlas_yoast_sitemap_index( '<sitemapindex>' ) );
+sahaj_is( 'and neither does Rank Math', '<sitemapindex>', sahaj_atlas_rank_math_sitemap_index( '<sitemapindex>' ) );
+
+// ⚠ `/robots.txt` is unreachable on this shape, but `/?robots=1` is not: `robots` is a public query
+// var, parsed outside the rewrite block, so `do_robots()` still runs this filter. Both halves of one
+// refusal, or the file announces an address it just withheld from the indexes.
+sahaj_is( 'and robots.txt announces nothing either', "User-agent: *\n", sahaj_atlas_robots_txt( "User-agent: *\n", true ) );
+
+// Leave the suite on the shape the files after this one were written against.
+sahaj_set_permalink_structure( '/%postname%/' );
+set_transient( SAHAJ_ATLAS_SITEMAP_TRANSIENT, array(), MINUTE_IN_SECONDS );

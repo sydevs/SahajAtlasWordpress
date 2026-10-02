@@ -56,8 +56,48 @@ function sahaj_atlas_register_sitemap() {
 	add_filter( 'rank_math/sitemap/index', 'sahaj_atlas_rank_math_sitemap_index' );
 }
 
+/**
+ * The one address the plugin publishes for its sitemap.
+ *
+ * ⚠ An `index.php` structure is what WordPress offers when mod_rewrite is unavailable, so
+ * `/sahaj-atlas-sitemap.xml` reaches the filesystem there and 404s, while
+ * `/index.php/sahaj-atlas-sitemap.xml` reaches `parse_request` like every other URL on such a
+ * site. `sahaj_atlas_maybe_serve_sitemap()` needs no matching branch: WordPress strips its index
+ * file before setting `$wp->request`, so the guard there compares the same string on both shapes.
+ * Yoast prefixes its own index the same way (`get_base_url()`, `inc/sitemaps/class-sitemaps-router.php`).
+ *
+ * ⚠ `robots.txt`, both SEO-plugin index entries, and the diagnostics row all read this composer, so
+ * nothing else needs to know the shape. Keep it that way — a second spelling is a second answer.
+ *
+ * @return string
+ */
 function sahaj_atlas_sitemap_url() {
-	return home_url( '/' . SAHAJ_ATLAS_SITEMAP_PATH );
+	global $wp_rewrite;
+
+	// ⚠ `root` is core's own `index.php/`-or-nothing, and never `front`, which also absorbs a
+	// `/blog/` prefix this address must not carry. `WP_Rewrite::init()` caches it, so writing
+	// `permalink_structure` without reaching that leaves this answering for the booted shape.
+	return home_url( '/' . $wp_rewrite->root . SAHAJ_ATLAS_SITEMAP_PATH );
+}
+
+/**
+ * Whether a request for that address can reach this plugin at all.
+ *
+ * ⚠ One answer, four readers — `robots.txt`, both index entries, and the diagnostics row. The
+ * composer owns the address; this owns whether it can be served. `WP_Rewrite::rewrite_rules()`
+ * returns an empty set for an empty permalink structure (`wp-includes/class-wp-rewrite.php:1279`,
+ * WordPress 6.7.9), so `WP::parse_request()` never sets `$wp->request` and the guard in
+ * `sahaj_atlas_maybe_serve_sitemap()` cannot match.
+ *
+ * ⚠ The cached rewrite state, never `get_option( 'permalink_structure' )`. The two disagree until
+ * `WP_Rewrite::init()` runs, and a request is routed by the cached one.
+ *
+ * @return bool
+ */
+function sahaj_atlas_sitemap_is_servable() {
+	global $wp_rewrite;
+
+	return (bool) $wp_rewrite->using_permalinks();
 }
 
 /**
@@ -228,8 +268,8 @@ function sahaj_atlas_flush_sitemap_cache() {
  * below are a convenience for site owners who read their SEO plugin's report — they are not the
  * discovery path.
  *
- * ⚠ And on part of the fleet this filter never runs: core serves a virtual `robots.txt` only with
- * rewriting on and WordPress at the domain root, and never when a real file is there.
+ * ⚠ And on part of the fleet `/robots.txt` never reaches this filter: core serves a virtual one only
+ * with rewriting on and WordPress at the domain root, and never over a real file.
  * `sahaj_atlas_check_sitemap_discovery()` models those conditions for the panel. A change here
  * leaves that model stale, and it is the only thing that tells a volunteer the line is missing.
  *
@@ -240,6 +280,17 @@ function sahaj_atlas_flush_sitemap_cache() {
 function sahaj_atlas_robots_txt( $output, $public ) {
 	// A site set to discourage search engines gets nothing added. That switch is the owner's answer.
 	if ( ! $public ) {
+		return $output;
+	}
+
+	/*
+	 * ⚠ `/robots.txt` is not the only way in. `robots` is one of `WP::$public_query_vars`, and that
+	 * loop sits outside `parse_request()`'s `! empty( $rewrite )` block
+	 * (`wp-includes/class-wp.php:165,319`, WordPress 6.7.9), so `/?robots=1` runs `do_robots()` with
+	 * no rewrite rules at all. Without this guard the one shape that can serve nothing is still the
+	 * one announcing the address.
+	 */
+	if ( ! sahaj_atlas_sitemap_is_servable() ) {
 		return $output;
 	}
 
@@ -278,6 +329,15 @@ function sahaj_atlas_rank_math_sitemap_index( $index ) {
  * @return string
  */
 function sahaj_atlas_sitemap_index_entry() {
+	/*
+	 * ⚠ Not hypothetical: Yoast's index still answers at `/?sitemap=1`, a registered query var, so
+	 * a crawler reaches this entry on the one shape that cannot serve what it points at, and fetches
+	 * the 404.
+	 */
+	if ( ! sahaj_atlas_sitemap_is_servable() ) {
+		return '';
+	}
+
 	$urls = sahaj_atlas_sitemap_urls();
 
 	if ( ! $urls ) {

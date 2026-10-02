@@ -112,16 +112,16 @@ the full story.
 12. A front-page atlas refuses path routing, or it would turn the host's own 404 page into the
     atlas. See routing.php:227, tests/contract.php:130.
 13. An empty sitemap must return a 404, never an empty `<urlset>` or an index line. See
-    sitemap.php:81, tests/sitemap.php:82.
+    sitemap.php:121, tests/sitemap.php:82.
 14. `allowedDomains` splits on newlines, not commas. An empty list allows every origin — the
     documented default, not a refusal. Treat each entry as an exact host, never a wildcard suffix,
     and mirror `parseAllowedDomains()` / `isHostAllowed()` in SahajCloud instead of re-deriving
-    them. See diagnostics.php:296,928, tests/domains.php.
+    them. See diagnostics.php:296,954, tests/domains.php.
 15. Publish sitemap URLs only for this host. A shared key, or a mis-set `canonical.embed`, can add
     a foreign one. The same guard decides whether the root view may take the Atlas page over at
     all: a root answer whose canonical names another domain is a failed fetch, not a tag to drop,
     because `rel_canonical` is gone by the time the tag is printed. A region may canonicalise
-    elsewhere. The root may not. See sitemap.php:187,209, seo.php:89,147, tests/sitemap.php:20.
+    elsewhere. The root may not. See sitemap.php:227,249, seo.php:89,147, tests/sitemap.php:20.
 16. Suppress the host's SEO plugin only after a successful fetch. Suppressing first, then finding
     the endpoint unreachable, leaves the page with no metadata at all — worse than leaving the
     original, generic metadata in place.
@@ -170,6 +170,14 @@ the full story.
     `wp_set_script_translations()` covers a second, independent reader: `wp.i18n` reads a `.json`
     keyed on an md5 of the script's path, never the `.mo`. Each piece fails silently in English.
     See sahaj-atlas.php:108, embed.php:409, tests/i18n.php.
+25. The sitemap's address follows the permalink shape, and two shapes break it. An `index.php`
+    structure needs the prefix core keeps in `$wp_rewrite->root`, and cannot publish a `Sitemap:`
+    line at all, so check 6 warns and names the line to paste. A plain structure can serve nothing,
+    so both index entries and the `robots.txt` line are withheld — `/?robots=1` reaches that filter
+    with no rewrite rules, so it needs the guard too. The serve guard still needs none. Keep one
+    composer, and one `sahaj_atlas_sitemap_is_servable()` beside it — anything that spells either
+    answer a second time is free to disagree with it. See sitemap.php:62,77,86,287,333,
+    diagnostics.php:545,564.
 
 ## What is built
 
@@ -250,6 +258,8 @@ More traps apply here. Their inline `⚠` comments carry the full detail.
 - `$_GET` is already slashed when a plugin reads it, so a fixture that assigns a raw value tests a
   request WordPress never delivers. Set it through `sahaj_set_query_route()`. See
   tests/run.php:270.
+- `update_option( 'permalink_structure', … )` does not reach `WP_Rewrite`, which caches the
+  structure in `init()`. Set it through `sahaj_set_permalink_structure()`. See tests/run.php:292.
 - The SEO endpoint's answers serve every lane from one file: `tests/fixtures/seo-answer.php`, a
   region route and a root. The PHP suite requires it, and both render blueprints require it from the
   mounted plugin. Three copies of an upstream response shape diverge the first time that shape
