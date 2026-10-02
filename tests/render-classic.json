@@ -17,6 +17,11 @@
     },
     {
       "step": "writeFile",
+      "path": "/wordpress/wp-content/mu-plugins/sahaj-atlas-fixture-template.php",
+      "data": "<?php require '/wordpress/wp-content/plugins/sahaj-atlas/tests/fixture-template.php';"
+    },
+    {
+      "step": "writeFile",
       "path": "/wordpress/wp-content/mu-plugins/sahaj-atlas-fake-yoast.php",
       "data": "<?php require '/wordpress/wp-content/plugins/sahaj-atlas/tests/fixtures/fake-yoast.php';"
     },

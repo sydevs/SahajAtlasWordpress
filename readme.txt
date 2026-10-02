@@ -109,9 +109,15 @@ address the row shows to Google Search Console and Bing Webmaster Tools instead.
 
 = I use Elementor / WPBakery / Beaver Builder =
 
-That is fine. The Atlas page does not use a page builder, and the shortcode works inside all
-three. If your page builder takes over the Atlas page's layout, set that page to the builder's
-blank or canvas template, and place the `[sahaj_atlas]` shortcode on it.
+That is fine, and there is nothing to set up. The Atlas page does not use a page builder.
+
+If your builder renders the Atlas page with its own template, the map appears in the page's content
+area instead, with your site's footer below it. Nothing to change. The `[sahaj_atlas]` shortcode is
+for your other pages — a single class, or its registration form — and is not needed on the Atlas
+page.
+
+Settings → Sahaj Atlas names where the map rendered. If that row is red, send it to the Sahaj Atlas
+maintainers.
 
 == Changelog ==
 

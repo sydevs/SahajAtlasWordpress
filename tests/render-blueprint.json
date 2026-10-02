@@ -11,6 +11,11 @@
       "data": "<?php require '/wordpress/wp-content/plugins/sahaj-atlas/tests/no-network.php';"
     },
     {
+      "step": "writeFile",
+      "path": "/wordpress/wp-content/mu-plugins/sahaj-atlas-fixture-template.php",
+      "data": "<?php require '/wordpress/wp-content/plugins/sahaj-atlas/tests/fixture-template.php';"
+    },
+    {
       "step": "activatePlugin",
       "pluginPath": "sahaj-atlas/sahaj-atlas.php"
     },
