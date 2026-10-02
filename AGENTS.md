@@ -178,6 +178,14 @@ the full story.
     composer, and one `sahaj_atlas_sitemap_is_servable()` beside it — anything that spells either
     answer a second time is free to disagree with it. See sitemap.php:62,77,86,287,333,
     diagnostics.php:545,564.
+26. Dropping a theme's hero does not reclaim the space it held. Esotera's default
+    `esotera-cropped-headerimage` gives the empty box a definite 550px, so the map stays too short
+    and the visitor still gets the compact card. The fix is two switches, both the theme's own: the
+    filter that yields no image, and the class whose rule releases the box. Filter the image away
+    rather than remove the action that prints it — `esotera-over-menu` is added only when that same
+    filter yields one, and it is what lifts the masthead out of flow and recolours it to read
+    against the image. Remove the action, and the menu is left light-on-light over nothing. See
+    page.php:183,197,230.
 
 ## What is built
 
@@ -188,7 +196,7 @@ check, the measurement checks, the PHP suite, then the render checks.
 | --- | --- |
 | `includes/embed.php` | Resolves the page's one embed, builds the script URL, prints the element |
 | `assets/atlas-page.{css,js}` | Sizes the element below the theme's header, in flow or fixed — the contained-map opt-in |
-| `includes/page.php` | Owns the Atlas page and both template paths |
+| `includes/page.php` | Owns the Atlas page, both template paths, and the theme-band switches |
 | `includes/routing.php` | Matches `parse_request`, reads `?atlas=`, and suppresses the canonical redirect |
 | `includes/shortcode.php` | Runs `[sahaj_atlas]`, sharing the block's render body |
 | `includes/settings.php` | Holds the two options, the settings screen, and the create-page button |

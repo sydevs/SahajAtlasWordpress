@@ -240,6 +240,56 @@ foreach ( array( 'mesmerize', 'mesmerize-pro' ) as $sahaj_theme ) {
 
 // ---------------------------------------------------------------------------------------------
 
+sahaj_group( 'The Atlas page switches a theme band off, through the theme itself' );
+
+wp_reset_postdata();
+$GLOBALS['wp_query'] = new WP_Query( array( 'page_id' => $page_id ) );
+$GLOBALS['wp_query']->the_post();
+
+/*
+ * ⚠ `_CRYOUT_THEME_NAME` is a constant, so this is the only moment the suite can see a theme that
+ * is not a Cryout theme. Assert the absence first, then define it for everything below.
+ */
+sahaj_ok(
+	'a theme that is not a Cryout theme gets no hero-release class',
+	! defined( '_CRYOUT_THEME_NAME' ) && ! preg_grep( '/-metahide-headerimg$/', sahaj_atlas_body_class( array() ) )
+);
+
+define( '_CRYOUT_THEME_NAME', 'esotera' );
+
+// Every other page on the site keeps the band. The filters are added per request, so a page that is
+// not the Atlas page must come out of this call with none of them.
+wp_reset_postdata();
+$GLOBALS['wp_query'] = new WP_Query( array( 'post_type' => 'page', 'post__not_in' => array( $page_id ) ) );
+$GLOBALS['wp_query']->the_post();
+
+sahaj_atlas_quiet_theme_bands();
+
+sahaj_ok( 'another page keeps a Cryout hero image', false === has_filter( 'esotera_header_image_url', '__return_false' ) );
+sahaj_ok( "and OceanWP's page-title bar", false === has_filter( 'ocean_display_page_header', '__return_false' ) );
+sahaj_ok( "and Seva Lite's", false === has_filter( 'seva_lite_page_title', '__return_false' ) );
+sahaj_ok( 'and the height a Cryout hero reserves', ! in_array( 'esotera-metahide-headerimg', sahaj_atlas_body_class( array() ), true ) );
+
+wp_reset_postdata();
+$GLOBALS['wp_query'] = new WP_Query( array( 'page_id' => $page_id ) );
+$GLOBALS['wp_query']->the_post();
+
+sahaj_atlas_quiet_theme_bands();
+
+sahaj_ok( 'the Atlas page drops a Cryout hero image', false !== has_filter( 'esotera_header_image_url', '__return_false' ) );
+sahaj_ok( "and OceanWP's page-title bar", false !== has_filter( 'ocean_display_page_header', '__return_false' ) );
+sahaj_ok( "and Seva Lite's", false !== has_filter( 'seva_lite_page_title', '__return_false' ) );
+
+// Dropping the image is not enough on its own: `esotera-cropped-headerimage` gives the empty box a
+// definite height, and only this class releases it.
+sahaj_ok( 'and the height that hero reserved', in_array( 'esotera-metahide-headerimg', sahaj_atlas_body_class( array() ), true ) );
+
+remove_filter( 'esotera_header_image_url', '__return_false' );
+remove_filter( 'ocean_display_page_header', '__return_false' );
+remove_filter( 'seva_lite_page_title', '__return_false' );
+
+// ---------------------------------------------------------------------------------------------
+
 sahaj_group( 'Path routing matches the subtree and nothing else' );
 
 update_option( 'permalink_structure', '/%postname%/' );

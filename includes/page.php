@@ -153,12 +153,57 @@ function sahaj_atlas_template_include( $template ) {
  * parent's variant would drop, so a child theme keeps it. Add a theme only after checking its
  * source.
  *
+ * ⚠ A theme that ships no variant may still publish a hook for the band.
+ * `sahaj_atlas_quiet_theme_bands()` is that half, and most themes answer there instead.
+ *
  * @return string|null The header name, or null for the theme's default `header.php`.
  */
 function sahaj_atlas_header_name() {
 	// Mesmerize's `header-small.php` is `header.php` without the `.header-wrapper` hero, and puts
 	// the nav bar in flow. In `header.php` the nav is `position: absolute` over the hero.
 	return in_array( get_stylesheet(), array( 'mesmerize', 'mesmerize-pro' ), true ) ? 'small' : null;
+}
+
+/**
+ * Switch a theme's decorative band off on the Atlas page, through the theme's own switch.
+ *
+ * A hero image or a page-title strip leaves the atlas too short for the map, and the visitor gets
+ * the widget's compact card. Only decoration the theme itself lets a page turn off may go. The
+ * site's branding and navigation never do.
+ *
+ * ⚠ A hook the theme publishes, never a CSS rule of ours over the theme's own: the rest of the
+ * header is laid out around whatever the theme decided to print, so hiding one piece of it leaves
+ * the others misplaced. That is the same reason `sahaj_atlas_header_name()` asks for a variant.
+ *
+ * ⚠ Not gated on the active theme. A filter nobody applies costs nothing, and a gate is one more
+ * list to drift. Every name below is read from that theme's source, and `pnpm test:browser`
+ * measures the free editions. A Plus edition is covered only where it kept the filter, and 4 fleet
+ * sites run Esotera Plus — confirm it there before relying on it.
+ */
+function sahaj_atlas_quiet_theme_bands() {
+	if ( ! sahaj_atlas_is_atlas_page() ) {
+		return;
+	}
+
+	/*
+	 * Esotera and Fluida — Cryout themes, 5 fleet sites.
+	 *
+	 * ⚠ Filter the image away. Do not remove the `cryout_headerimage_hook` action that prints it,
+	 * though that is the shorter route: Esotera's `esotera-over-menu` body class, on by default,
+	 * lifts the masthead out of flow and recolours its text to read against the image, and the theme
+	 * adds that class only when this same filter yields one. Remove the action instead, and the menu
+	 * stays light-on-light with nothing behind it.
+	 */
+	if ( defined( '_CRYOUT_THEME_NAME' ) ) {
+		add_filter( _CRYOUT_THEME_NAME . '_header_image_url', '__return_false' );
+	}
+
+	// OceanWP's page-title strip. The theme gates it on this filter for its own distraction-free
+	// modes, so a page without the strip is a shape OceanWP already ships.
+	add_filter( 'ocean_display_page_header', '__return_false' );
+
+	// Seva Lite's page-title strip, breadcrumbs included.
+	add_filter( 'seva_lite_page_title', '__return_false' );
 }
 
 /**
@@ -174,6 +219,17 @@ function sahaj_atlas_header_name() {
 function sahaj_atlas_body_class( $classes ) {
 	if ( sahaj_atlas_is_atlas_page() ) {
 		$classes[] = 'sahaj-atlas-page';
+
+		/*
+		 * ⚠ A Cryout theme reserves the hero's height whether or not a hero prints, so dropping the
+		 * image in `sahaj_atlas_quiet_theme_bands()` buys nothing on its own: Esotera's default
+		 * `esotera-cropped-headerimage` gives `#header-image-main-inside` a definite 550px. This
+		 * class is the theme's own release for that box: its stylesheet carries the rule, and its PHP
+		 * never writes the class. Switching it on is the theme's mechanism, not a rule of ours.
+		 */
+		if ( defined( '_CRYOUT_THEME_NAME' ) ) {
+			$classes[] = _CRYOUT_THEME_NAME . '-metahide-headerimg';
+		}
 	}
 
 	return $classes;

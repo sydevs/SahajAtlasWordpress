@@ -133,6 +133,7 @@ const PANEL_SEED = `set_transient(sahaj_atlas_client_slot(sahaj_atlas_api_key())
  * @property {string} [seed]         extra PHP, appended to the shared seed
  * @property {'template'|'content'} [render]  which print must render the element; `template` default
  * @property {boolean} [panel]       also read the status panel, as the volunteer sees it
+ * @property {boolean} [band]        this theme's decorative band is switched off on the Atlas page
  * @property {string} [known]        why this cell is expected to fail today
  */
 
@@ -140,13 +141,13 @@ const PANEL_SEED = `set_transient(sahaj_atlas_client_slot(sahaj_atlas_api_key())
 const CELLS = [
   // Every free theme the fleet runs (#37's scan), plus the two bundled block themes.
   { name: 'astra', theme: 'astra', sidebar: true },
-  // OceanWP's page-title bar takes 205px above the map; the interface still fits (#37).
-  { name: 'oceanwp', theme: 'oceanwp' },
   { name: 'mesmerize', theme: 'mesmerize' },
-  { name: 'esotera', theme: 'esotera', known: 'header.php prints #header-image-main and ships no hero-less variant (#37)' },
-  { name: 'fluida', theme: 'fluida', known: 'header image and breadcrumb bar from header.php (#37)' },
   { name: 'popularfx', theme: 'popularfx' },
-  { name: 'seva-lite', theme: 'seva-lite', known: 'page-title bar from header.php, in a boxed container (#37)' },
+  // The four themes whose band `sahaj_atlas_quiet_theme_bands()` switches off (#37).
+  { name: 'oceanwp', theme: 'oceanwp', band: true },
+  { name: 'esotera', theme: 'esotera', band: true },
+  { name: 'fluida', theme: 'fluida', band: true },
+  { name: 'seva-lite', theme: 'seva-lite', band: true },
   { name: 'enigma', theme: 'enigma' },
   { name: 'twentytwenty', theme: 'twentytwenty' },
   { name: 'twentytwentyfour', theme: 'twentytwentyfour' },
@@ -503,6 +504,12 @@ async function checkAtlasPage(browser, cell, viewport, port) {
       m.headerBottom === null || m.headerBottom <= m.element.top + 1,
       m.headerBottom === null ? 'no header found' : `header bottom ${m.headerBottom}, element top ${m.element.top}`,
     )
+    // ⚠ The check above passes when no header is found at all, which is exactly what switching a
+    // band off could cause. A `band` cell asserts the masthead is still there to find.
+    if (cell.band) {
+      fit(`${label}: the theme's own header outlived its band`, m.headerBottom !== null, `no header above the element at top ${m.element.top}`)
+    }
+
     fit(`${label}: no script error`, log.errors().length === 0, log.errors().join(' | '))
     widget(`${label}: every drawer and dialog is inside the widget`, m.strayPortals === 0, `${m.strayPortals} outside`)
     widget(`${label}: <html> carries no theme class or brand vars`, !/\b(light|dark)\b/.test(m.htmlClass) && !m.htmlVars.includes('--primary'), `class="${m.htmlClass}" style="${m.htmlVars.slice(0, 80)}"`)
