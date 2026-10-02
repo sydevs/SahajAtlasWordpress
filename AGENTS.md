@@ -218,7 +218,7 @@ PHP. The fifth runs the one shipped script in plain node.
 | Measure | `pnpm test:measure` | `assets/atlas-page.js`'s header arithmetic, against a stubbed geometry |
 | Behaviour | `pnpm test` | The behaviour suite, in a booted WordPress 6.7 / PHP 7.4 |
 | Render | `pnpm test:render` | Real HTTP requests against a real server, per theme kind |
-| Browser | `pnpm test:browser` | The production widget in Chromium, in every free theme the fleet runs, plus page builders and hostile conditions. Local only; needs the network, `SAHAJ_ATLAS_TEST_KEY` (the "Sahaj Atlas (Local Test Key)" client's key, from a SahajCloud admin) in `.env.claude.local`, and Chromium (`pnpm exec playwright-core install chromium`, once). `--only <cell,…>` runs a subset, `--list` names them. |
+| Browser | `pnpm test:browser` | The production widget in Chromium, in every free theme the fleet runs, plus page builders and hostile conditions. Local only; needs the network, `SAHAJ_ATLAS_TEST_KEY` (the "Sahaj Atlas (Local Test Key)" client's key, from a SahajCloud admin) in `.env.claude.local`, and Chromium (`pnpm exec playwright-core install chromium`, once). `--only <cell,…>` runs a subset, `--list` names them. `SAHAJ_ATLAS_WIDGET_FROM=<preview origin>` judges a SahajAtlasWeb PR's Cloudflare preview instead of production. |
 
 `pnpm test:all` runs the first four. The browser lane is the one that sees what a theme's CSS,
 the sizing script and the widget do to the page once a browser runs it, which is where every
@@ -234,6 +234,8 @@ file, including broken ones, and three early render assertions passed against a 
 
 More traps apply here. Their inline `⚠` comments carry the full detail.
 
+- Run one lane at a time. `pnpm test` deletes `.test-network.txt`, the log every lane's
+  no-network assertion reads, so a lane running beside it fails that assertion for no reason.
 - Every lane refuses outbound HTTP by default, through an mu-plugin each blueprint writes. A lane
   that needs an answer stubs it or seeds the transient; an unstubbed call is recorded and fails the
   run. Never reach the real endpoint to make a lane pass. A request to the instance's own host is

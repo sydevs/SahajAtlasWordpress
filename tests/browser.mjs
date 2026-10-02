@@ -54,11 +54,13 @@ const VIEWPORTS = [
 ]
 
 /**
- * Where the widget comes from. Production, by decision: the lane tests what sites get. A local
- * build could be served instead by routing `https://sahajatlas.com/**` to `../SahajAtlasWeb/dist`,
- * once that build points at the production API.
+ * Where the widget comes from. Production, by decision: the lane tests what sites get.
+ * `SAHAJ_ATLAS_WIDGET_FROM=https://<hash>.sahajatlas.pages.dev` answers for it from a SahajAtlasWeb
+ * preview deployment instead, so a widget PR can be judged in every theme before it ships. The page
+ * still asks sahajatlas.com, as the plugin prints it.
  */
 const WIDGET_ORIGIN = 'https://sahajatlas.com'
+const WIDGET_FROM = process.env.SAHAJ_ATLAS_WIDGET_FROM?.replace(/\/+$/, '') || null
 
 // ── The cells ────────────────────────────────────────────────────────────────────────────────
 
@@ -309,21 +311,64 @@ function clientRecord(port) {
 }
 
 /**
- * Stub the two SahajCloud calls the lane must not make for real. Every other read goes through.
+ * Stub the two SahajCloud calls the lane must not make for real, serve the widget from a preview
+ * when asked, and install `laneDom` in every page. Every other read goes through.
  *
  * @param {import('playwright-core').BrowserContext} context
  * @param {number} port
  */
-async function stubApi(context, port) {
+async function prepare(context, port) {
   const headers = { 'access-control-allow-origin': '*', 'content-type': 'application/json' }
 
   await context.route('**/clients/me*', (route) => route.fulfill({ status: 200, headers, body: JSON.stringify(clientRecord(port)) }))
   await context.route('**/clients/report*', (route) => route.fulfill({ status: 200, headers, body: '{"ok":true}' }))
+  await context.addInitScript(installLaneDom)
+
+  if (WIDGET_FROM) {
+    await context.route(`${WIDGET_ORIGIN}/**`, async (route) => {
+      const url = new URL(route.request().url())
+
+      await route.fulfill({ response: await route.fetch({ url: WIDGET_FROM + url.pathname + url.search }) })
+    })
+  }
+}
+
+/**
+ * Read the widget through `<sahaj-atlas>`'s open shadow root, where it renders since
+ * SahajAtlasWeb#243, or through the light DOM, where it rendered before. Runs in the page, before
+ * its scripts, so `measure()` and the overlay check share one definition.
+ *
+ * ⚠ `document.elementFromPoint` stops at a shadow host. A point over the search box answers
+ * `<sahaj-atlas>` itself, which no node inside the widget contains, so every hit test would fail.
+ * `hit` descends.
+ */
+function installLaneDom() {
+  const host = () => document.querySelector('sahaj-atlas')
+  const shadow = () => host()?.shadowRoot ?? null
+
+  globalThis.laneDom = {
+    scope: () => (shadow() ?? host())?.querySelector('.sy-atlas') ?? null,
+    find: (selector) => document.querySelector(selector) ?? shadow()?.querySelector(selector) ?? null,
+    findAll: (selector) => [...document.querySelectorAll(selector), ...(shadow()?.querySelectorAll(selector) ?? [])],
+    hit: (x, y) => {
+      let node = document.elementFromPoint(x, y)
+
+      while (node?.shadowRoot) {
+        const inner = node.shadowRoot.elementFromPoint(x, y)
+
+        if (!inner || inner === node) break
+        node = inner
+      }
+
+      return node
+    },
+  }
 }
 
 /**
  * What the lane measures on a page. Plugin verdicts read layout and the widget's documented surface
- * only: `<sahaj-atlas>`, its `.sy-atlas` scope, its console warnings and its readiness marker.
+ * only: `<sahaj-atlas>`, its `.sy-atlas` scope (inside the element's shadow root, since
+ * SahajAtlasWeb#243), its console warnings and its readiness marker.
  * Widget internals (`[data-vaul-drawer]` and the like) feed WIDGET findings, never a plugin FAIL,
  * because the widget comes unpinned from production.
  *
@@ -335,9 +380,12 @@ function measure() {
   if (!element) return { element: null }
 
   const rect = element.getBoundingClientRect()
-  const scope = element.querySelector('.sy-atlas')
+  const scope = laneDom.scope()
+  // ⚠ Not inside the map. Mapbox's own stylesheet sets Helvetica Neue on its container, so its
+  // attribution link and zoom buttons — the first `a` and `button` in the scope — read as a theme
+  // leak in every cell.
   const probe = (selector) => {
-    const node = scope?.querySelector(selector)
+    const node = [...(scope?.querySelectorAll(selector) ?? [])].find((candidate) => !candidate.closest('.mapboxgl-map'))
 
     return node ? getComputedStyle(node) : null
   }
@@ -348,8 +396,8 @@ function measure() {
   const headerBottom = headers.length ? Math.max(...headers.map((box) => box.bottom)) : null
   const input = scope?.querySelector('input')
   const inputBox = input?.getBoundingClientRect()
-  const hitAtInput = inputBox ? document.elementFromPoint(inputBox.x + inputBox.width / 2, inputBox.y + inputBox.height / 2) : null
-  const strayPortals = [...document.querySelectorAll('[data-vaul-drawer], [data-sy-expanded], [role="dialog"][id^="radix-"]')].filter((node) => !scope?.contains(node)).length
+  const hitAtInput = inputBox ? laneDom.hit(inputBox.x + inputBox.width / 2, inputBox.y + inputBox.height / 2) : null
+  const strayPortals = laneDom.findAll('[data-vaul-drawer], [data-sy-expanded], [role="dialog"][id^="radix-"]').filter((node) => !scope?.contains(node)).length
   const icon = probe('svg path')
 
   return {
@@ -442,7 +490,7 @@ async function checkAtlasPage(browser, cell, viewport, port) {
   const label = `${cell.name} @ ${viewport.name}`
 
   try {
-    await stubApi(context, port)
+    await prepare(context, port)
 
     if (cell.login) await login(context, base)
 
@@ -534,7 +582,7 @@ async function checkSidebar(browser, cell, port) {
   const label = `${cell.name} @ sidebar`
 
   try {
-    await stubApi(context, port)
+    await prepare(context, port)
 
     const page = await context.newPage()
     const log = collectConsole(page, label)
@@ -581,16 +629,16 @@ async function checkOverlay(page, label, screenshot) {
 
   if (!opened) return
 
-  await page.waitForFunction(() => document.querySelector('[data-sy-expanded] [data-vaul-drawer]'), null, { timeout: 30000 }).catch(() => {})
+  await page.waitForFunction(() => laneDom.find('[data-sy-expanded] [data-vaul-drawer]'), null, { timeout: 30000 }).catch(() => {})
   await sleep(2000)
 
   const m = await page.evaluate(() => {
-    const dialog = document.querySelector('[data-sy-expanded]')
+    const dialog = laneDom.find('[data-sy-expanded]')
     const close = [...dialog.querySelectorAll('button')].find((b) => /close/i.test(b.getAttribute('aria-label') ?? ''))
     const hit = (node) => {
       if (!node) return false
       const box = node.getBoundingClientRect()
-      const top = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
+      const top = laneDom.hit(box.x + box.width / 2, box.y + box.height / 2)
 
       return !!top && dialog.contains(top)
     }
@@ -634,7 +682,7 @@ async function checkPanel(browser, cell, port) {
   const label = `${cell.name} @ panel`
 
   try {
-    await stubApi(context, port)
+    await prepare(context, port)
     await login(context, base)
 
     const page = await context.newPage()
