@@ -104,7 +104,8 @@ foreach ( $files as $file ) {
 
 			// A translators: comment only reaches the .pot while it still sits
 			// immediately before its gettext call. Anything inserted between the
-			// two drops the context for all 34 locales, with nothing to notice.
+			// two ships the string with no explanation of its placeholders, and
+			// the .pot is the only context a translator ever gets.
 			if ( preg_match( '/^\s*\/[\/*]\s*translators\s*:/', $text ) ) {
 				// Scan only as far as the first statement terminator. WP-CLI wants the
 				// comment IMMEDIATELY before the call, so anything with its own `;` in

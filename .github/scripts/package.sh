@@ -59,6 +59,11 @@ ZIP="sahaj-atlas-$VERSION.zip"
 rm -rf "$OUT/sahaj-atlas" "${OUT:?}/$ZIP"
 mkdir -p "$OUT/sahaj-atlas"
 rsync -a --exclude-from="$SRC/.distignore" "$SRC/" "$OUT/sahaj-atlas/"
+
+# ⚠ Built into the staged copy, never committed: `make-pot` stamps a POT-Creation-Date, so a
+# committed template would conflict on every branch.
+"$(dirname "$0")/i18n.sh" "$OUT/sahaj-atlas"
+
 (cd "$OUT" && zip -qr "$ZIP" sahaj-atlas)
 
 LISTING=$(unzip -Z1 "$OUT/$ZIP")
@@ -67,9 +72,32 @@ LISTING=$(unzip -Z1 "$OUT/$ZIP")
 	fail "The zip must hold one top-level folder, sahaj-atlas."
 
 # Without the update checker, an installed copy never hears of the next release.
-for required in sahaj-atlas/sahaj-atlas.php sahaj-atlas/vendor/plugin-update-checker/plugin-update-checker.php; do
+# Without the POT a translator has nothing to start from, and the 60-odd wrapped admin strings stay
+# English in every locale however the site is configured (#17).
+for required in sahaj-atlas/sahaj-atlas.php sahaj-atlas/vendor/plugin-update-checker/plugin-update-checker.php sahaj-atlas/languages/sahaj-atlas.pot; do
 	grep -qxF "$required" <<<"$LISTING" || fail "The zip is missing $required."
 done
+
+# ⚠ The count, not just the file. A `make-pot` narrowed by a stray `--exclude`, or pointed at the
+# wrong directory, still writes a valid template — one holding nothing but the plugin headers. That
+# ships green and leaves every string untranslatable, which is the defect this check exists for.
+# The floor is well under the real count, so ordinary string churn never trips it.
+POT_STRINGS=$(unzip -p "$OUT/$ZIP" sahaj-atlas/languages/sahaj-atlas.pot | grep -c '^msgid "')
+[ "$POT_STRINGS" -ge 60 ] ||
+	fail "languages/sahaj-atlas.pot holds $POT_STRINGS strings, fewer than the 60 this plugin wraps."
+
+# ⚠ A `.po` is the one translation file anyone commits, and the one file neither reader can use:
+# PHP reads the `.mo`, `wp.i18n` reads the `.json`. A `.po` that reaches the zip alone is therefore a
+# translation that silently stays English, which is the defect #17 fixed arriving back through the
+# build. This is also what puts `i18n.sh`'s make-mo/make-json branch under CI: the branch has no
+# input until the first `.po` is committed, and that same `.po` is what switches this check on.
+while read -r po; do
+	[ -n "$po" ] || continue
+	LOCALE=${po#sahaj-atlas/languages/sahaj-atlas-}
+	LOCALE=${LOCALE%.po}
+	grep -qxF "sahaj-atlas/languages/sahaj-atlas-$LOCALE.mo" <<<"$LISTING" ||
+		fail "The zip holds sahaj-atlas-$LOCALE.po with no .mo beside it, so i18n.sh built no translation."
+done <<<"$(grep -E '^sahaj-atlas/languages/sahaj-atlas-[^/]+\.po$' <<<"$LISTING" || true)"
 
 LEAKED=$(printf '%s\n' "$LISTING" |
 	grep -E '^sahaj-atlas/(\.git|\.github|\.claude|tests|docs|node_modules|build)/|^sahaj-atlas/(package\.json|pnpm-lock\.yaml|\.mcp\.json|AGENTS\.md|CLAUDE\.md|README\.md)$' ||
