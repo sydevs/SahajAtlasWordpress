@@ -4,7 +4,7 @@ Tags: meditation, map, events, classes
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.2.1
+Stable tag: 0.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -120,6 +120,29 @@ Settings → Sahaj Atlas names where the map rendered. If that row is red, send 
 maintainers.
 
 == Changelog ==
+
+= 0.3.0 =
+* The Atlas page now renders the map even when a page builder or another template takes the page
+  over. The map then sits in the page's content area, with your site's footer below it.
+* The status panel gained three rows. One shows which part of your page printed the map. One
+  checks that the map's script tag reached the page unchanged. One shows how search engines find
+  the atlas sitemap, and gives the line to add to your `robots.txt` file when the plugin cannot.
+* The plugin can now load translations of its settings screen. Translators can start from the
+  template file shipped in `languages/`. No translation ships yet.
+* Fixed: when a theme's header is fixed to the top of the screen, it no longer covers the map,
+  the search box or the top of the side panel.
+* Fixed: when a cookie banner, a late-loading logo or a wrapping menu makes the header taller, the
+  map now shrinks to fit. Before, its bottom edge slid off the screen.
+* Fixed: on Twenty Twenty-Four, Twenty Twenty-Five, PopularFX and Mesmerize, the map now reaches
+  the bottom of the screen. Before, it stopped a few pixels short.
+* Fixed: on sites running Yoast, country, city and class pages now carry the title Sahaj Atlas
+  writes for them. On some themes they had no title at all.
+* Fixed: on sites with plain or `index.php` permalinks, the plugin no longer gives search engines a
+  sitemap address that leads to a "not found" page.
+* Fixed: a theme without its own header file no longer shows a 2010-era default header on the
+  Atlas page.
+* Changed: the readme's advice for page-builder sites now describes what actually happens. The
+  `[sahaj_atlas]` shortcode is for your other pages, not the Atlas page.
 
 = 0.2.1 =
 * Fixed: on the Mesmerize and Mesmerize Pro themes, the Atlas page no longer shows the theme's
