@@ -13,6 +13,11 @@ playwright-report/
 build/
 *.zip
 
+# Built into the zip by .github/scripts/i18n.sh. Only a .po is ever committed.
+languages/*.pot
+languages/*.mo
+languages/*.json
+
 # Editors and OS
 .DS_Store
 .idea/

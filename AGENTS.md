@@ -157,7 +157,15 @@ the full story.
     that presenter leaves a classic theme with no `<title>` element at all. Both halves are
     invisible from inside this plugin: the page returns 200 with a full `<head>` either way. See
     seo.php:102,188, tests/fixtures/fake-yoast.php.
-24. The sitemap's address follows the permalink shape, and two shapes break it. An `index.php`
+24. Wrapping a string in `__()` delivers nothing on its own. Three separate pieces have to be in
+    place before any locale sees a translation, and none of them implies the others. `Domain Path`
+    is a hint to tooling and loads nothing. `load_plugin_textdomain()` is what makes the registry
+    look inside the plugin at all — without it only `WP_LANG_DIR/plugins/` is searched, where a
+    wordpress.org language pack would land, and this plugin ships from GitHub Releases.
+    `wp_set_script_translations()` covers a second, independent reader: `wp.i18n` reads a `.json`
+    keyed on an md5 of the script's path, never the `.mo`. Each piece fails silently in English.
+    See sahaj-atlas.php:108, embed.php:409, tests/i18n.php.
+25. The sitemap's address follows the permalink shape, and two shapes break it. An `index.php`
     structure needs the prefix core keeps in `$wp_rewrite->root`, and cannot publish a `Sitemap:`
     line at all, so check 6 warns and names the line to paste. A plain structure can serve nothing,
     so both index entries and the `robots.txt` line are withheld — `/?robots=1` reaches that filter
@@ -272,6 +280,12 @@ Ask, do not guess, when these docs and the code disagree. The code is what ships
   directory, the installed folder, and Plugin Update Checker's third argument. Confirmed free on
   wordpress.org as of 2026-08-25.
 - The text domain is `sahaj-atlas`, matching the slug.
+- **A `.po` file is the only translation anyone commits.** `.github/scripts/i18n.sh` builds the
+  `.pot` template, the `.mo` PHP reads and the `.json` files `wp.i18n` reads into the staged plugin
+  at package time, so `.gitignore` refuses all three. `package.sh` calls that script between staging
+  and zipping, which is why the zip CI inspects and the zip a release publishes cannot disagree. It
+  then refuses a zip holding a `.po` with no `.mo` beside it — the shape a translation takes when it
+  ships unread.
 - PHP follows WordPress coding standards, with real tabs — `.editorconfig` enforces this.
 - Pass every value reaching markup through the escape its sink wants: `esc_attr()` for an
   attribute, `esc_url()` for a URL, `esc_html()` for text — the `<title>` element included. The one

@@ -403,6 +403,7 @@ require __DIR__ . '/contract.php';
 require __DIR__ . '/sitemap.php';
 require __DIR__ . '/domains.php';
 require __DIR__ . '/seo.php';
+require __DIR__ . '/i18n.php';
 
 // ---------------------------------------------------------------------------------------------
 
