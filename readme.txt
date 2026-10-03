@@ -138,6 +138,9 @@ maintainers.
   the atlas sitemap, and gives the line to add to your `robots.txt` file when the plugin cannot.
 * The plugin can now load translations of its settings screen. Translators can start from the
   template file shipped in `languages/`. No translation ships yet.
+* Fixed: on the Esotera, Fluida, OceanWP and Seva Lite themes, the Atlas page leaves out the
+  theme's header image or page-title band, using the theme's own switch for it. The full map now
+  fits instead of a single "Find a class near you" button. Your logo and menu stay.
 * Fixed: when a theme's header is fixed to the top of the screen, it no longer covers the map,
   the search box or the top of the side panel.
 * Fixed: when a cookie banner, a late-loading logo or a wrapping menu makes the header taller, the
