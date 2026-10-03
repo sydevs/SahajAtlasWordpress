@@ -113,6 +113,7 @@ function sahaj_atlas_load_textdomain() {
 add_action( 'parse_request', 'sahaj_atlas_parse_request' );
 add_filter( 'redirect_canonical', 'sahaj_atlas_suppress_canonical_redirect' );
 add_action( 'template_redirect', 'sahaj_atlas_resolve_and_enqueue' );
+add_action( 'template_redirect', 'sahaj_atlas_quiet_theme_bands' );
 // ⚠ This hook runs at priority 11, after the embed resolves at priority 10. This means the SEO
 // takeover runs only on a page that already carries the widget. The route validates itself, in
 // `sahaj_atlas_query_route()` — the resolver does not, since the Atlas page's embed carries no

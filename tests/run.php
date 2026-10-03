@@ -193,14 +193,28 @@ sahaj_ok( 'is recognised as ours', sahaj_atlas_is_atlas_page( $page_id ) );
 sahaj_is( 'carries our template', SAHAJ_ATLAS_TEMPLATE . '.php', get_post_meta( $page_id, '_wp_page_template', true ) );
 sahaj_is( 'is the only one', array(), sahaj_atlas_stray_pages() );
 
+/*
+ * ⚠ The page this is compared against is a page, never a page archive.
+ * `sahaj_atlas_is_atlas_page()` returns false before it compares ids when `is_page()` is false, so
+ * an archive query passes however broken the comparison is — and passed while the guard read only
+ * `is_page()`.
+ */
+$sahaj_plain_page = wp_insert_post(
+	array(
+		'post_type'   => 'page',
+		'post_status' => 'publish',
+		'post_title'  => 'Not the atlas',
+	)
+);
+
 // `body_class` is filtered globally. It must add the class on our page, and on no other.
-$GLOBALS['wp_query'] = new WP_Query( array( 'page_id' => $page_id ) );
+$GLOBALS['wp_query'] = sahaj_query_page();
 $GLOBALS['wp_query']->the_post();
 
 sahaj_ok( 'adds a body class on the Atlas page', in_array( 'sahaj-atlas-page', sahaj_atlas_body_class( array( 'page' ) ), true ) );
 
 wp_reset_postdata();
-$GLOBALS['wp_query'] = new WP_Query( array( 'post_type' => 'page', 'post__not_in' => array( $page_id ) ) );
+$GLOBALS['wp_query'] = sahaj_query_page( $sahaj_plain_page );
 
 sahaj_ok( 'and not on any other page', ! in_array( 'sahaj-atlas-page', sahaj_atlas_body_class( array( 'page' ) ), true ) );
 
@@ -237,6 +251,74 @@ foreach ( array( 'mesmerize', 'mesmerize-pro' ) as $sahaj_theme ) {
 	remove_filter( 'stylesheet', 'sahaj_as_child_theme' );
 	remove_filter( 'template', $sahaj_as_theme );
 }
+
+// ---------------------------------------------------------------------------------------------
+
+sahaj_group( 'The Atlas page switches a theme band off, through the theme itself' );
+
+/**
+ * The band switches, as one list: the theme's own hook, the callback, and what each assertion calls
+ * it. Adding a theme to `sahaj_atlas_quiet_theme_bands()` is then one row here, not three edits.
+ *
+ * ⚠ The Cryout release class is not here. It rides `sahaj_atlas_body_class()`, which is registered
+ * from file scope and gated on the page itself, so it is asserted against that function's return.
+ *
+ * @return array[] Hook name, callback, and the words each assertion uses for it.
+ */
+function sahaj_band_switches() {
+	return array(
+		array( 'esotera_header_image_url', '__return_false', 'a Cryout hero image' ),
+		array( 'ocean_display_page_header', '__return_false', "OceanWP's page-title bar" ),
+		array( 'seva_lite_page_title', '__return_false', "Seva Lite's" ),
+	);
+}
+
+/**
+ * ⚠ `_CRYOUT_THEME_NAME` is a constant, so this is the only moment the suite can see a theme that
+ * is not a Cryout theme. Assert the absence first, then define it for everything below.
+ */
+wp_reset_postdata();
+$GLOBALS['wp_query'] = sahaj_query_page();
+
+sahaj_atlas_quiet_theme_bands();
+
+sahaj_ok( 'a theme that is not a Cryout theme gets no release class', array( 'sahaj-atlas-page' ) === sahaj_atlas_body_class( array() ) );
+
+// The theme-agnostic switches landed on that call. Take them off, or the next pass reads them as a
+// leak onto another page.
+foreach ( sahaj_band_switches() as list( $sahaj_hook, $sahaj_callback ) ) {
+	remove_filter( $sahaj_hook, $sahaj_callback );
+}
+
+define( '_CRYOUT_THEME_NAME', 'esotera' );
+
+// Every other page on the site keeps its band. The switches are registered per request, so a page
+// that is not the Atlas page must come out of this call with none of them.
+wp_reset_postdata();
+$GLOBALS['wp_query'] = sahaj_query_page( $sahaj_plain_page );
+
+sahaj_atlas_quiet_theme_bands();
+
+foreach ( sahaj_band_switches() as list( $sahaj_hook, $sahaj_callback, $sahaj_name ) ) {
+	sahaj_ok( "another page keeps $sahaj_name", false === has_filter( $sahaj_hook, $sahaj_callback ) );
+}
+
+sahaj_ok( 'another page keeps the height that hero reserved', ! in_array( 'esotera-metahide-headerimg', sahaj_atlas_body_class( array() ), true ) );
+
+wp_reset_postdata();
+$GLOBALS['wp_query'] = sahaj_query_page();
+
+sahaj_atlas_quiet_theme_bands();
+
+foreach ( sahaj_band_switches() as list( $sahaj_hook, $sahaj_callback, $sahaj_name ) ) {
+	sahaj_ok( "the Atlas page drops $sahaj_name", false !== has_filter( $sahaj_hook, $sahaj_callback ) );
+
+	remove_filter( $sahaj_hook, $sahaj_callback );
+}
+
+// The release class names the theme, so the one switch that is not a bare `__return_false` is also
+// checked for what it produces.
+sahaj_is( 'the Atlas page drops the height that hero reserved', array( 'sahaj-atlas-page', 'esotera-metahide-headerimg' ), sahaj_atlas_body_class( array() ) );
 
 // ---------------------------------------------------------------------------------------------
 
