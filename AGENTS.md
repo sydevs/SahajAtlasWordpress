@@ -178,6 +178,9 @@ the full story.
     composer, and one `sahaj_atlas_sitemap_is_servable()` beside it — anything that spells either
     answer a second time is free to disagree with it. See sitemap.php:62,77,86,287,333,
     diagnostics.php:545,564.
+26. Dropping a theme's hero does not reclaim the space it held, so the fix is two of the theme's
+    own switches: the filter that yields no image, and the class whose rule releases the box. Which
+    switch, and why not the shorter route, are both load-bearing. See page.php:193,218.
 
 ## What is built
 
@@ -188,7 +191,7 @@ check, the measurement checks, the PHP suite, then the render checks.
 | --- | --- |
 | `includes/embed.php` | Resolves the page's one embed, builds the script URL, prints the element |
 | `assets/atlas-page.{css,js}` | Sizes the element below the theme's header, in flow or fixed — the contained-map opt-in |
-| `includes/page.php` | Owns the Atlas page and both template paths |
+| `includes/page.php` | Owns the Atlas page, both template paths, and the theme-band switches |
 | `includes/routing.php` | Matches `parse_request`, reads `?atlas=`, and suppresses the canonical redirect |
 | `includes/shortcode.php` | Runs `[sahaj_atlas]`, sharing the block's render body |
 | `includes/settings.php` | Holds the two options, the settings screen, and the create-page button |
