@@ -417,6 +417,10 @@ function measure(band) {
   }
   const headers = [...document.querySelectorAll('header, #page-top, #masthead, .site-header, [data-elementor-type="header"], #wpadminbar')]
     .filter((node) => !element.contains(node))
+    // ⚠ A header whose bar is fixed occupies nothing: Fluida's desktop `<header id="masthead">`
+    // measures 0px, with its menu in a fixed child. Measure the children then, or the masthead
+    // reads as gone.
+    .flatMap((node) => (node.getBoundingClientRect().height > 0 ? [node] : [...node.children]))
     .map((node) => node.getBoundingClientRect())
     .filter((box) => box.height > 0 && box.top < rect.top + 1)
   const headerBottom = headers.length ? Math.max(...headers.map((box) => box.bottom)) : null
@@ -803,7 +807,8 @@ async function checkPanel(browser, cell, port) {
 
     const { fit } = scope
     const placement = rows.find((row) => /placement/i.test(row.label))
-    const script = rows.find((row) => /script/i.test(row.label))
+    // ⚠ A word match: "Page description" contains `script`, and sits above this row.
+    const script = rows.find((row) => /\bscript\b/i.test(row.label))
 
     fit(`${label}: both loopback rows are shown`, !!placement && !!script, rows.map((row) => `${row.glyph} ${row.label}`).join(' | '))
 
