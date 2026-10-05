@@ -144,6 +144,13 @@ maintainers.
 * The status panel gained three rows. One shows which part of your page printed the map. One
   checks that the map's script tag reached the page unchanged. One shows how search engines find
   the atlas sitemap, and gives the line to add to your `robots.txt` file when the plugin cannot.
+* New setting: "Atlas page opens at", under Settings → Sahaj Atlas. Paste the address of your
+  country or city from sahajatlas.com, and your Atlas page opens there. The plugin checks the
+  address when you save.
+* Changed: the `[sahaj_atlas]` shortcode and the Sahaj Atlas block now show the map unless you add
+  `map="false"`. The map takes the full width of its column, three wide for every four tall, and
+  visitors scroll past it like the rest of the page — the map moves with two fingers, or with Ctrl
+  (⌘ on a Mac) held while scrolling. Both also accept an address pasted from sahajatlas.com.
 * The plugin can now load translations of its settings screen. Translators can start from the
   template file shipped in `languages/`. No translation ships yet.
 * Fixed: on the Esotera, Fluida, OceanWP and Seva Lite themes, the Atlas page leaves out the
@@ -163,6 +170,8 @@ maintainers.
   Atlas page.
 * Changed: the readme's advice for page-builder sites now describes what actually happens. The
   `[sahaj_atlas]` shortcode is for your other pages, not the Atlas page.
+* Changed: the README on GitHub is rewritten as a step-by-step guide to installing and setting up
+  the plugin, with examples of the shortcode.
 
 = 0.2.1 =
 * Fixed: on the Mesmerize and Mesmerize Pro themes, the Atlas page no longer shows the theme's
