@@ -68,7 +68,7 @@ function sahaj_atlas_resolve_embed() {
 	if ( sahaj_atlas_is_atlas_page() ) {
 		return array(
 			'map'    => true,
-			'atlas'  => '',
+			'atlas'  => sahaj_atlas_start_route(),
 			'source' => 'page',
 		);
 	}
@@ -159,7 +159,7 @@ function sahaj_atlas_normalize_attrs( $attrs, $source ) {
 		$map = ! in_array( strtolower( trim( $map ) ), array( '', '0', 'false', 'no' ), true );
 	}
 
-	$atlas = isset( $attrs['atlas'] ) ? sahaj_atlas_clean_route( (string) $attrs['atlas'] ) : '';
+	$atlas = isset( $attrs['atlas'] ) ? sahaj_atlas_route_from_input( (string) $attrs['atlas'] ) : '';
 
 	return array(
 		'map'    => (bool) $map,
@@ -199,6 +199,69 @@ function sahaj_atlas_clean_route( $route ) {
 	}
 
 	return $route;
+}
+
+/**
+ * A route from what a volunteer typed or pasted, or an empty string.
+ *
+ * The README tells volunteers to open their country on sahajatlas.com and paste the address, so
+ * that address has to work. So do the same view's address on their own Atlas page, in either
+ * routing shape, and a bare `gb/london`. Any other site's address names nothing here, and is
+ * refused rather than read as a path.
+ *
+ * @param string $value A route, a slug path, or an address.
+ * @return string
+ */
+function sahaj_atlas_route_from_input( $value ) {
+	$value = trim( $value );
+
+	if ( '' === $value ) {
+		return '';
+	}
+
+	if ( preg_match( '#^https?://#i', $value ) ) {
+		parse_str( (string) wp_parse_url( $value, PHP_URL_QUERY ), $args );
+
+		if ( isset( $args[ SAHAJ_ATLAS_ROUTE_PARAM ] ) && is_string( $args[ SAHAJ_ATLAS_ROUTE_PARAM ] ) ) {
+			return sahaj_atlas_clean_route( $args[ SAHAJ_ATLAS_ROUTE_PARAM ] );
+		}
+
+		$host = strtolower( (string) wp_parse_url( $value, PHP_URL_HOST ) );
+		$path = untrailingslashit( (string) wp_parse_url( $value, PHP_URL_PATH ) );
+
+		if ( strtolower( (string) wp_parse_url( SAHAJ_ATLAS_WIDGET_ORIGIN, PHP_URL_HOST ) ) === $host ) {
+			return sahaj_atlas_clean_route( $path );
+		}
+
+		$page = sahaj_atlas_page_id() ? get_permalink( sahaj_atlas_page_id() ) : '';
+		$base = $page ? untrailingslashit( (string) wp_parse_url( $page, PHP_URL_PATH ) ) : '';
+
+		if ( '' !== $base && strtolower( (string) wp_parse_url( $page, PHP_URL_HOST ) ) === $host && 0 === strpos( $path . '/', $base . '/' ) ) {
+			return sahaj_atlas_clean_route( (string) substr( $path, strlen( $base ) ) );
+		}
+
+		return '';
+	}
+
+	if ( 0 !== strpos( $value, '/' ) ) {
+		$value = '/' . $value;
+	}
+
+	return sahaj_atlas_clean_route( '/' === $value ? '' : untrailingslashit( $value ) );
+}
+
+/**
+ * Where the Atlas page opens: the volunteer's chosen route, or an empty string for the widget's own
+ * default — the client record's home region when SahajCloud has one, the world list otherwise.
+ *
+ * ⚠ It is the widget's `atlas` parameter, a default and never an override. A visitor whose address
+ * already names a route gets that route. And the page's metadata stays the root view's: the page's
+ * own address is still the root, and the start route has a canonical of its own.
+ *
+ * @return string
+ */
+function sahaj_atlas_start_route() {
+	return sahaj_atlas_clean_route( (string) get_option( SAHAJ_ATLAS_OPTION_START_ROUTE, '' ) );
 }
 
 /**

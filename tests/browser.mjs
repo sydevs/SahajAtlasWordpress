@@ -121,6 +121,12 @@ const ELEMENTOR_FULL_WIDTH = `update_post_meta(sahaj_atlas_page_id(), '_wp_page_
  * SahajCloud invariant. The slot comes from `sahaj_atlas_client_slot()` rather than a copy of its
  * key rule, so a change there cannot leave this seeding a slot nobody reads.
  */
+/**
+ * Set "Atlas page opens at" to the United Kingdom. The sanitiser checks a route with SahajCloud on
+ * save, and PHP is offline here, so the seed writes past it — the check has its own tests.
+ */
+const START_GB = `remove_all_filters('sanitize_option_' . SAHAJ_ATLAS_OPTION_START_ROUTE); update_option(SAHAJ_ATLAS_OPTION_START_ROUTE, '/gb');`
+
 const PANEL_SEED = `set_transient(sahaj_atlas_client_slot(sahaj_atlas_api_key()), array('name'=>'Browser lane','allowedDomains'=>'','canonical'=>array('enabled'=>true,'embed'=>sahaj_atlas_mount_key())), 3600);`
 
 /**
@@ -135,6 +141,9 @@ const PANEL_SEED = `set_transient(sahaj_atlas_client_slot(sahaj_atlas_api_key())
  * @property {string} [seed]         extra PHP, appended to the shared seed
  * @property {'template'|'content'} [render]  which print must render the element; `template` default
  * @property {boolean} [panel]       also read the status panel, as the volunteer sees it
+ * @property {string} [shows]        text the widget must show on the Atlas page — a place only the
+ *                                   seeded start route lists, never the world list. The search box
+ *                                   is then not on screen, so that check is skipped
  * @property {string} [band]         a selector for the band the Atlas page switches off, which must
  *                                   match nothing there while a header still does
  * @property {string} [known]        why this cell is expected to fail today
@@ -169,6 +178,8 @@ const CELLS = [
   { name: 'root-font', theme: 'astra', mu: { 'root-font': MU.rootFont } },
   { name: 'zindex-wrapper', theme: 'astra', mu: { 'zindex-wrapper': MU.zIndexWrapper }, sidebar: true },
   { name: 'admin-bar', theme: 'astra', login: true },
+  // The third setting reaches the widget: the Atlas page opens at a country, listing its cities.
+  { name: 'start-route', theme: 'astra', seed: START_GB, shows: 'Midlands' },
   // The page is still broken here — only diagnostics now says so, which is the whole fix (#39).
   { name: 'strip-module', theme: 'astra', mu: { 'strip-module': MU.stripModule }, panel: true, known: 'a classic script cannot run the loader; the status panel reports it, the page stays blank (#39)' },
 ]
@@ -434,6 +445,7 @@ function measure(band) {
     listStyle: probe('li')?.listStyleType ?? null,
     iconFill: icon ? icon.fill : null,
     drawerWidth: scope?.querySelector('[data-vaul-drawer]')?.getBoundingClientRect().width ?? null,
+    text: scope?.innerText?.slice(0, 4000) ?? '',
   }
 }
 
@@ -546,7 +558,8 @@ async function checkAtlasPage(browser, cell, viewport, port) {
       await checkOverlay(page, `${label} overlay`, join(SCREENSHOTS, `${cell.name}-${viewport.name}-overlay.png`))
     } else {
       fit(`${label}: the widget kept the full interface`, !compact, `${m.element.height}px below the header at top ${m.element.top}${log.dump()}`)
-      fit(`${label}: the search box is on top`, m.inputHitInScope, 'elementFromPoint at the search box lands outside the widget')
+      // A region view shows a search button, not the box, so a start route has none to test.
+      if (!cell.shows) fit(`${label}: the search box is on top`, m.inputHitInScope, 'elementFromPoint at the search box lands outside the widget')
 
       if (m.element.top > 0.2 * m.viewport.height) {
         console.log(`  info  ${label}: ${m.element.top}px of a ${m.viewport.height}px screen sits above the map; a shorter screen will get the compact card`)
@@ -559,6 +572,10 @@ async function checkAtlasPage(browser, cell, viewport, port) {
       m.headerBottom === null || m.headerBottom <= m.element.top + 1,
       m.headerBottom === null ? 'no header found' : `header bottom ${m.headerBottom}, element top ${m.element.top}`,
     )
+
+    if (cell.shows && !compact) {
+      fit(`${label}: the Atlas page opens at its start route`, m.text.includes(cell.shows), `no "${cell.shows}" in: ${m.text.replace(/\s+/g, ' ').slice(0, 160)}`)
+    }
 
     if (cell.band) {
       fit(`${label}: the theme's band is switched off`, m.bands === 0, `${m.bands} × \`${cell.band}\` still above the map`)
@@ -788,6 +805,13 @@ async function run(browser, cell, index) {
       widgetFindings += 1
       console.log(`  WIDGET ${label}${detail ? `\n        ${detail}` : ''}`)
     },
+  }
+
+  // ⚠ A server left over from an interrupted run still answers on this port, and every check
+  // below would then measure that run's site instead of this cell's — and pass or fail on it.
+  if (await fetch(`http://127.0.0.1:${port}/`).then(() => true, () => false)) {
+    scope.ok(`${cell.name}: port ${port} is free`, false, 'a server from an earlier run still answers here; stop it and run again')
+    return
   }
 
   const serverLog = join(dir, `${cell.name}.log`)

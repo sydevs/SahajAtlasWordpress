@@ -1,13 +1,15 @@
 <?php
 /**
- * The settings screen: two fields, one button, and the status panel.
+ * The settings screen: three fields, one button, and the status panel.
  *
- * ⚠ These two settings are the whole permitted surface. Every option is something to document,
+ * ⚠ These three settings are the whole permitted surface. Every option is something to document,
  * migrate, support, and get wrong, and one non-technical volunteer installs this plugin per site.
  * The locale comes from the page's `<html lang>` attribute. The routing prefix and the brand come
  * from the client record. The map flag is set per embed. Adding a setting needs a use case
  * somebody actually encountered. The second one below has one: a host that wrote its own
  * description for the Atlas page, and no way to keep it once this plugin started supplying one.
+ * So does the third: national sites want their Atlas page to open at their own country, and to
+ * choose that themselves.
  *
  * @package SahajAtlas
  */
@@ -15,7 +17,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Register the two options. On `init` — `register_setting()` takes translated labels.
+ * Register the three options. On `init` — `register_setting()` takes translated labels.
  */
 function sahaj_atlas_register_settings() {
 	register_setting(
@@ -42,6 +44,20 @@ function sahaj_atlas_register_settings() {
 			'default'           => '',
 			// ⚠ Per site, like the key. On a multisite network one site may write its own atlas
 			// description while the next one wants ours.
+			'show_in_rest'      => false,
+		)
+	);
+
+	// ⚠ Registered after the key, and the order matters: `options.php` saves in this order, so a
+	// key pasted in the same submission is already stored when this one checks its route with it.
+	register_setting(
+		'sahaj_atlas',
+		SAHAJ_ATLAS_OPTION_START_ROUTE,
+		array(
+			'type'              => 'string',
+			'label'             => __( 'Atlas page opens at', 'sahaj-atlas' ),
+			'sanitize_callback' => 'sahaj_atlas_sanitize_start_route',
+			'default'           => '',
 			'show_in_rest'      => false,
 		)
 	);
@@ -73,6 +89,95 @@ function sahaj_atlas_sanitize_checkbox( $value ) {
 }
 
 /**
+ * Store the route a volunteer pasted, once the atlas confirms it names a place.
+ *
+ * A refused or unknown address keeps the previous value and says why, so a typo never quietly
+ * sends the Atlas page to the world list. An answer that never arrives saves anyway, with a
+ * warning: an unreachable API on the day of saving says nothing about the route.
+ *
+ * ⚠ Memoised. Core runs a sanitize callback twice when an option is first added — once in
+ * `update_option()`, again in `add_option()` — which would ask SahajCloud twice and print every
+ * message twice.
+ *
+ * @param mixed $value Submitted value.
+ * @return string
+ */
+function sahaj_atlas_sanitize_start_route( $value ) {
+	static $done = array();
+
+	$input = is_string( $value ) ? trim( $value ) : '';
+
+	if ( isset( $done[ $input ] ) ) {
+		return $done[ $input ];
+	}
+
+	$previous = sahaj_atlas_start_route();
+	$route    = sahaj_atlas_route_from_input( $input );
+
+	if ( '' !== $input && '' === $route ) {
+		sahaj_atlas_start_route_notice(
+			__( 'That address is not a place in the atlas. Open your country or city on sahajatlas.com, and copy the address from your browser.', 'sahaj-atlas' )
+		);
+
+		$done[ $input ]    = $previous;
+		$done[ $previous ] = $previous;
+
+		return $previous;
+	}
+
+	if ( '' !== $route && $route !== $previous ) {
+		$answer = sahaj_atlas_seo_request( $route, '' );
+
+		if ( 404 === $answer['status'] ) {
+			sahaj_atlas_start_route_notice(
+				sprintf(
+					/* translators: %s: the route that was entered, such as /gb/london. */
+					__( 'The atlas has no country, city or class at %s, so the Atlas page still opens where it did. Check the address on sahajatlas.com.', 'sahaj-atlas' ),
+					$route
+				)
+			);
+
+			$done[ $input ]    = $previous;
+			$done[ $previous ] = $previous;
+
+			return $previous;
+		}
+
+		if ( 200 !== $answer['status'] ) {
+			sahaj_atlas_start_route_notice(
+				sprintf(
+					/* translators: %s: the route that was saved, such as /gb/london. */
+					__( 'Saved %s, but Sahaj Atlas could not be reached to check it. Open your Atlas page to make sure it shows the right place.', 'sahaj-atlas' ),
+					$route
+				),
+				'warning'
+			);
+		}
+	}
+
+	// Under its own spelling too: core's second pass hands back the route this one returned.
+	$done[ $input ] = $route;
+	$done[ $route ] = $route;
+
+	return $route;
+}
+
+/**
+ * One message under the "Atlas page opens at" field.
+ *
+ * ⚠ `add_settings_error()` exists only in wp-admin. The sanitize callback also runs for any other
+ * `update_option()` — WP-CLI, a migration, a test — where calling it would be fatal.
+ *
+ * @param string $message Already translated.
+ * @param string $type    `error` or `warning`.
+ */
+function sahaj_atlas_start_route_notice( $message, $type = 'error' ) {
+	if ( function_exists( 'add_settings_error' ) ) {
+		add_settings_error( SAHAJ_ATLAS_OPTION_START_ROUTE, 'sahaj-atlas-start-route', $message, $type );
+	}
+}
+
+/**
  * Add the settings page under Settings.
  */
 function sahaj_atlas_admin_menu() {
@@ -94,6 +199,7 @@ function sahaj_atlas_settings_page() {
 	$page_id   = sahaj_atlas_page_id();
 	$has_page  = sahaj_atlas_page_is_healthy();
 	$their_seo = sahaj_atlas_seo_host_describes_root();
+	$start     = sahaj_atlas_start_route();
 	?>
 	<div class="wrap">
 		<h1><?php echo esc_html__( 'Sahaj Atlas', 'sahaj-atlas' ); ?></h1>
@@ -149,6 +255,30 @@ function sahaj_atlas_settings_page() {
 							<?php
 							echo esc_html__(
 								'Normally Sahaj Atlas writes the title and description for your Atlas page, in each visitor\'s own language. Tick this only if you have written your own and want to keep it. Pages for a country, a city or a class are always described by Sahaj Atlas — your SEO plugin has never seen those addresses.',
+								'sahaj-atlas'
+							);
+							?>
+						</p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row">
+						<label for="sahaj-atlas-start"><?php echo esc_html__( 'Atlas page opens at', 'sahaj-atlas' ); ?></label>
+					</th>
+					<td>
+						<input
+							id="sahaj-atlas-start"
+							name="<?php echo esc_attr( SAHAJ_ATLAS_OPTION_START_ROUTE ); ?>"
+							type="text"
+							class="regular-text code"
+							value="<?php echo esc_attr( '' === $start ? '' : untrailingslashit( SAHAJ_ATLAS_WIDGET_ORIGIN ) . $start ); ?>"
+							placeholder="https://sahajatlas.com/gb"
+							autocomplete="off"
+						/>
+						<p class="description">
+							<?php
+							echo esc_html__(
+								'Optional. To open your Atlas page at your country or city, find it on sahajatlas.com and paste the address from your browser here. Leave it empty to open at the default.',
 								'sahaj-atlas'
 							);
 							?>

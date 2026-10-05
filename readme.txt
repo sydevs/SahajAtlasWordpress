@@ -125,6 +125,14 @@ area instead, with your site's footer below it. Nothing to change. The `[sahaj_a
 for your other pages — a single class, or its registration form — and is not needed on the Atlas
 page.
 
+= Can the Atlas page open at my country? =
+
+Yes. Find your country or city on sahajatlas.com, copy the address from your browser (for example
+`https://sahajatlas.com/gb`), and paste it into "Atlas page opens at" under Settings → Sahaj
+Atlas. The plugin checks the address when you save. Visitors can still move anywhere in the atlas.
+
+The shortcode takes the same address: `[sahaj_atlas map="true" atlas="https://sahajatlas.com/gb"]`.
+
 Settings → Sahaj Atlas names where the map rendered. If that row is red, send it to the Sahaj Atlas
 maintainers.
 

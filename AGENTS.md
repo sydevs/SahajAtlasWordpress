@@ -26,7 +26,8 @@ drives the whole design:
 - The plugin has a diagnostics panel.
 - Setup is one button, not a set of instructions.
 - Updates run automatically.
-- The plugin exposes two configuration settings: a key to paste, and a checkbox.
+- The plugin exposes three configuration settings: a key to paste, a checkbox, and where the
+  Atlas page opens.
 
 ## Principles — acceptance criteria, not goals
 
@@ -36,10 +37,11 @@ drives the whole design:
    the implementation plan.
 3. Use no framework, service container, or abstraction layer. The plugin has seven
    responsibilities, listed in the implementation plan — question an eighth.
-4. Treat configuration as a cost. The plugin allows two site settings (the API key, and the
-   Atlas page's description opt-out) and two per-embed attributes (`map`, `atlas`). Add a setting
-   only for a use case someone actually hit — #16 is the shape that qualifies, and the bar does
-   not move because a third one would be convenient.
+4. Treat configuration as a cost. The plugin allows three site settings (the API key, the
+   Atlas page's description opt-out, and where the Atlas page opens) and two per-embed attributes
+   (`map`, `atlas`). Add a setting only for a use case someone actually hit — #16 is the shape
+   that qualifies, and the national sites asking to open at their own country is the third. The
+   bar does not move because a fourth one would be convenient.
 5. Fail loudly to the admin, never to the visitor.
 6. Do not reimplement anything the widget already does — routing, translation, layout, errors,
    and reporting are its job.

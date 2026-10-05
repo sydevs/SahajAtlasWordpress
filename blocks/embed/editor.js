@@ -20,14 +20,11 @@
 		edit: function ( props ) {
 			var attributes = props.attributes;
 
-			var instructions = attributes.map
-				? __(
-						'Map mode fills the whole browser window and will cover this page. Use the Atlas page for the map.',
-						'sahaj-atlas'
-				  )
-				: attributes.atlas
-					? __( 'Opens at: ', 'sahaj-atlas' ) + attributes.atlas
-					: __( 'Shows the list of classes. Set a route to open one class instead.', 'sahaj-atlas' );
+			var instructions = attributes.atlas
+				? __( 'Opens at: ', 'sahaj-atlas' ) + attributes.atlas
+				: attributes.map
+					? __( 'Shows the map of classes.', 'sahaj-atlas' )
+					: __( 'Shows the list of classes. Set a place to open a country, a city or one class instead.', 'sahaj-atlas' );
 
 			return el(
 				element.Fragment,
@@ -40,7 +37,7 @@
 						{ title: __( 'Atlas', 'sahaj-atlas' ) },
 						el( components.TextControl, {
 							label: __( 'Open at (optional)', 'sahaj-atlas' ),
-							help: __( 'A route such as /in/pune/507, or /in/pune/507/register for its sign-up form.', 'sahaj-atlas' ),
+							help: __( 'A country or city such as /gb or /gb/london, one class such as /gb/london/1234, or /gb/london/1234/register for its sign-up form. You can also paste its address from sahajatlas.com.', 'sahaj-atlas' ),
 							value: attributes.atlas || '',
 							onChange: function ( value ) {
 								props.setAttributes( { atlas: value } );
@@ -48,7 +45,7 @@
 						} ),
 						el( components.ToggleControl, {
 							label: __( 'Show the map', 'sahaj-atlas' ),
-							help: __( 'Off for an embed inside a page. The map always takes the whole window.', 'sahaj-atlas' ),
+							help: __( 'Give the map a full-width space. In a column narrower than 360px it shows a button that opens the map instead.', 'sahaj-atlas' ),
 							checked: !! attributes.map,
 							onChange: function ( value ) {
 								props.setAttributes( { map: value } );
