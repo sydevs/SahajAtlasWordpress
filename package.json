@@ -13,7 +13,7 @@
     "test:all": "pnpm lint && pnpm test:measure && pnpm test && pnpm test:render"
   },
   "devDependencies": {
-    "@wp-playground/cli": "^3.1.51",
+    "@wp-playground/cli": "^3.1.56",
     "playwright-core": "1.57.0"
   },
   "pnpm": {
