@@ -152,7 +152,8 @@ sahaj_ok( 'renders one element', 1 === substr_count( $markup, '<sahaj-atlas' ) )
  * inline element cannot take a height at all. A height rule with no `display: block` is not a
  * size.
  */
-sahaj_ok( 'a map-less embed is given a definite height', (bool) preg_match( '/[^-]height:\s*\d/', $markup ) );
+sahaj_ok( 'a map-less embed is given a definite height, by aspect ratio', (bool) preg_match( '/aspect-ratio:\s*3\/4/', $markup ) && false !== strpos( $markup, 'width:100%' ) );
+sahaj_ok( 'capped below the screen\'s height', false !== strpos( $markup, 'max-height:80vh' ) );
 sahaj_ok( 'and not merely a min-height', false === strpos( $markup, 'min-height' ) );
 sahaj_ok( 'and display:block, without which a height does nothing', false !== strpos( $markup, 'display:block' ) );
 
@@ -166,7 +167,22 @@ $GLOBALS['sahaj_atlas_active']  = array( 'map' => true, 'atlas' => '', 'source' 
 // this element deliberately carried no CSS at all.
 sahaj_ok(
 	'an in-content map embed is contained, not a takeover',
-	(bool) preg_match( '/[^-]height:\s*\d/', sahaj_atlas_element_markup( $GLOBALS['sahaj_atlas_active'] ) )
+	(bool) preg_match( '/aspect-ratio:\s*3\/4/', sahaj_atlas_element_markup( $GLOBALS['sahaj_atlas_active'] ) )
+);
+
+sahaj_ok( 'a shortcode with no map attribute shows the map', true === sahaj_atlas_normalize_attrs( array(), 'shortcode' )['map'] );
+sahaj_ok( 'and map="false" still asks for the list alone', false === sahaj_atlas_normalize_attrs( array( 'map' => 'false' ), 'shortcode' )['map'] );
+sahaj_ok(
+	'an in-content map lets the page scroll past it',
+	false !== strpos( sahaj_atlas_script_url( array( 'map' => true, 'atlas' => '', 'source' => 'shortcode' ) ), 'gestures=cooperative' )
+);
+sahaj_ok(
+	'an in-content list has no map to scroll past',
+	false === strpos( sahaj_atlas_script_url( array( 'map' => false, 'atlas' => '', 'source' => 'shortcode' ) ), 'gestures=' )
+);
+sahaj_ok(
+	'and the Atlas page, which fills the screen, keeps every gesture',
+	false === strpos( sahaj_atlas_script_url( array( 'map' => true, 'atlas' => '', 'source' => 'page' ) ), 'gestures=' )
 );
 
 $GLOBALS['sahaj_atlas_printed'] = false;
@@ -584,6 +600,7 @@ require __DIR__ . '/sitemap.php';
 require __DIR__ . '/domains.php';
 require __DIR__ . '/seo.php';
 require __DIR__ . '/i18n.php';
+require __DIR__ . '/start.php';
 
 // ---------------------------------------------------------------------------------------------
 

@@ -46,11 +46,16 @@ defined( 'SAHAJ_ATLAS_API_ORIGIN' ) || define( 'SAHAJ_ATLAS_API_ORIGIN', 'https:
 define( 'SAHAJ_ATLAS_OPTION_KEY', 'sahaj_atlas_api_key' );
 define( 'SAHAJ_ATLAS_OPTION_PAGE', 'sahaj_atlas_page_id' );
 /**
- * ⚠ The second site setting, and the whole permitted surface. It exists for one use case: a host
- * that writes its own description for the Atlas page and needs a way to say so. See
- * `sahaj_atlas_seo_host_describes_root()`.
+ * ⚠ The second site setting. It exists for one use case: a host that writes its own description
+ * for the Atlas page and needs a way to say so. See `sahaj_atlas_seo_host_describes_root()`.
  */
 define( 'SAHAJ_ATLAS_OPTION_SEO_ROOT_OPT_OUT', 'sahaj_atlas_seo_root_opt_out' );
+/**
+ * ⚠ The third site setting, and the whole permitted surface: where the Atlas page opens, such as a
+ * national site's own country. Volunteers asked to choose it themselves, rather than ask the
+ * maintainers to set the client record's home region. See `sahaj_atlas_start_route()`.
+ */
+define( 'SAHAJ_ATLAS_OPTION_START_ROUTE', 'sahaj_atlas_start_route' );
 
 /** The query var the path router hands to the widget's page. */
 define( 'SAHAJ_ATLAS_ROUTE_VAR', 'sahaj_atlas_route' );

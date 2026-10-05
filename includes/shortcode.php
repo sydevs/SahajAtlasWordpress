@@ -18,7 +18,7 @@ function sahaj_atlas_register_shortcode() {
 }
 
 /**
- * Render `[sahaj_atlas atlas="/in/pune/507"]`.
+ * Render `[sahaj_atlas]`, or `[sahaj_atlas atlas="/gb/london" map="false"]`.
  *
  * @param array|string $atts Shortcode attributes.
  * @return string
@@ -26,7 +26,7 @@ function sahaj_atlas_register_shortcode() {
 function sahaj_atlas_shortcode( $atts ) {
 	$atts = shortcode_atts(
 		array(
-			'map'   => 'false',
+			'map'   => 'true',
 			'atlas' => '',
 		),
 		is_array( $atts ) ? $atts : array(),

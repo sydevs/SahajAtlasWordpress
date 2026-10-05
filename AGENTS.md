@@ -26,7 +26,8 @@ drives the whole design:
 - The plugin has a diagnostics panel.
 - Setup is one button, not a set of instructions.
 - Updates run automatically.
-- The plugin exposes two configuration settings: a key to paste, and a checkbox.
+- The plugin exposes three configuration settings: a key to paste, a checkbox, and where the
+  Atlas page opens.
 
 ## Principles — acceptance criteria, not goals
 
@@ -36,10 +37,11 @@ drives the whole design:
    the implementation plan.
 3. Use no framework, service container, or abstraction layer. The plugin has seven
    responsibilities, listed in the implementation plan — question an eighth.
-4. Treat configuration as a cost. The plugin allows two site settings (the API key, and the
-   Atlas page's description opt-out) and two per-embed attributes (`map`, `atlas`). Add a setting
-   only for a use case someone actually hit — #16 is the shape that qualifies, and the bar does
-   not move because a third one would be convenient.
+4. Treat configuration as a cost. The plugin allows three site settings (the API key, the
+   Atlas page's description opt-out, and where the Atlas page opens) and two per-embed attributes
+   (`map`, `atlas`). Add a setting only for a use case someone actually hit — #16 is the shape
+   that qualifies, and the national sites asking to open at their own country is the third. The
+   bar does not move because a fourth one would be convenient.
 5. Fail loudly to the admin, never to the visitor.
 6. Do not reimplement anything the widget already does — routing, translation, layout, errors,
    and reporting are its job.
@@ -51,8 +53,10 @@ drives the whole design:
 - The plugin owns one atlas page per site, created by a settings-screen button. The volunteer
   does not place a block — 4 of the 9 surveyed sites use a page builder where a block never
   appears.
-- In-content embeds are a separate, secondary feature: a single class, no map, with an optional
-  registration form, shipped as both a shortcode and a block.
+- In-content embeds are a separate, secondary feature, shipped as both a shortcode and a block.
+  They show the map by default (owner, 2026-10-05), at the column's full width and 3:4, capped at
+  80% of the screen, and send `gestures=cooperative` so the page scrolls past them. `map="false"`
+  gives the list, a single class, or its registration form.
 - The editor shows a static placeholder — the widget cannot upgrade to a live map inside its
   iframe.
 - The plugin takes over SEO on atlas pages, instead of feeding the site's own SEO plugin. The
