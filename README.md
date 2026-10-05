@@ -1,56 +1,158 @@
-# Sahaj Atlas — WordPress plugin
+# Sahaj Atlas for WordPress
 
-Adds the [Sahaj Atlas](https://github.com/sydevs/SahajAtlasWeb) — a searchable map of free
-meditation classes — to a WordPress site.
+This plugin adds the **Sahaj Atlas** — a searchable map of free meditation classes — to your
+WordPress site. You do not need to write or paste any code.
 
-**Site owners:** see [Installation](#installation) below. You do not need to paste any code.
-**Developers:** start with [`AGENTS.md`](AGENTS.md), then `docs/implementation-plan.md`.
+It gives you two things:
 
-## Why a plugin rather than a snippet
+- **An Atlas page.** A full page with the map, made for you with one click. This is what most
+  sites need.
+- **A shortcode and a block.** Use these to show the atlas, one country, or one class inside your
+  other pages.
 
-WordPress removes `<script>` tags from saved content, for every role below Administrator and
-every Site Administrator on multisite. A plugin's own output skips this filter, so a plugin is
-the only way most site editors can install the atlas.
+---
 
-## Installation
+## Before you start
 
-⚠ **If your site already shows the Sahaj Atlas** — an old embed, an iframe, or a pasted script —
+You need two things:
+
+1. **Administrator access** to your WordPress site.
+2. **An API key.** Ask the Sahaj Atlas maintainers for one. It is free, and one key covers your
+   whole site. The key is not a password — it is safe to paste and share.
+
+⚠ **If your site already shows the atlas** — an old embed, an iframe, or a pasted script —
 **remove it first.** Two atlases on one page will not work.
 
-1. Download the newest **`sahaj-atlas-<version>.zip`** from the [Releases](../../releases) page —
-   take the highest version number. ⚠ Not "Source code (zip)": that one installs incorrectly.
-2. **Plugins → Add New Plugin → Upload Plugin** → choose the file → **Install Now**.
-3. **Activate** the plugin.
-4. **Settings → Sahaj Atlas**: paste your API key, then press **Create the Atlas page**.
-5. Add the new page to your site's menu.
+---
 
-Updates then arrive the normal way: WordPress shows an update notice, and you can turn on
-automatic updates.
+## 1. Install the plugin
 
-### Getting an API key
+1. Go to the [Releases page](../../releases) and download the newest file named
+   **`sahaj-atlas-<version>.zip`** (the one with the highest number).
+   ⚠ Do **not** download "Source code (zip)". That one will not install correctly.
+2. In WordPress, go to **Plugins → Add New Plugin**, and press **Upload Plugin** at the top.
+3. Choose the file you downloaded, and press **Install Now**.
+4. Press **Activate**.
 
-Ask the Sahaj Atlas maintainers for a key. They issue one per site by hand. The key is
-**not a secret** — it ships in your page's HTML by design, with read-only access to atlas data.
+The plugin updates itself from then on. WordPress shows an update notice like any other plugin,
+and you can turn on automatic updates on the **Plugins** screen.
 
-## Something looks wrong
+## 2. Set it up
 
-**Settings → Sahaj Atlas** has a status panel for the usual problems: your key, the Atlas page,
-and clean URLs. Start there.
+1. Go to **Settings → Sahaj Atlas**.
+2. Paste your API key into **API key**, and press **Save Changes**.
+3. Press **Create the Atlas page**.
+4. Add the new page to your site's menu (**Appearance → Menus**, or **Appearance → Editor →
+   Navigation** on newer themes).
 
-## Development
+That is all. Visit the page to see the map. You can rename the page freely — the atlas follows.
 
-No Docker, no system PHP —
+## 3. Choose where the atlas opens (optional)
+
+By default the Atlas page opens on the world list. To open it at **your country or city**:
+
+1. Go to [sahajatlas.com](https://sahajatlas.com), and click through to your country (or city).
+2. Copy the address from your browser's address bar. For example:
+   `https://sahajatlas.com/gb` (the United Kingdom) or `https://sahajatlas.com/gb/london`.
+3. In WordPress, go to **Settings → Sahaj Atlas**, paste it into **Atlas page opens at**, and
+   press **Save Changes**.
+
+The plugin checks the address when you save. If it is not a place in the atlas, it tells you, and
+nothing changes. To go back to the world list, empty the field and save.
+
+Visitors can still move anywhere in the atlas, and links to other places keep working. Only the
+starting point changes.
+
+---
+
+## Show the atlas inside your other pages
+
+The Atlas page is the main way to show the map. To show the atlas **inside another page** — a
+"Classes" section on your home page, or one class on an event page — use the shortcode or the
+block.
+
+### The shortcode
+
+Type the shortcode into any page or post, or into a "Shortcode" widget in a page builder
+(Elementor, WPBakery, Beaver Builder and others).
+
+| What you want to show | Type this |
+| --- | --- |
+| The map | `[sahaj_atlas]` |
+| The map, opened at your country | `[sahaj_atlas atlas="https://sahajatlas.com/gb"]` |
+| The classes in your city, as a list without a map | `[sahaj_atlas map="false" atlas="https://sahajatlas.com/gb/london"]` |
+| One class | `[sahaj_atlas map="false" atlas="https://sahajatlas.com/gb/london/1234"]` |
+| One class's sign-up form | `[sahaj_atlas map="false" atlas="https://sahajatlas.com/gb/london/1234/register"]` |
+
+**`atlas`** is where it opens. Find the place or class on [sahajatlas.com](https://sahajatlas.com),
+copy the address from your browser, and paste it between the quotes. The number at the end of a
+class address (`1234` above) is only an example — use your own class's address, and add
+`/register` to the end for its sign-up form. The short form works too: `atlas="/gb"` is the same
+as `atlas="https://sahajatlas.com/gb"`.
+
+**`map="false"`** shows a list, without the map. Leave it out to show the map.
+
+**How it fits on your page.** The atlas takes the full width of the column it sits in, and is
+three units wide for every four tall — never taller than most of the screen. Visitors scroll past
+it like the rest of your page: on a phone they move the map with two fingers, and on a computer by
+holding Ctrl (⌘ on a Mac) while scrolling. A hint on the map says so.
+
+Good to know:
+
+- **One atlas per page.** A second shortcode on the same page shows nothing.
+- **Not on the Atlas page.** That page already has the atlas.
+- **A narrow column shows a button.** Where the column is under 360 pixels wide — a sidebar, and
+  on many phones — the map shows a "Find a class near you" button instead, which opens the map
+  full-screen.
+
+### The block
+
+In the block editor, add the **Sahaj Atlas** block. In the block's settings panel on the right:
+
+- **Open at** is the same as `atlas` above. Paste an address from sahajatlas.com.
+- **Show the map** is on unless you turn it off, the same as leaving out `map="false"`.
+
+---
+
+## If something looks wrong
+
+Go to **Settings → Sahaj Atlas** and look at the **Status** panel. Each row is green when that
+part works, and a red row says what to do. It checks your key, your Atlas page, clean URLs, your
+domain, the sitemap, and whether the map loads on your page.
+
+If a row stays red and you are not sure why, send a screenshot of the panel to the Sahaj Atlas
+maintainers.
+
+**Common questions**
+
+- **The Atlas page is blank, or the map does not appear.** Check the Status panel. The usual
+  causes are a missing key, or a "JavaScript optimisation" setting in a caching plugin — turn that
+  off for the Atlas page.
+- **My theme's large header image is gone on the Atlas page.** That is on purpose, on that page
+  only: the map needs the height. Your logo and menu stay.
+- **I use a page builder.** That is fine. If the builder takes over the Atlas page, the map still
+  appears, inside the page's content with your footer below it.
+- **My SEO plugin's description for the Atlas page stopped showing.** Sahaj Atlas describes the
+  page in each visitor's language. To keep your own, tick **Let my SEO plugin describe the Atlas
+  page** under Settings → Sahaj Atlas.
+
+---
+
+## For developers
+
+Start with [`AGENTS.md`](AGENTS.md), then `docs/implementation-plan.md`. The widget's own contract
+is [`docs/embedding.md`](https://github.com/sydevs/SahajAtlasWeb/blob/main/docs/embedding.md) in
+SahajAtlasWeb.
+
+No Docker and no system PHP are needed —
 [`@wp-playground/cli`](https://www.npmjs.com/package/@wp-playground/cli) runs PHP in WebAssembly.
 
 ```
 pnpm install
-pnpm test:all        # syntax, behavior, render — what CI runs
+pnpm test:all        # syntax, measure, behaviour, render — what CI runs
+pnpm test:browser    # the real widget in real themes, in Chromium (local only; see AGENTS.md)
 pnpm start           # a real WordPress site with the plugin, for manual testing
 ```
-
-Each lane also runs alone: `pnpm lint` (syntax), `pnpm test` (behavior suite, on WordPress 6.7
-and PHP 7.4, the fleet's floor), `pnpm test:render` (real HTTP against a real server, once per
-theme kind, since block and classic themes take different code paths).
 
 ## Licence
 

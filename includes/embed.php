@@ -68,7 +68,7 @@ function sahaj_atlas_resolve_embed() {
 	if ( sahaj_atlas_is_atlas_page() ) {
 		return array(
 			'map'    => true,
-			'atlas'  => '',
+			'atlas'  => sahaj_atlas_start_route(),
 			'source' => 'page',
 		);
 	}
@@ -153,13 +153,14 @@ function sahaj_atlas_embed_from_shortcode( $content ) {
  * @return array
  */
 function sahaj_atlas_normalize_attrs( $attrs, $source ) {
-	$map = isset( $attrs['map'] ) ? $attrs['map'] : false;
+	// The map by default, for a shortcode and a block alike. `map="false"` asks for the list alone.
+	$map = isset( $attrs['map'] ) ? $attrs['map'] : true;
 
 	if ( is_string( $map ) ) {
 		$map = ! in_array( strtolower( trim( $map ) ), array( '', '0', 'false', 'no' ), true );
 	}
 
-	$atlas = isset( $attrs['atlas'] ) ? sahaj_atlas_clean_route( (string) $attrs['atlas'] ) : '';
+	$atlas = isset( $attrs['atlas'] ) ? sahaj_atlas_route_from_input( (string) $attrs['atlas'] ) : '';
 
 	return array(
 		'map'    => (bool) $map,
@@ -202,6 +203,69 @@ function sahaj_atlas_clean_route( $route ) {
 }
 
 /**
+ * A route from what a volunteer typed or pasted, or an empty string.
+ *
+ * The README tells volunteers to open their country on sahajatlas.com and paste the address, so
+ * that address has to work. So do the same view's address on their own Atlas page, in either
+ * routing shape, and a bare `gb/london`. Any other site's address names nothing here, and is
+ * refused rather than read as a path.
+ *
+ * @param string $value A route, a slug path, or an address.
+ * @return string
+ */
+function sahaj_atlas_route_from_input( $value ) {
+	$value = trim( $value );
+
+	if ( '' === $value ) {
+		return '';
+	}
+
+	if ( preg_match( '#^https?://#i', $value ) ) {
+		parse_str( (string) wp_parse_url( $value, PHP_URL_QUERY ), $args );
+
+		if ( isset( $args[ SAHAJ_ATLAS_ROUTE_PARAM ] ) && is_string( $args[ SAHAJ_ATLAS_ROUTE_PARAM ] ) ) {
+			return sahaj_atlas_clean_route( $args[ SAHAJ_ATLAS_ROUTE_PARAM ] );
+		}
+
+		$host = strtolower( (string) wp_parse_url( $value, PHP_URL_HOST ) );
+		$path = untrailingslashit( (string) wp_parse_url( $value, PHP_URL_PATH ) );
+
+		if ( strtolower( (string) wp_parse_url( SAHAJ_ATLAS_WIDGET_ORIGIN, PHP_URL_HOST ) ) === $host ) {
+			return sahaj_atlas_clean_route( $path );
+		}
+
+		$page = sahaj_atlas_page_id() ? get_permalink( sahaj_atlas_page_id() ) : '';
+		$base = $page ? untrailingslashit( (string) wp_parse_url( $page, PHP_URL_PATH ) ) : '';
+
+		if ( '' !== $base && strtolower( (string) wp_parse_url( $page, PHP_URL_HOST ) ) === $host && 0 === strpos( $path . '/', $base . '/' ) ) {
+			return sahaj_atlas_clean_route( (string) substr( $path, strlen( $base ) ) );
+		}
+
+		return '';
+	}
+
+	if ( 0 !== strpos( $value, '/' ) ) {
+		$value = '/' . $value;
+	}
+
+	return sahaj_atlas_clean_route( '/' === $value ? '' : untrailingslashit( $value ) );
+}
+
+/**
+ * Where the Atlas page opens: the volunteer's chosen route, or an empty string for the widget's own
+ * default — the client record's home region when SahajCloud has one, the world list otherwise.
+ *
+ * ⚠ It is the widget's `atlas` parameter, a default and never an override. A visitor whose address
+ * already names a route gets that route. And the page's metadata stays the root view's: the page's
+ * own address is still the root, and the start route has a canonical of its own.
+ *
+ * @return string
+ */
+function sahaj_atlas_start_route() {
+	return sahaj_atlas_clean_route( (string) get_option( SAHAJ_ATLAS_OPTION_START_ROUTE, '' ) );
+}
+
+/**
  * The widget's script URL, which is its entire configuration surface.
  *
  * @param array $embed The resolved embed.
@@ -221,6 +285,14 @@ function sahaj_atlas_script_url( $embed ) {
 
 	if ( '' !== $embed['atlas'] ) {
 		$args['atlas'] = $embed['atlas'];
+	}
+
+	// ⚠ An in-content map sits partway down a page the visitor must be able to scroll past. Without
+	// this, one finger or the mouse wheel over the map pans and zooms it instead, and the page stops
+	// scrolling there. With it, the map moves on two fingers or Ctrl/⌘ + wheel (SahajAtlasWeb#251).
+	// Never on the Atlas page, which fills the screen and has nothing to scroll to.
+	if ( 'page' !== $embed['source'] && ! empty( $embed['map'] ) ) {
+		$args['gestures'] = 'cooperative';
 	}
 
 	if ( 'page' === $embed['source'] && sahaj_atlas_path_routing_viable() ) {
@@ -404,10 +476,14 @@ function sahaj_atlas_element_markup( $embed ) {
 	 * in. The old comment here justified `min-height` as a way to let a theme grow the box. That
 	 * choice bought a takeover instead.
 	 *
-	 * Both modes are sized now. A map embed with a height is a contained map. It lives inside this
-	 * box, in its own stacking context, and is never asked the compact-card question at all.
+	 * The box takes the column's full width at 3:4, which an `aspect-ratio` makes a definite height
+	 * as surely as `height` does. It is capped at 80% of the screen, so a wide desktop column never
+	 * gets a map taller than the window — which would put the mobile sheet's drag handle, and every
+	 * way past the map, below the fold. A map embed sized like this is a contained map: it lives
+	 * inside this box, in its own stacking context. Under the widget's 360×420 floors — a narrow
+	 * column, most phones — it shows the compact card instead, whose button opens it full-screen.
 	 */
-	$style = ' style="display:block;height:' . ( empty( $embed['map'] ) ? '640px' : '520px' ) . '"';
+	$style = ' style="display:block;width:100%;aspect-ratio:3/4;max-height:80vh"';
 
 	return '<sahaj-atlas' . $style . '>' . sahaj_atlas_element_children() . '</sahaj-atlas>';
 }

@@ -391,18 +391,19 @@ async function check(run) {
       ok(`${kind}: the page renders`, page.status === 200, `status ${page.status}`)
       ok(`${kind}: exactly one element`, (body.match(/<sahaj-atlas[\s>]/g) ?? []).length === 1)
 
-      // An in-content embed has no map, so unlike the Atlas page it needs a height. An unsized
-      // custom element is an inline box of zero height, and looks like it did not render at all.
-      // ⚠ `height`, never `min-height`. The widget fills its element with `height: 100%`, which
+      // An in-content embed shows the map by default, sized full-width at 3:4 by `aspect-ratio`.
+      // Unsized, it would cover the window (a map) or collapse to nothing (a list).
+      // ⚠ A definite size, never `min-height`. The widget fills its element with `height: 100%`, which
       // needs a definite height to resolve against. `min-height` leaves nothing to fill, so the
       // widget refuses the box and covers the browser window instead. The plugin shipped
       // `min-height` until SahajAtlasWeb#170 wrote this rule down.
       const style = tag?.[0] ?? ''
 
-      ok(`${kind}: the element is sized`, /[^-]height:\s*\d/.test(style), style || 'no element')
+      ok(`${kind}: the element is sized`, /aspect-ratio:\s*3\/4/.test(style) && /width:\s*100%/.test(style), style || 'no element')
       ok(`${kind}: with a definite height, not min-height`, !/min-height/.test(style), style)
       ok(`${kind}: and display:block, which a custom element needs to take one`, /display:\s*block/.test(style), style)
-      ok(`${kind}: the loader asks for no map`, loader.includes('map=false'), loader)
+      ok(`${kind}: the loader asks for the map`, !loader.includes('map=false'), loader)
+      ok(`${kind}: and lets the page scroll past it`, loader.includes('gestures=cooperative'), loader)
       ok(`${kind}: and carries the route`, loader.includes('atlas=%2Fgb%2Flondon%2F1204') || loader.includes('atlas=/gb/london/1204'), loader)
 
       // ⚠ An in-content embed must never claim path routing. The server only serves the subtree
