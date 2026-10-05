@@ -153,7 +153,8 @@ function sahaj_atlas_embed_from_shortcode( $content ) {
  * @return array
  */
 function sahaj_atlas_normalize_attrs( $attrs, $source ) {
-	$map = isset( $attrs['map'] ) ? $attrs['map'] : false;
+	// The map by default, for a shortcode and a block alike. `map="false"` asks for the list alone.
+	$map = isset( $attrs['map'] ) ? $attrs['map'] : true;
 
 	if ( is_string( $map ) ) {
 		$map = ! in_array( strtolower( trim( $map ) ), array( '', '0', 'false', 'no' ), true );
@@ -284,6 +285,14 @@ function sahaj_atlas_script_url( $embed ) {
 
 	if ( '' !== $embed['atlas'] ) {
 		$args['atlas'] = $embed['atlas'];
+	}
+
+	// ⚠ An in-content map sits partway down a page the visitor must be able to scroll past. Without
+	// this, one finger or the mouse wheel over the map pans and zooms it instead, and the page stops
+	// scrolling there. With it, the map moves on two fingers or Ctrl/⌘ + wheel (SahajAtlasWeb#251).
+	// Never on the Atlas page, which fills the screen and has nothing to scroll to.
+	if ( 'page' !== $embed['source'] && ! empty( $embed['map'] ) ) {
+		$args['gestures'] = 'cooperative';
 	}
 
 	if ( 'page' === $embed['source'] && sahaj_atlas_path_routing_viable() ) {
@@ -467,10 +476,14 @@ function sahaj_atlas_element_markup( $embed ) {
 	 * in. The old comment here justified `min-height` as a way to let a theme grow the box. That
 	 * choice bought a takeover instead.
 	 *
-	 * Both modes are sized now. A map embed with a height is a contained map. It lives inside this
-	 * box, in its own stacking context, and is never asked the compact-card question at all.
+	 * The box takes the column's full width at 3:4, which an `aspect-ratio` makes a definite height
+	 * as surely as `height` does. It is capped at 80% of the screen, so a wide desktop column never
+	 * gets a map taller than the window — which would put the mobile sheet's drag handle, and every
+	 * way past the map, below the fold. A map embed sized like this is a contained map: it lives
+	 * inside this box, in its own stacking context. Under the widget's 360×420 floors — a narrow
+	 * column, most phones — it shows the compact card instead, whose button opens it full-screen.
 	 */
-	$style = ' style="display:block;height:' . ( empty( $embed['map'] ) ? '640px' : '520px' ) . '"';
+	$style = ' style="display:block;width:100%;aspect-ratio:3/4;max-height:80vh"';
 
 	return '<sahaj-atlas' . $style . '>' . sahaj_atlas_element_children() . '</sahaj-atlas>';
 }

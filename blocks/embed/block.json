@@ -15,7 +15,7 @@
     "align": ["wide", "full"]
   },
   "attributes": {
-    "map":   { "type": "boolean", "default": false },
+    "map":   { "type": "boolean", "default": true },
     "atlas": { "type": "string",  "default": "" }
   },
   "editorScript": "sahaj-atlas-editor",

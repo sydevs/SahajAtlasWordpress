@@ -45,7 +45,7 @@
 						} ),
 						el( components.ToggleControl, {
 							label: __( 'Show the map', 'sahaj-atlas' ),
-							help: __( 'Give the map a full-width space. In a column narrower than 360px it shows a button that opens the map instead.', 'sahaj-atlas' ),
+							help: __( 'On by default. The map takes the full width, at 3:4, and visitors scroll past it as usual — two fingers move the map. In a column narrower than 360px it shows a button that opens the map instead.', 'sahaj-atlas' ),
 							checked: !! attributes.map,
 							onChange: function ( value ) {
 								props.setAttributes( { map: value } );

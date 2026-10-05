@@ -53,8 +53,10 @@ drives the whole design:
 - The plugin owns one atlas page per site, created by a settings-screen button. The volunteer
   does not place a block — 4 of the 9 surveyed sites use a page builder where a block never
   appears.
-- In-content embeds are a separate, secondary feature: a single class, no map, with an optional
-  registration form, shipped as both a shortcode and a block.
+- In-content embeds are a separate, secondary feature, shipped as both a shortcode and a block.
+  They show the map by default (owner, 2026-10-05), at the column's full width and 3:4, capped at
+  80% of the screen, and send `gestures=cooperative` so the page scrolls past them. `map="false"`
+  gives the list, a single class, or its registration form.
 - The editor shows a static placeholder — the widget cannot upgrade to a live map inside its
   iframe.
 - The plugin takes over SEO on atlas pages, instead of feeding the site's own SEO plugin. The

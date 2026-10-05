@@ -78,12 +78,11 @@ Type the shortcode into any page or post, or into a "Shortcode" widget in a page
 
 | What you want to show | Type this |
 | --- | --- |
-| The list of classes | `[sahaj_atlas]` |
-| The map | `[sahaj_atlas map="true"]` |
-| The map, opened at your country | `[sahaj_atlas map="true" atlas="https://sahajatlas.com/gb"]` |
-| The classes in your city, as a list | `[sahaj_atlas atlas="https://sahajatlas.com/gb/london"]` |
-| One class | `[sahaj_atlas atlas="https://sahajatlas.com/gb/london/1234"]` |
-| One class's sign-up form | `[sahaj_atlas atlas="https://sahajatlas.com/gb/london/1234/register"]` |
+| The map | `[sahaj_atlas]` |
+| The map, opened at your country | `[sahaj_atlas atlas="https://sahajatlas.com/gb"]` |
+| The classes in your city, as a list without a map | `[sahaj_atlas map="false" atlas="https://sahajatlas.com/gb/london"]` |
+| One class | `[sahaj_atlas map="false" atlas="https://sahajatlas.com/gb/london/1234"]` |
+| One class's sign-up form | `[sahaj_atlas map="false" atlas="https://sahajatlas.com/gb/london/1234/register"]` |
 
 **`atlas`** is where it opens. Find the place or class on [sahajatlas.com](https://sahajatlas.com),
 copy the address from your browser, and paste it between the quotes. The number at the end of a
@@ -91,21 +90,27 @@ class address (`1234` above) is only an example — use your own class's address
 `/register` to the end for its sign-up form. The short form works too: `atlas="/gb"` is the same
 as `atlas="https://sahajatlas.com/gb"`.
 
-**`map="true"`** shows the map. Leave it out to show a list without a map.
+**`map="false"`** shows a list, without the map. Leave it out to show the map.
+
+**How it fits on your page.** The atlas takes the full width of the column it sits in, and is
+three units wide for every four tall — never taller than most of the screen. Visitors scroll past
+it like the rest of your page: on a phone they move the map with two fingers, and on a computer by
+holding Ctrl (⌘ on a Mac) while scrolling. A hint on the map says so.
 
 Good to know:
 
 - **One atlas per page.** A second shortcode on the same page shows nothing.
 - **Not on the Atlas page.** That page already has the atlas.
-- **Give the map room.** Put it in a full-width section. In a narrow column (under 360 pixels
-  wide) the map shows a "Find a class near you" button instead, which opens the map full-screen.
+- **A narrow column shows a button.** Where the column is under 360 pixels wide — a sidebar, and
+  on many phones — the map shows a "Find a class near you" button instead, which opens the map
+  full-screen.
 
 ### The block
 
 In the block editor, add the **Sahaj Atlas** block. In the block's settings panel on the right:
 
 - **Open at** is the same as `atlas` above. Paste an address from sahajatlas.com.
-- **Show the map** is the same as `map="true"`.
+- **Show the map** is on unless you turn it off, the same as leaving out `map="false"`.
 
 ---
 

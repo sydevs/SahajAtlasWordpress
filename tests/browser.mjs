@@ -107,6 +107,12 @@ add_filter( 'wp_script_attributes', function ( $attributes ) {
 const SIDEBAR_PAGE = `wp_insert_post(array('post_type'=>'page','post_status'=>'publish','post_title'=>'Sidebar host','post_name'=>'sidebar-host','post_content'=>'<div style="width:300px">[sahaj_atlas map="true"]</div>'));`
 
 /**
+ * A host page for the in-content map: a bare `[sahaj_atlas]` in an ordinary article, with text
+ * above and below it, so there is a page to scroll past the map.
+ */
+const ARTICLE_PAGE = `wp_insert_post(array('post_type'=>'page','post_status'=>'publish','post_title'=>'Article host','post_name'=>'article-host','post_content'=>str_repeat('<p>Before the map.</p>', 6) . '[sahaj_atlas]' . str_repeat('<p>After the map.</p>', 40)));`
+
+/**
  * Hand the Atlas page to Elementor's "Elementor Full Width" template — header, content, footer, no
  * theme page title. Its slug is `elementor_header_footer`; `elementor_canvas` is the other one, and
  * drops the header and footer this cell exists to keep (#39).
@@ -137,6 +143,8 @@ const PANEL_SEED = `set_transient(sahaj_atlas_client_slot(sahaj_atlas_api_key())
  * @property {string} [wp]           WordPress version, when the fleet floor is too old
  * @property {Record<string,string>} [mu]  mu-plugins to write, name → PHP
  * @property {boolean} [sidebar]     also check the in-content compact card
+ * @property {boolean} [article]     also check a bare `[sahaj_atlas]` in an article: its size, and
+ *                                   that the page scrolls past it
  * @property {boolean} [login]       load the page as admin, with the admin bar
  * @property {string} [seed]         extra PHP, appended to the shared seed
  * @property {'template'|'content'} [render]  which print must render the element; `template` default
@@ -152,7 +160,7 @@ const PANEL_SEED = `set_transient(sahaj_atlas_client_slot(sahaj_atlas_api_key())
 /** @type {Cell[]} */
 const CELLS = [
   // Every free theme the fleet runs (#37's scan), plus the two bundled block themes.
-  { name: 'astra', theme: 'astra', sidebar: true },
+  { name: 'astra', theme: 'astra', sidebar: true, article: true },
   { name: 'mesmerize', theme: 'mesmerize' },
   { name: 'popularfx', theme: 'popularfx' },
   // The four themes whose band `sahaj_atlas_quiet_theme_bands()` switches off (#37). Each selector
@@ -272,7 +280,7 @@ async function blueprint(cell) {
   }
 
   steps.push({ step: 'activatePlugin', pluginPath: 'sahaj-atlas/sahaj-atlas.php' })
-  steps.push({ step: 'runPHP', code: await seed([cell.sidebar ? SIDEBAR_PAGE : '', cell.panel ? PANEL_SEED : '', cell.seed ?? ''].join(' ')) })
+  steps.push({ step: 'runPHP', code: await seed([cell.sidebar ? SIDEBAR_PAGE : '', cell.article ? ARTICLE_PAGE : '', cell.panel ? PANEL_SEED : '', cell.seed ?? ''].join(' ')) })
 
   // ⚠ The versions live here, not in the `--php`/`--wp` flags: given a blueprint, `server` ignores
   // the flags (see tests/render.mjs). Without this key every cell ran WordPress 7.1 on PHP 8.5.
@@ -602,6 +610,67 @@ async function checkAtlasPage(browser, cell, viewport, port) {
 }
 
 /**
+ * A bare `[sahaj_atlas]` in an article: the map at the column's full width, at 3:4, and a page the
+ * visitor can still scroll past it.
+ *
+ * @param {import('playwright-core').Browser} browser
+ * @param {Cell} cell
+ * @param {{name: string, width: number, height: number}} viewport
+ * @param {number} port
+ */
+async function checkArticle(browser, cell, viewport, port) {
+  const base = `http://127.0.0.1:${port}`
+  const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, hasTouch: viewport.width < 768 })
+  const label = `${cell.name} @ article ${viewport.name}`
+
+  try {
+    await prepare(context, port)
+
+    const page = await context.newPage()
+    const log = collectConsole(page, label)
+    const { fit, widget } = scope
+
+    await page.goto(`${base}/article-host/`, { waitUntil: 'load', timeout: 90000 })
+    await page.waitForSelector('sahaj-atlas .sy-atlas', { timeout: 45000 }).catch(() => {})
+    await page.locator('sahaj-atlas').scrollIntoViewIfNeeded()
+    await sleep(4000)
+
+    const box = await page.evaluate(() => {
+      const element = document.querySelector('sahaj-atlas')
+      const rect = element.getBoundingClientRect()
+
+      return { width: rect.width, height: rect.height, column: element.parentElement.getBoundingClientRect().width, top: rect.top, vh: window.innerHeight }
+    })
+    const want = Math.min((box.column * 4) / 3, 0.8 * box.vh)
+
+    // The plugin's own box: the column's full width, at 3:4, capped at 80% of the screen.
+    fit(`${label}: the map takes the column's full width`, Math.abs(box.width - box.column) <= 1, `${Math.round(box.width)}px of ${Math.round(box.column)}px`)
+    fit(`${label}: at 3:4, under 80% of the screen`, Math.abs(box.height - want) <= 2, `${Math.round(box.height)}px, want ${Math.round(want)}px`)
+
+    if (log.widget().some((line) => line.includes(COMPACT))) {
+      console.log(`  info  ${label}: the compact card, in a ${Math.round(box.column)}px column`)
+      return
+    }
+
+    // Scroll with the pointer over the map's middle. The page must move: that is the whole point
+    // of `gestures=cooperative`, and the widget's to honour (SahajAtlasWeb#251).
+    const before = await page.evaluate(() => window.scrollY)
+    const rect = await page.locator('sahaj-atlas').boundingBox()
+
+    await page.mouse.move(rect.x + rect.width / 2, Math.min(rect.y + rect.height / 2, box.vh - 10))
+    await page.mouse.wheel(0, 600)
+    await sleep(1200)
+
+    const after = await page.evaluate(() => window.scrollY)
+
+    await page.screenshot({ path: join(SCREENSHOTS, `${cell.name}-article-${viewport.name}.png`) }).catch(() => {})
+    widget(`${label}: the page scrolls past the map`, after > before + 100, `scrollY ${before} → ${after}`)
+  } finally {
+    await context.close()
+  }
+}
+
+/**
  * The in-content compact card: a map embed in a 300px column. The card is the right answer there.
  * Its button must open the overlay inside the widget, with its controls reachable
  * (SahajAtlasWeb#235).
@@ -877,6 +946,11 @@ async function run(browser, cell, index) {
       await checkAtlasPage(browser, cell, viewport, port).catch((error) => scope.ok(`${cell.name} @ ${viewport.name}: the check ran to the end`, false, String(error.message).split('\n')[0]))
     }
 
+    if (cell.article) {
+      for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
+        await checkArticle(browser, cell, viewport, port).catch((error) => scope.ok(`${cell.name} @ article ${viewport.name}: the check ran to the end`, false, String(error.message).split('\n')[0]))
+      }
+    }
     if (cell.sidebar) await checkSidebar(browser, cell, port).catch((error) => scope.ok(`${cell.name} @ sidebar: the check ran to the end`, false, String(error.message).split('\n')[0]))
 
     if (cell.panel) await checkPanel(browser, cell, port).catch((error) => scope.ok(`${cell.name} @ panel: the check ran to the end`, false, String(error.message).split('\n')[0]))

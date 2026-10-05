@@ -24,8 +24,8 @@ and covers your whole site.
 
 * One Atlas page, created from the plugin's settings screen. It shows your site's header at the
   top and the atlas below it, with no footer.
-* A shortcode and a block. Use them to show one class, or its registration form, inside your own
-  pages.
+* A shortcode and a block. Use them to show the map, a list, one class, or its registration form,
+  inside your own pages. Visitors scroll past the map like the rest of the page.
 * A title and description for your Atlas page, written by Sahaj Atlas in each visitor's own
   language. One checkbox on the settings screen hands that back to your own SEO plugin.
 * A status panel. It shows whether your key works and whether setup is correct.
@@ -122,8 +122,8 @@ That is fine, and there is nothing to set up. The Atlas page does not use a page
 
 If your builder renders the Atlas page with its own template, the map appears in the page's content
 area instead, with your site's footer below it. Nothing to change. The `[sahaj_atlas]` shortcode is
-for your other pages — a single class, or its registration form — and is not needed on the Atlas
-page.
+for your other pages — the map, a list, a single class or its registration form — and is not
+needed on the Atlas page.
 
 = Can the Atlas page open at my country? =
 
@@ -131,7 +131,7 @@ Yes. Find your country or city on sahajatlas.com, copy the address from your bro
 `https://sahajatlas.com/gb`), and paste it into "Atlas page opens at" under Settings → Sahaj
 Atlas. The plugin checks the address when you save. Visitors can still move anywhere in the atlas.
 
-The shortcode takes the same address: `[sahaj_atlas map="true" atlas="https://sahajatlas.com/gb"]`.
+The shortcode takes the same address: `[sahaj_atlas atlas="https://sahajatlas.com/gb"]`.
 
 Settings → Sahaj Atlas names where the map rendered. If that row is red, send it to the Sahaj Atlas
 maintainers.
