@@ -152,7 +152,7 @@ sahaj_ok( 'renders one element', 1 === substr_count( $markup, '<sahaj-atlas' ) )
  * inline element cannot take a height at all. A height rule with no `display: block` is not a
  * size.
  */
-sahaj_ok( 'a map-less embed is given a definite height, by aspect ratio', (bool) preg_match( '/aspect-ratio:\s*3\/4/', $markup ) && false !== strpos( $markup, 'width:100%' ) );
+sahaj_ok( 'a map-less embed is given a definite height, by aspect ratio', (bool) preg_match( '/aspect-ratio:\s*4\/3/', $markup ) && false !== strpos( $markup, 'width:100%' ) );
 sahaj_ok( 'capped below the screen\'s height', false !== strpos( $markup, 'max-height:80vh' ) );
 sahaj_ok( 'and not merely a min-height', false === strpos( $markup, 'min-height' ) );
 sahaj_ok( 'and display:block, without which a height does nothing', false !== strpos( $markup, 'display:block' ) );
@@ -167,7 +167,25 @@ $GLOBALS['sahaj_atlas_active']  = array( 'map' => true, 'atlas' => '', 'source' 
 // this element deliberately carried no CSS at all.
 sahaj_ok(
 	'an in-content map embed is contained, not a takeover',
-	(bool) preg_match( '/aspect-ratio:\s*3\/4/', sahaj_atlas_element_markup( $GLOBALS['sahaj_atlas_active'] ) )
+	(bool) preg_match( '/aspect-ratio:\s*4\/3/', sahaj_atlas_element_markup( $GLOBALS['sahaj_atlas_active'] ) )
+);
+
+// The shape: 4:3 — four wide, three tall — unless the embed asks for another.
+sahaj_is( 'the default shape is four wide for every three tall', '4/3', sahaj_atlas_normalize_attrs( array(), 'shortcode' )['ratio'] );
+sahaj_is( 'ratio="16:9" is sixteen wide for every nine tall', '16/9', sahaj_atlas_clean_ratio( '16:9' ) );
+sahaj_is( 'and so is 16/9', '16/9', sahaj_atlas_clean_ratio( '16/9' ) );
+sahaj_is( 'and 16x9, with spaces', '16/9', sahaj_atlas_clean_ratio( ' 16 x 9 ' ) );
+sahaj_is( 'a portrait shape is allowed', '3/4', sahaj_atlas_clean_ratio( '3:4' ) );
+sahaj_is( 'decimals are kept, trailing zeros dropped', '1.5/1', sahaj_atlas_clean_ratio( '1.50:1' ) );
+sahaj_is( 'nonsense is the default', '4/3', sahaj_atlas_clean_ratio( 'wide' ) );
+sahaj_is( 'so is a zero', '4/3', sahaj_atlas_clean_ratio( '0:3' ) );
+sahaj_is( 'so is a shape past 4:1', '4/3', sahaj_atlas_clean_ratio( '10:1' ) );
+sahaj_is( 'and anything smuggling CSS', '4/3', sahaj_atlas_clean_ratio( '4/3;position:fixed' ) );
+
+$GLOBALS['sahaj_atlas_printed'] = false;
+sahaj_ok(
+	'the element carries the embed\'s shape',
+	false !== strpos( sahaj_atlas_element_markup( sahaj_atlas_normalize_attrs( array( 'map' => 'true', 'ratio' => '16:9' ), 'shortcode' ) ), 'aspect-ratio:16/9;' )
 );
 
 sahaj_ok( 'a shortcode with no map attribute shows the map', true === sahaj_atlas_normalize_attrs( array(), 'shortcode' )['map'] );

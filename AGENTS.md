@@ -38,8 +38,8 @@ drives the whole design:
 3. Use no framework, service container, or abstraction layer. The plugin has seven
    responsibilities, listed in the implementation plan — question an eighth.
 4. Treat configuration as a cost. The plugin allows three site settings (the API key, the
-   Atlas page's description opt-out, and where the Atlas page opens) and two per-embed attributes
-   (`map`, `atlas`). Add a setting only for a use case someone actually hit — #16 is the shape
+   Atlas page's description opt-out, and where the Atlas page opens) and three per-embed attributes
+   (`map`, `atlas`, `ratio`). Add a setting only for a use case someone actually hit — #16 is the shape
    that qualifies, and the national sites asking to open at their own country is the third. The
    bar does not move because a fourth one would be convenient.
 5. Fail loudly to the admin, never to the visitor.
@@ -54,8 +54,8 @@ drives the whole design:
   does not place a block — 4 of the 9 surveyed sites use a page builder where a block never
   appears.
 - In-content embeds are a separate, secondary feature, shipped as both a shortcode and a block.
-  They show the map by default (owner, 2026-10-05), at the column's full width and 3:4, capped at
-  80% of the screen, and send `gestures=cooperative` so the page scrolls past them. `map="false"`
+  They show the map by default (owner, 2026-10-05), at the column's full width and 4:3 (width to
+  height; `ratio` changes it, owner 2026-10-06), capped at 80% of the screen, and send `gestures=cooperative` so the page scrolls past them. `map="false"`
   gives the list, a single class, or its registration form.
 - The editor shows a static placeholder — the widget cannot upgrade to a live map inside its
   iframe.

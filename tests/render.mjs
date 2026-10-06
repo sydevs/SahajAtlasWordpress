@@ -391,7 +391,7 @@ async function check(run) {
       ok(`${kind}: the page renders`, page.status === 200, `status ${page.status}`)
       ok(`${kind}: exactly one element`, (body.match(/<sahaj-atlas[\s>]/g) ?? []).length === 1)
 
-      // An in-content embed shows the map by default, sized full-width at 3:4 by `aspect-ratio`.
+      // An in-content embed shows the map by default, sized full-width at 4:3 by `aspect-ratio`.
       // Unsized, it would cover the window (a map) or collapse to nothing (a list).
       // ⚠ A definite size, never `min-height`. The widget fills its element with `height: 100%`, which
       // needs a definite height to resolve against. `min-height` leaves nothing to fill, so the
@@ -399,7 +399,7 @@ async function check(run) {
       // `min-height` until SahajAtlasWeb#170 wrote this rule down.
       const style = tag?.[0] ?? ''
 
-      ok(`${kind}: the element is sized`, /aspect-ratio:\s*3\/4/.test(style) && /width:\s*100%/.test(style), style || 'no element')
+      ok(`${kind}: the element is sized`, /aspect-ratio:\s*4\/3/.test(style) && /width:\s*100%/.test(style), style || 'no element')
       ok(`${kind}: with a definite height, not min-height`, !/min-height/.test(style), style)
       ok(`${kind}: and display:block, which a custom element needs to take one`, /display:\s*block/.test(style), style)
       ok(`${kind}: the loader asks for the map`, !loader.includes('map=false'), loader)

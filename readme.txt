@@ -4,7 +4,7 @@ Tags: meditation, map, events, classes
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.3.0
+Stable tag: 0.3.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -137,6 +137,12 @@ Settings → Sahaj Atlas names where the map rendered. If that row is red, send 
 maintainers.
 
 == Changelog ==
+
+= 0.3.1 =
+* Fixed: the map in the `[sahaj_atlas]` shortcode and the Sahaj Atlas block is now four wide for
+  every three tall. 0.3.0 made it three wide for every four tall, which was too tall on most pages.
+* New: choose the map's shape with `ratio`, width to height — for example
+  `[sahaj_atlas ratio="16:9"]`, or "Shape" in the block's settings. Leave it out for 4:3.
 
 = 0.3.0 =
 * The Atlas page now renders the map even when a page builder or another template takes the page

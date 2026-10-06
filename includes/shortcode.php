@@ -28,6 +28,7 @@ function sahaj_atlas_shortcode( $atts ) {
 		array(
 			'map'   => 'true',
 			'atlas' => '',
+			'ratio' => '',
 		),
 		is_array( $atts ) ? $atts : array(),
 		'sahaj_atlas'
