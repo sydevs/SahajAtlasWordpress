@@ -7,7 +7,7 @@
  * the branch that can.
  *
  * ⚠ Always loaded, on every site. Only the module class is behind a guard — everything here must
- * answer on a site with no Beaver Builder, because `sahaj_atlas_editor_canvas()` asks it on every
+ * answer on a site with no Beaver Builder, because `sahaj_atlas_bb_editing()` is asked on every
  * request.
  *
  * @package SahajAtlas
@@ -141,6 +141,10 @@ function sahaj_atlas_first_bb_module( array $children, $parent, $is_visible ) {
 
 /**
  * Whether Beaver Builder is rendering this request into its own editor canvas.
+ *
+ * The widget cannot run usefully inside one, for the reason `blocks/embed/editor.js` records for
+ * the block editor. Both in-content callers ask this directly: a second builder earns a name for
+ * the general rule when there is a second term to put under it.
  *
  * ⚠ Two requests, not one. Opening the builder loads the front-end page with `?fl_builder`, which
  * `is_builder_active()` answers for. Dragging a module in re-renders only that module over

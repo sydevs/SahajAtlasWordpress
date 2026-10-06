@@ -51,7 +51,7 @@ function sahaj_atlas_resolve_and_enqueue() {
 	 * `sahaj_atlas_editor_placeholder()`. The Atlas page is excluded on purpose: the widget there is
 	 * the page, and that behaviour predates this guard.
 	 */
-	if ( 'page' !== $active['source'] && sahaj_atlas_editor_canvas() ) {
+	if ( 'page' !== $active['source'] && sahaj_atlas_bb_editing() ) {
 		return;
 	}
 
@@ -117,19 +117,6 @@ function sahaj_atlas_resolve_embed() {
 	}
 
 	return null;
-}
-
-/**
- * Whether a page builder is rendering this request into its own editor canvas.
- *
- * The widget cannot run usefully inside one — `blocks/embed/editor.js` explains why the block
- * editor shows a placeholder, and the reasoning is the same here. This names the rule, so a second
- * builder is one more term on this line rather than a second vendor check at each call site.
- *
- * @return bool
- */
-function sahaj_atlas_editor_canvas() {
-	return sahaj_atlas_bb_editing();
 }
 
 /**

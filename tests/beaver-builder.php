@@ -219,7 +219,6 @@ sahaj_atlas_load_bb_module();
 
 sahaj_ok( 'loading the module is a no-op, and declares no class', ! class_exists( 'Sahaj_Atlas_BB_Module' ) );
 sahaj_ok( 'no builder is editing', false === sahaj_atlas_bb_editing() );
-sahaj_ok( 'so no editor canvas is rendering', false === sahaj_atlas_editor_canvas() );
 
 /*
  * ⚠ The builder re-renders a dragged module over `admin-ajax.php`, where `is_admin()` is true and
@@ -230,11 +229,11 @@ sahaj_ok( 'so no editor canvas is rendering', false === sahaj_atlas_editor_canva
 add_filter( 'wp_doing_ajax', '__return_true' );
 $_POST['fl_builder_data'] = array( 'action' => 'render_new_module' );
 
-sahaj_ok( 'a Beaver Builder ajax render is an editor canvas', true === sahaj_atlas_editor_canvas() );
+sahaj_ok( 'a Beaver Builder ajax render is an editor canvas', true === sahaj_atlas_bb_editing() );
 
 unset( $_POST['fl_builder_data'] );
 
-sahaj_ok( 'and another ajax request is not', false === sahaj_atlas_editor_canvas() );
+sahaj_ok( 'and another ajax request is not', false === sahaj_atlas_bb_editing() );
 
 remove_filter( 'wp_doing_ajax', '__return_true' );
 

@@ -50,7 +50,7 @@ function sahaj_atlas_render_embed( $embed ) {
 		);
 	}
 
-	if ( sahaj_atlas_editor_canvas() ) {
+	if ( sahaj_atlas_bb_editing() ) {
 		return sahaj_atlas_editor_placeholder( $embed );
 	}
 
