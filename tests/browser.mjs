@@ -107,10 +107,20 @@ add_filter( 'wp_script_attributes', function ( $attributes ) {
 const SIDEBAR_PAGE = `wp_insert_post(array('post_type'=>'page','post_status'=>'publish','post_title'=>'Sidebar host','post_name'=>'sidebar-host','post_content'=>'<div style="width:300px">[sahaj_atlas map="true"]</div>'));`
 
 /**
+ * The text an in-content host page is padded with, above and below the embed.
+ *
+ * ⚠ Shared by every host page `checkArticle()` visits. Its "the page scrolls past it" assertion
+ * measures this padding, so a cell bringing its own page must pad it the same or it measures a
+ * different page while reporting the same check.
+ */
+const ARTICLE_BEFORE = `str_repeat('<p>Before the map.</p>', 6)`
+const ARTICLE_AFTER = `str_repeat('<p>After the map.</p>', 40)`
+
+/**
  * A host page for the in-content map: a bare `[sahaj_atlas]` in an ordinary article, with text
  * above and below it, so there is a page to scroll past the map.
  */
-const ARTICLE_PAGE = `wp_insert_post(array('post_type'=>'page','post_status'=>'publish','post_title'=>'Article host','post_name'=>'article-host','post_content'=>str_repeat('<p>Before the map.</p>', 6) . '[sahaj_atlas]' . str_repeat('<p>After the map.</p>', 40)));`
+const ARTICLE_PAGE = `wp_insert_post(array('post_type'=>'page','post_status'=>'publish','post_title'=>'Article host','post_name'=>'article-host','post_content'=>${ARTICLE_BEFORE} . '[sahaj_atlas]' . ${ARTICLE_AFTER}));`
 
 /**
  * A host page built with Beaver Builder: a row holding a column holding the plugin's own module,
@@ -125,7 +135,7 @@ const ARTICLE_PAGE = `wp_insert_post(array('post_type'=>'page','post_status'=>'p
  * reads `$node->type`, and a seeded array would make every node invisible to Beaver Builder and to
  * this plugin alike — a cell that fails for the fixture's reason, not the plugin's.
  */
-const BB_MODULE_PAGE = `$bb = wp_insert_post(array('post_type'=>'page','post_status'=>'publish','post_title'=>'Builder host','post_name'=>'builder-host','post_content'=>str_repeat('<p>Before the map.</p>', 6) . str_repeat('<p>After the map.</p>', 40)));
+const BB_MODULE_PAGE = `$bb = wp_insert_post(array('post_type'=>'page','post_status'=>'publish','post_title'=>'Builder host','post_name'=>'builder-host','post_content'=>${ARTICLE_BEFORE} . ${ARTICLE_AFTER}));
 update_post_meta($bb, '_fl_builder_enabled', 1);
 update_post_meta($bb, '_fl_builder_data', array(
   'rowone' => (object) array('node'=>'rowone','type'=>'row','parent'=>null,'position'=>0,'settings'=>(object) array()),

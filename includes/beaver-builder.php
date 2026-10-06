@@ -1,14 +1,14 @@
 <?php
 /**
- * Beaver Builder: loading the module, finding it in a saved layout, and the editor's placeholder.
+ * Beaver Builder: loading the module, and finding it in a saved layout.
  *
  * Beaver Builder keeps its layout in post meta, not in `post_content`, so neither the block scan
  * nor the shortcode scan in `includes/embed.php` can see a module a volunteer placed. This file is
  * the branch that can.
  *
  * ⚠ Always loaded, on every site. Only the module class is behind a guard — everything here must
- * answer on a site with no Beaver Builder, because `sahaj_atlas_render_embed()` asks it on every
- * in-content embed.
+ * answer on a site with no Beaver Builder, because `sahaj_atlas_editor_canvas()` asks it on every
+ * request.
  *
  * @package SahajAtlas
  */
@@ -18,9 +18,10 @@ defined( 'ABSPATH' ) || exit;
 /**
  * The module's slug, which is what a saved layout stores in a module node's `settings->type`.
  *
- * ⚠ Written once, read by the module's registration and by the finder below. Two spellings of it
- * are free to disagree, and the disagreement is silent: the module registers, the volunteer places
- * it, and the page serves no atlas.
+ * ⚠ One spelling, read by the module's registration and by the finder below. A second would be
+ * free to disagree, silently: the module registers, the volunteer places it, and the page serves no
+ * atlas. Deliberately not `SAHAJ_ATLAS_SLUG`, which holds the same string for an unrelated reason —
+ * renaming the plugin folder must not orphan a saved layout.
  */
 define( 'SAHAJ_ATLAS_BB_MODULE', 'sahaj-atlas' );
 
@@ -57,45 +58,54 @@ function sahaj_atlas_bb_embed( $post ) {
 /**
  * The first visible Sahaj Atlas module in a Beaver Builder layout, normalized, or null.
  *
- * Layout data is a flat map of node objects keyed by node id, each naming its `parent`, so this
- * walks it from the root down and takes the first match in document order — the same order Beaver
- * Builder renders in, and the one the "only one atlas" rule has to agree with.
+ * Layout data is a flat map of node objects keyed by node id, each naming its `parent`. So this
+ * groups them by parent once, then walks from the root down and takes the first match in document
+ * order — the order Beaver Builder renders in, and the one the "only one atlas" rule has to agree
+ * with.
+ *
+ * ⚠ Kept free of every `FL*` call, with the visibility test passed in, so `tests/run.php` can walk
+ * fixture nodes in a lane where Beaver Builder is not installed — the same lane that proves the
+ * guards above are real, which a stub class in its place would make unassertable. Beaver Builder's
+ * own `is_node_visible()` is the default, and stays its rule to own rather than one copied here.
+ *
+ * @param array         $nodes      Layout data: node objects, keyed by node id.
+ * @param callable|null $is_visible Whether one node is visible. Defaults to Beaver Builder's rule.
+ * @return array|null
+ */
+function sahaj_atlas_find_bb_module( array $nodes, $is_visible = null ) {
+	$children = array();
+
+	foreach ( $nodes as $id => $node ) {
+		if ( is_object( $node ) ) {
+			$children[ (string) ( isset( $node->parent ) ? $node->parent : '' ) ][ $id ] = $node;
+		}
+	}
+
+	return sahaj_atlas_first_bb_module(
+		$children,
+		'',
+		null === $is_visible ? array( 'FLBuilderModel', 'is_node_visible' ) : $is_visible
+	);
+}
+
+/**
+ * One parent's children, deepest-first, for `sahaj_atlas_find_bb_module()`.
  *
  * ⚠ A node a visibility rule hides is skipped along with everything under it. Beaver Builder
  * renders neither, so counting one would enqueue `auto.js` for an element the page never prints.
  *
- * ⚠ Kept free of every `FL*` call, with the visibility test passed in, so `tests/run.php` can walk
- * fixture nodes in a lane where Beaver Builder is not installed. Beaver Builder's own
- * `is_node_visible()` is the default, and is its rule to own, not a rule to copy here.
- *
- * @param array         $nodes      Layout data: node objects, keyed by node id.
- * @param callable|null $is_visible Whether one node is visible. Defaults to Beaver Builder's rule.
- * @param string        $parent     Whose children to walk. Empty is the layout's root.
+ * @param array    $children   Nodes grouped by their parent's id.
+ * @param string   $parent     Whose children to walk. Empty is the layout's root.
+ * @param callable $is_visible Whether one node is visible.
  * @return array|null
  */
-function sahaj_atlas_find_bb_module( array $nodes, $is_visible = null, $parent = '' ) {
-	if ( null === $is_visible ) {
-		$is_visible = array( 'FLBuilderModel', 'is_node_visible' );
+function sahaj_atlas_first_bb_module( array $children, $parent, $is_visible ) {
+	if ( ! isset( $children[ $parent ] ) ) {
+		return null;
 	}
 
-	$children = array();
-
-	foreach ( $nodes as $id => $node ) {
-		if ( is_object( $node ) && $parent === (string) ( isset( $node->parent ) ? $node->parent : '' ) ) {
-			$children[ $id ] = $node;
-		}
-	}
-
-	// `FLBuilderModel::order_nodes()`, which is the position difference and nothing else.
-	uasort(
-		$children,
-		function ( $left, $right ) {
-			return ( isset( $left->position ) ? (int) $left->position : 0 )
-				- ( isset( $right->position ) ? (int) $right->position : 0 );
-		}
-	);
-
-	foreach ( $children as $id => $node ) {
+	// `position` orders siblings, and the stored map's own order is not it.
+	foreach ( wp_list_sort( $children[ $parent ], 'position', 'ASC', true ) as $id => $node ) {
 		if ( ! call_user_func( $is_visible, $node ) ) {
 			continue;
 		}
@@ -106,7 +116,7 @@ function sahaj_atlas_find_bb_module( array $nodes, $is_visible = null, $parent =
 
 		// Rows hold modules and column groups, a column group holds columns, and a column holds
 		// either again. Descending by parent id follows all of it without naming any of it.
-		$found = sahaj_atlas_find_bb_module( $nodes, $is_visible, (string) $id );
+		$found = sahaj_atlas_first_bb_module( $children, (string) $id, $is_visible );
 
 		if ( null !== $found ) {
 			return $found;
@@ -117,35 +127,24 @@ function sahaj_atlas_find_bb_module( array $nodes, $is_visible = null, $parent =
 }
 
 /**
- * Whether Beaver Builder's editor is open on this request.
+ * Whether Beaver Builder is rendering this request into its own editor canvas.
+ *
+ * ⚠ Two requests, not one. Opening the builder loads the front-end page with `?fl_builder`, which
+ * `is_builder_active()` answers for. Dragging a module in re-renders only that module over
+ * `admin-ajax.php`, where `is_admin()` is true — so every branch of `is_builder_active()` is
+ * skipped and it answers false. Without the second test the volunteer gets "only one atlas can
+ * appear on a page" the moment they drop the module, because no embed is resolved for an admin
+ * request. `fl_builder_data` is Beaver Builder's own payload key (`FLBuilderModel::get_post_data()`).
+ *
+ * ⚠ Deliberately not memoized, though `is_builder_active()` caches nothing on a visitor request
+ * and this is asked once for the request plus once per in-content embed. A pinned answer is a
+ * stale answer for any caller running before `$_POST` is read, and it would make one of the two
+ * branches unassertable in a single test run. Two `current_user_can()` walks are the cheaper cost.
  *
  * @return bool
  */
 function sahaj_atlas_bb_editing() {
-	return class_exists( 'FLBuilderModel' ) && FLBuilderModel::is_builder_active();
-}
-
-/**
- * The static placeholder the builder's canvas shows in place of the widget.
- *
- * ⚠ The same decision the block editor took, for the same reason: the widget cannot run usefully
- * inside an editor canvas, and booting a third-party widget on every editor load spends its
- * network calls and analytics on nobody. The wording is `blocks/embed/editor.js`'s, word for word,
- * so a volunteer sees one placeholder whichever editor they opened.
- *
- * @param array $embed A normalized embed.
- * @return string
- */
-function sahaj_atlas_bb_placeholder( $embed ) {
-	if ( '' !== $embed['atlas'] ) {
-		$instructions = __( 'Opens at: ', 'sahaj-atlas' ) . $embed['atlas'];
-	} elseif ( $embed['map'] ) {
-		$instructions = __( 'Shows the map of classes.', 'sahaj-atlas' );
-	} else {
-		$instructions = __( 'Shows the list of classes. Set a place to open a country, a city or one class instead.', 'sahaj-atlas' );
-	}
-
-	return '<div class="sahaj-atlas-placeholder" style="padding:2em;text-align:center;border:1px dashed currentColor">'
-		. '<strong>' . esc_html__( 'Sahaj Atlas', 'sahaj-atlas' ) . '</strong><br />'
-		. esc_html( $instructions ) . '</div>';
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- presence only; nothing is read.
+	return ( class_exists( 'FLBuilderModel' ) && FLBuilderModel::is_builder_active() )
+		|| ( wp_doing_ajax() && isset( $_POST['fl_builder_data'] ) );
 }

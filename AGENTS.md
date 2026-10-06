@@ -205,7 +205,7 @@ check, the measurement checks, the PHP suite, then the render checks.
 | `includes/page.php` | Owns the Atlas page, both template paths, and the theme-band switches |
 | `includes/routing.php` | Matches `parse_request`, reads `?atlas=`, and suppresses the canonical redirect |
 | `includes/shortcode.php` | Runs `[sahaj_atlas]`, sharing the block's render body |
-| `includes/beaver-builder.php` | Loads the module, finds it in a saved layout, holds the builder's placeholder |
+| `includes/beaver-builder.php` | Loads the module, and finds it in a saved layout |
 | `modules/sahaj-atlas/` | The Beaver Builder module: its form, and one call into the shared renderer |
 | `includes/settings.php` | Holds the two options, the settings screen, and the create-page button |
 | `includes/diagnostics.php` | Runs the eight checks — the last two read the live page back over loopback |
