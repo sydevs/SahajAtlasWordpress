@@ -45,6 +45,16 @@ function sahaj_atlas_resolve_and_enqueue() {
 		return;
 	}
 
+	/*
+	 * ⚠ An editor canvas gets the static placeholder instead, and leaving this global null is what
+	 * withholds the element the widget would otherwise mount — see
+	 * `sahaj_atlas_editor_placeholder()`. The Atlas page is excluded on purpose: the widget there is
+	 * the page, and that behaviour predates this guard.
+	 */
+	if ( 'page' !== $active['source'] && sahaj_atlas_bb_editing() ) {
+		return;
+	}
+
 	$GLOBALS['sahaj_atlas_active'] = $active;
 
 	/*
@@ -60,7 +70,8 @@ function sahaj_atlas_resolve_and_enqueue() {
 }
 
 /**
- * Which embed this page has, in priority order: the Atlas page, then a block, then a shortcode.
+ * Which embed this page has, in priority order: the Atlas page, a Beaver Builder layout, a block,
+ * then a shortcode.
  *
  * @return array|null
  */
@@ -77,6 +88,16 @@ function sahaj_atlas_resolve_embed() {
 
 	if ( ! $post instanceof WP_Post ) {
 		return null;
+	}
+
+	/*
+	 * ⚠ Ahead of both `post_content` scans, and decisive either way. `FLBuilder::render_content()`
+	 * replaces `the_content` wholesale on a builder-enabled post, so a block or shortcode a
+	 * conversion left behind is markup the page never serves. Resolving one would enqueue `auto.js`
+	 * for an element nothing prints, and the visitor would get the script and no map.
+	 */
+	if ( sahaj_atlas_bb_enabled( $post ) ) {
+		return sahaj_atlas_bb_embed( $post );
 	}
 
 	if ( has_block( 'sahaj-atlas/embed', $post ) ) {

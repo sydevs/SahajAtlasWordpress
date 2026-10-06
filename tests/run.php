@@ -614,6 +614,7 @@ $GLOBALS['sahaj_atlas_active']  = null;
 
 // ---------------------------------------------------------------------------------------------
 
+require __DIR__ . '/beaver-builder.php';
 require __DIR__ . '/contract.php';
 require __DIR__ . '/sitemap.php';
 require __DIR__ . '/domains.php';

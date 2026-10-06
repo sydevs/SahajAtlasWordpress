@@ -3,7 +3,7 @@
  * Plugin Name:       Sahaj Atlas
  * Plugin URI:        https://github.com/sydevs/SahajAtlasWordpress
  * Description:       Adds the Sahaj Atlas — a searchable map of free meditation classes — to your site.
- * Version:           0.3.1
+ * Version:           0.3.2
  * Requires at least: 6.7
  * Requires PHP:      7.4
  * Author:            Sahaja Yoga Developers
@@ -27,7 +27,7 @@ defined( 'ABSPATH' ) || exit;
  * and on `plugins_loaded`. Every module below registers its hooks from `sahaj_atlas_init()` instead.
  */
 
-define( 'SAHAJ_ATLAS_VERSION', '0.3.1' );
+define( 'SAHAJ_ATLAS_VERSION', '0.3.2' );
 define( 'SAHAJ_ATLAS_FILE', __FILE__ );
 define( 'SAHAJ_ATLAS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SAHAJ_ATLAS_URL', plugin_dir_url( __FILE__ ) );
@@ -76,6 +76,7 @@ require_once SAHAJ_ATLAS_DIR . 'includes/embed.php';
 require_once SAHAJ_ATLAS_DIR . 'includes/page.php';
 require_once SAHAJ_ATLAS_DIR . 'includes/routing.php';
 require_once SAHAJ_ATLAS_DIR . 'includes/shortcode.php';
+require_once SAHAJ_ATLAS_DIR . 'includes/beaver-builder.php';
 require_once SAHAJ_ATLAS_DIR . 'includes/settings.php';
 require_once SAHAJ_ATLAS_DIR . 'includes/diagnostics.php';
 require_once SAHAJ_ATLAS_DIR . 'includes/seo.php';
@@ -91,6 +92,7 @@ function sahaj_atlas_init() {
 	sahaj_atlas_load_textdomain();
 	sahaj_atlas_register_block();
 	sahaj_atlas_register_shortcode();
+	sahaj_atlas_load_bb_module();
 	sahaj_atlas_register_settings();
 	sahaj_atlas_register_page_template();
 	sahaj_atlas_register_route_var();
