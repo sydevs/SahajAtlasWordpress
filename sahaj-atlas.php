@@ -76,6 +76,7 @@ require_once SAHAJ_ATLAS_DIR . 'includes/embed.php';
 require_once SAHAJ_ATLAS_DIR . 'includes/page.php';
 require_once SAHAJ_ATLAS_DIR . 'includes/routing.php';
 require_once SAHAJ_ATLAS_DIR . 'includes/shortcode.php';
+require_once SAHAJ_ATLAS_DIR . 'includes/beaver-builder.php';
 require_once SAHAJ_ATLAS_DIR . 'includes/settings.php';
 require_once SAHAJ_ATLAS_DIR . 'includes/diagnostics.php';
 require_once SAHAJ_ATLAS_DIR . 'includes/seo.php';
@@ -91,6 +92,7 @@ function sahaj_atlas_init() {
 	sahaj_atlas_load_textdomain();
 	sahaj_atlas_register_block();
 	sahaj_atlas_register_shortcode();
+	sahaj_atlas_load_bb_module();
 	sahaj_atlas_register_settings();
 	sahaj_atlas_register_page_template();
 	sahaj_atlas_register_route_var();

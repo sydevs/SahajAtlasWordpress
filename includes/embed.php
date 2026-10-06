@@ -45,6 +45,16 @@ function sahaj_atlas_resolve_and_enqueue() {
 		return;
 	}
 
+	/*
+	 * ⚠ A page builder's canvas gets the static placeholder instead, and leaving this global null is
+	 * what withholds the element the widget would otherwise mount — see
+	 * `sahaj_atlas_bb_placeholder()`. The Atlas page is excluded on purpose: the widget there is the
+	 * page, and that behaviour predates this guard.
+	 */
+	if ( 'page' !== $active['source'] && sahaj_atlas_bb_editing() ) {
+		return;
+	}
+
 	$GLOBALS['sahaj_atlas_active'] = $active;
 
 	/*
@@ -60,7 +70,8 @@ function sahaj_atlas_resolve_and_enqueue() {
 }
 
 /**
- * Which embed this page has, in priority order: the Atlas page, then a block, then a shortcode.
+ * Which embed this page has, in priority order: the Atlas page, a block, a Beaver Builder module,
+ * then a shortcode.
  *
  * @return array|null
  */
@@ -87,6 +98,12 @@ function sahaj_atlas_resolve_embed() {
 				return $found;
 			}
 		}
+	}
+
+	$builder = sahaj_atlas_bb_embed( $post );
+
+	if ( null !== $builder ) {
+		return $builder;
 	}
 
 	if ( has_shortcode( (string) $post->post_content, 'sahaj_atlas' ) ) {

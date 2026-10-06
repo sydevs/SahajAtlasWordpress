@@ -38,7 +38,7 @@ function sahaj_atlas_shortcode( $atts ) {
 }
 
 /**
- * The one renderer behind both the shortcode and the block.
+ * The one renderer behind the shortcode, the block and the Beaver Builder module.
  *
  * @param array $embed A normalized embed.
  * @return string
@@ -48,6 +48,10 @@ function sahaj_atlas_render_embed( $embed ) {
 		return sahaj_atlas_admin_only_notice(
 			__( 'Sahaj Atlas: no API key has been set. Add one under Settings → Sahaj Atlas.', 'sahaj-atlas' )
 		);
+	}
+
+	if ( sahaj_atlas_bb_editing() ) {
+		return sahaj_atlas_bb_placeholder( $embed );
 	}
 
 	$markup = sahaj_atlas_element_markup( $embed );
