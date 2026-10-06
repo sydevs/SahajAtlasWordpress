@@ -165,8 +165,35 @@ function sahaj_atlas_normalize_attrs( $attrs, $source ) {
 	return array(
 		'map'    => (bool) $map,
 		'atlas'  => $atlas,
+		'ratio'  => sahaj_atlas_clean_ratio( isset( $attrs['ratio'] ) ? (string) $attrs['ratio'] : '' ),
 		'source' => $source,
 	);
+}
+
+/**
+ * An in-content embed's shape, as CSS `aspect-ratio` reads it: width, then height.
+ *
+ * `16:9`, `16/9` and `16x9` all mean sixteen wide for every nine tall. Anything else — empty, a
+ * zero, a shape more extreme than 4:1 either way, or a value carrying more than two numbers — is
+ * the default, 1:1 — a square. The value lands in a `style` attribute, so it is rebuilt from the two numbers
+ * rather than passed through.
+ *
+ * @param string $value What the shortcode or block was given.
+ * @return string `W/H`.
+ */
+function sahaj_atlas_clean_ratio( $value ) {
+	if ( ! preg_match( '/^\s*(\d{1,4}(?:\.\d{1,2})?)\s*[:\/x]\s*(\d{1,4}(?:\.\d{1,2})?)\s*$/i', $value, $parts ) ) {
+		return '1/1';
+	}
+
+	$width  = (float) $parts[1];
+	$height = (float) $parts[2];
+
+	if ( $width <= 0 || $height <= 0 || $width / $height > 4 || $height / $width > 4 ) {
+		return '1/1';
+	}
+
+	return ( 0 + $parts[1] ) . '/' . ( 0 + $parts[2] );
 }
 
 /**
@@ -476,14 +503,18 @@ function sahaj_atlas_element_markup( $embed ) {
 	 * in. The old comment here justified `min-height` as a way to let a theme grow the box. That
 	 * choice bought a takeover instead.
 	 *
-	 * The box takes the column's full width at 3:4, which an `aspect-ratio` makes a definite height
+	 * The box takes the column's full width at its ratio — square,
+	 * unless the embed asks for another — which an `aspect-ratio` makes a definite height
 	 * as surely as `height` does. It is capped at 80% of the screen, so a wide desktop column never
 	 * gets a map taller than the window — which would put the mobile sheet's drag handle, and every
 	 * way past the map, below the fold. A map embed sized like this is a contained map: it lives
-	 * inside this box, in its own stacking context. Under the widget's 360×420 floors — a narrow
-	 * column, most phones — it shows the compact card instead, whose button opens it full-screen.
+	 * inside this box, in its own stacking context. Under the widget's 360×420 floors — a square
+	 * in a column under 420px wide — it shows the compact card instead, whose button opens it
+	 * full-screen. A square is the default: it clears that floor from 420px wide, where 4:3 needed
+	 * 560px. A phone's column, around 350px, is under the 360px width floor either way.
 	 */
-	$style = ' style="display:block;width:100%;aspect-ratio:3/4;max-height:80vh"';
+	$ratio = isset( $embed['ratio'] ) ? sahaj_atlas_clean_ratio( $embed['ratio'] ) : '1/1';
+	$style = ' style="display:block;width:100%;aspect-ratio:' . $ratio . ';max-height:80vh"';
 
 	return '<sahaj-atlas' . $style . '>' . sahaj_atlas_element_children() . '</sahaj-atlas>';
 }

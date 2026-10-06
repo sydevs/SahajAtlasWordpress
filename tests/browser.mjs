@@ -614,7 +614,7 @@ async function checkAtlasPage(browser, cell, viewport, port) {
 }
 
 /**
- * A bare `[sahaj_atlas]` in an article: the map at the column's full width, at 3:4, and a page the
+ * A bare `[sahaj_atlas]` in an article: the map at the column's full width, square, and a page the
  * visitor can still scroll past it.
  *
  * @param {import('playwright-core').Browser} browser
@@ -645,11 +645,11 @@ async function checkArticle(browser, cell, viewport, port) {
 
       return { width: rect.width, height: rect.height, column: element.parentElement.getBoundingClientRect().width, top: rect.top, vh: window.innerHeight }
     })
-    const want = Math.min((box.column * 4) / 3, 0.8 * box.vh)
+    const want = Math.min(box.column, 0.8 * box.vh)
 
-    // The plugin's own box: the column's full width, at 3:4, capped at 80% of the screen.
+    // The plugin's own box: the column's full width, square, capped at 80% of the screen.
     fit(`${label}: the map takes the column's full width`, Math.abs(box.width - box.column) <= 1, `${Math.round(box.width)}px of ${Math.round(box.column)}px`)
-    fit(`${label}: at 3:4, under 80% of the screen`, Math.abs(box.height - want) <= 2, `${Math.round(box.height)}px, want ${Math.round(want)}px`)
+    fit(`${label}: square, under 80% of the screen`, Math.abs(box.height - want) <= 2, `${Math.round(box.height)}px, want ${Math.round(want)}px`)
 
     if (log.widget().some((line) => line.includes(COMPACT))) {
       console.log(`  info  ${label}: the compact card, in a ${Math.round(box.column)}px column`)

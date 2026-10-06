@@ -45,10 +45,19 @@
 						} ),
 						el( components.ToggleControl, {
 							label: __( 'Show the map', 'sahaj-atlas' ),
-							help: __( 'On by default. The map takes the full width, at 3:4, and visitors scroll past it as usual — two fingers move the map. In a column narrower than 360px it shows a button that opens the map instead.', 'sahaj-atlas' ),
+							help: __( 'On by default. The map takes the full width, and visitors scroll past it as usual — two fingers move the map. In a column narrower than 360px it shows a button that opens the map instead.', 'sahaj-atlas' ),
 							checked: !! attributes.map,
 							onChange: function ( value ) {
 								props.setAttributes( { map: value } );
+							}
+						} ),
+						el( components.TextControl, {
+							label: __( 'Shape (optional)', 'sahaj-atlas' ),
+							help: __( 'Width to height, such as 16:9 or 4:3. Empty is a square.', 'sahaj-atlas' ),
+							placeholder: '1:1',
+							value: attributes.ratio || '',
+							onChange: function ( value ) {
+								props.setAttributes( { ratio: value } );
 							}
 						} )
 					)
