@@ -125,6 +125,11 @@ area instead, with your site's footer below it. Nothing to change. The `[sahaj_a
 for your other pages — the map, a list, a single class or its registration form — and is not
 needed on the Atlas page.
 
+Beaver Builder has a module of its own. Add a module to any page and pick "Sahaj Atlas", in its own
+group in the module panel. Its three settings match the shortcode's: where it opens, whether to
+show the map, and the shape. Inside the builder you see a placeholder instead of the map; save the
+page and view it to see the atlas. Every other builder uses the shortcode.
+
 = Can the Atlas page open at my country? =
 
 Yes. Find your country or city on sahajatlas.com, copy the address from your browser (for example

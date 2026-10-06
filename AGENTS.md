@@ -53,7 +53,8 @@ drives the whole design:
 - The plugin owns one atlas page per site, created by a settings-screen button. The volunteer
   does not place a block — 4 of the 9 surveyed sites use a page builder where a block never
   appears.
-- In-content embeds are a separate, secondary feature, shipped as both a shortcode and a block.
+- In-content embeds are a separate, secondary feature, shipped as a shortcode, a block and a
+  Beaver Builder module — the module because one client site builds with it and asked (#63).
   They show the map by default (owner, 2026-10-05), at the column's full width and square (width to
   height 1:1; `ratio` changes it, owner 2026-10-06), capped at 80% of the screen, and send `gestures=cooperative` so the page scrolls past them. `map="false"`
   gives the list, a single class, or its registration form.
@@ -182,7 +183,13 @@ the full story.
     composer, and one `sahaj_atlas_sitemap_is_servable()` beside it — anything that spells either
     answer a second time is free to disagree with it. See sitemap.php:62,77,86,287,333,
     diagnostics.php:545,564.
-26. Dropping a theme's hero does not reclaim the space it held, so the fix is two of the theme's
+26. A Beaver Builder module must set `'editor_export' => false`. On publish, Beaver Builder renders
+    every exportable module into `post_content` and strips `style="…"` on the way, so the exported
+    element loses `display:block` and its `aspect-ratio` — and by trap 4 an unsized element covers
+    the whole viewport. Nothing shows while the builder is active, because the layout is what
+    renders; the overlay appears the day someone deactivates the plugin that was holding it back.
+    It also leaves a second element beside any shortcode. See modules/sahaj-atlas/sahaj-atlas.php:42.
+27. Dropping a theme's hero does not reclaim the space it held, so the fix is two of the theme's
     own switches: the filter that yields no image, and the class whose rule releases the box. Which
     switch, and why not the shorter route, are both load-bearing. See page.php:193,218.
 
@@ -198,6 +205,8 @@ check, the measurement checks, the PHP suite, then the render checks.
 | `includes/page.php` | Owns the Atlas page, both template paths, and the theme-band switches |
 | `includes/routing.php` | Matches `parse_request`, reads `?atlas=`, and suppresses the canonical redirect |
 | `includes/shortcode.php` | Runs `[sahaj_atlas]`, sharing the block's render body |
+| `includes/beaver-builder.php` | Loads the module, finds it in a saved layout, holds the builder's placeholder |
+| `modules/sahaj-atlas/` | The Beaver Builder module: its form, and one call into the shared renderer |
 | `includes/settings.php` | Holds the two options, the settings screen, and the create-page button |
 | `includes/diagnostics.php` | Runs the eight checks — the last two read the live page back over loopback |
 | `includes/seo.php` | Takes over metadata and renders crawlable body content |

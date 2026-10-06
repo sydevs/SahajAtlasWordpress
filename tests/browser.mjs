@@ -113,6 +113,27 @@ const SIDEBAR_PAGE = `wp_insert_post(array('post_type'=>'page','post_status'=>'p
 const ARTICLE_PAGE = `wp_insert_post(array('post_type'=>'page','post_status'=>'publish','post_title'=>'Article host','post_name'=>'article-host','post_content'=>str_repeat('<p>Before the map.</p>', 6) . '[sahaj_atlas]' . str_repeat('<p>After the map.</p>', 40)));`
 
 /**
+ * A host page built with Beaver Builder: a row holding a column holding the plugin's own module,
+ * with text above and below it, so there is a page to scroll past the map.
+ *
+ * ⚠ The layout lives in post meta, not in `post_content`, which is the whole reason
+ * `sahaj_atlas_find_bb_module()` exists. `_fl_builder_data` holds node objects keyed by node id;
+ * `_fl_builder_enabled` is what `FLBuilderModel::is_builder_enabled()` reads. The module node's
+ * `settings->type` is the module slug, and the plugin matches that exact string.
+ *
+ * ⚠ The nodes are written as objects (`(object)`), never arrays. `FLBuilderModel::get_nodes()`
+ * reads `$node->type`, and a seeded array would make every node invisible to Beaver Builder and to
+ * this plugin alike — a cell that fails for the fixture's reason, not the plugin's.
+ */
+const BB_MODULE_PAGE = `$bb = wp_insert_post(array('post_type'=>'page','post_status'=>'publish','post_title'=>'Builder host','post_name'=>'builder-host','post_content'=>str_repeat('<p>Before the map.</p>', 6) . str_repeat('<p>After the map.</p>', 40)));
+update_post_meta($bb, '_fl_builder_enabled', 1);
+update_post_meta($bb, '_fl_builder_data', array(
+  'rowone' => (object) array('node'=>'rowone','type'=>'row','parent'=>null,'position'=>0,'settings'=>(object) array()),
+  'colone' => (object) array('node'=>'colone','type'=>'column','parent'=>'rowone','position'=>0,'settings'=>(object) array('size'=>100)),
+  'modone' => (object) array('node'=>'modone','type'=>'module','parent'=>'colone','position'=>0,'settings'=>(object) array('type'=>'sahaj-atlas','map'=>'1','atlas'=>'','ratio'=>'')),
+));`
+
+/**
  * Hand the Atlas page to Elementor's "Elementor Full Width" template — header, content, footer, no
  * theme page title. Its slug is `elementor_header_footer`; `elementor_canvas` is the other one, and
  * drops the header and footer this cell exists to keep (#39).
@@ -143,8 +164,10 @@ const PANEL_SEED = `set_transient(sahaj_atlas_client_slot(sahaj_atlas_api_key())
  * @property {string} [wp]           WordPress version, when the fleet floor is too old
  * @property {Record<string,string>} [mu]  mu-plugins to write, name → PHP
  * @property {boolean} [sidebar]     also check the in-content compact card
- * @property {boolean} [article]     also check a bare `[sahaj_atlas]` in an article: its size, and
- *                                   that the page scrolls past it
+ * @property {boolean|string} [article]  also check an in-content embed: its size, and that the page
+ *                                   scrolls past it. `true` seeds the shared `[sahaj_atlas]`
+ *                                   article; a string is the slug of a host page this cell's own
+ *                                   `seed` built, and seeds no article
  * @property {boolean} [login]       load the page as admin, with the admin bar
  * @property {string} [seed]         extra PHP, appended to the shared seed
  * @property {'template'|'content'} [render]  which print must render the element; `template` default
@@ -180,6 +203,9 @@ const CELLS = [
   // area and the theme's footer stays below it (#39).
   { name: 'elementor-full-width', theme: 'astra', plugins: ['elementor'], wp: '6.8', seed: ELEMENTOR_FULL_WIDTH, render: 'content', panel: true },
   { name: 'beaver-builder', theme: 'astra', plugins: ['beaver-builder-lite-version'], wp: '6.8' },
+  // The plugin's own Beaver Builder module, in a layout the builder saved (#63). The shortcode
+  // cell above covers the Atlas page under the same builder.
+  { name: 'beaver-builder-module', theme: 'astra', plugins: ['beaver-builder-lite-version'], wp: '6.8', seed: BB_MODULE_PAGE, article: 'builder-host' },
   // Hostile conditions, each on a theme that passes clean.
   { name: 'async-css', theme: 'astra', mu: { 'async-css': MU.asyncCss } },
   { name: 'fixed-header', theme: 'twentytwenty', mu: { 'fixed-header': MU.fixedHeader } },
@@ -280,7 +306,7 @@ async function blueprint(cell) {
   }
 
   steps.push({ step: 'activatePlugin', pluginPath: 'sahaj-atlas/sahaj-atlas.php' })
-  steps.push({ step: 'runPHP', code: await seed([cell.sidebar ? SIDEBAR_PAGE : '', cell.article ? ARTICLE_PAGE : '', cell.panel ? PANEL_SEED : '', cell.seed ?? ''].join(' ')) })
+  steps.push({ step: 'runPHP', code: await seed([cell.sidebar ? SIDEBAR_PAGE : '', true === cell.article ? ARTICLE_PAGE : '', cell.panel ? PANEL_SEED : '', cell.seed ?? ''].join(' ')) })
 
   // ⚠ The versions live here, not in the `--php`/`--wp` flags: given a blueprint, `server` ignores
   // the flags (see tests/render.mjs). Without this key every cell ran WordPress 7.1 on PHP 8.5.
@@ -614,8 +640,9 @@ async function checkAtlasPage(browser, cell, viewport, port) {
 }
 
 /**
- * A bare `[sahaj_atlas]` in an article: the map at the column's full width, square, and a page the
- * visitor can still scroll past it.
+ * An in-content embed in an ordinary page: the map at the column's full width, square, and a page
+ * the visitor can still scroll past it. The cell names which host page — a bare `[sahaj_atlas]` in
+ * an article by default, or one its own seed built, such as a saved Beaver Builder layout.
  *
  * @param {import('playwright-core').Browser} browser
  * @param {Cell} cell
@@ -626,6 +653,7 @@ async function checkArticle(browser, cell, viewport, port) {
   const base = `http://127.0.0.1:${port}`
   const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, hasTouch: viewport.width < 768 })
   const label = `${cell.name} @ article ${viewport.name}`
+  const host = typeof cell.article === 'string' ? cell.article : 'article-host'
 
   try {
     await prepare(context, port)
@@ -634,7 +662,7 @@ async function checkArticle(browser, cell, viewport, port) {
     const log = collectConsole(page, label)
     const { fit, widget } = scope
 
-    await page.goto(`${base}/article-host/`, { waitUntil: 'load', timeout: 90000 })
+    await page.goto(`${base}/${host}/`, { waitUntil: 'load', timeout: 90000 })
     await page.waitForSelector('sahaj-atlas .sy-atlas', { timeout: 45000 }).catch(() => {})
     await page.locator('sahaj-atlas').scrollIntoViewIfNeeded()
     await sleep(4000)

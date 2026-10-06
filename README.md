@@ -74,7 +74,8 @@ block.
 ### The shortcode
 
 Type the shortcode into any page or post, or into a "Shortcode" widget in a page builder
-(Elementor, WPBakery, Beaver Builder and others).
+(Elementor, WPBakery and others). **Beaver Builder has its own module** — see below — and the
+shortcode is the way in for every other builder.
 
 | What you want to show | Type this |
 | --- | --- |
@@ -116,6 +117,15 @@ In the block editor, add the **Sahaj Atlas** block. In the block's settings pane
 - **Open at** is the same as `atlas` above. Paste an address from sahajatlas.com.
 - **Show the map** is on unless you turn it off, the same as leaving out `map="false"`.
 - **Shape** is the same as `ratio`, such as `16:9`. Leave it empty for a square.
+
+### Beaver Builder
+
+Open a page in Beaver Builder, add a module, and pick **Sahaj Atlas** — it is in its own "Sahaj
+Atlas" group in the module panel. Its three settings are the same three as the block's: **Open
+at**, **Show the map**, and **Shape**.
+
+While you are in the builder you see a placeholder saying what the atlas will show, not the map
+itself. Save the page and view it to see the real thing.
 
 ---
 

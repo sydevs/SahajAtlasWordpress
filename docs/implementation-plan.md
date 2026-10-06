@@ -55,7 +55,7 @@ AGENTS.md's Decisions section lists the load-bearing choices. This table adds th
 2. Create and own the Atlas page, and render it.
 3. Register the rule that makes path routing work.
 4. Enqueue `auto.js` with the right query string on the right pages.
-5. Provide the in-content shortcode and block.
+5. Provide the in-content shortcode, block and Beaver Builder module.
 6. Show diagnostics.
 7. Keep itself updated.
 
