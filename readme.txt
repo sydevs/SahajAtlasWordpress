@@ -4,7 +4,7 @@ Tags: meditation, map, events, classes
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.3.1
+Stable tag: 0.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -142,6 +142,15 @@ Settings → Sahaj Atlas names where the map rendered. If that row is red, send 
 maintainers.
 
 == Changelog ==
+
+= 0.4.0 =
+* New: Beaver Builder has a Sahaj Atlas module. Add a module to any page and pick "Sahaj Atlas",
+  in its own group in the module panel. Its three settings match the shortcode's: where it opens,
+  whether to show the map, and the shape. Inside the builder you see a placeholder; save the page
+  and view it to see the atlas.
+* Fixed: on a page built with Beaver Builder, the plugin now reads the page's Beaver Builder
+  layout. Before, a block or shortcode left behind by a page's conversion to Beaver Builder could
+  leave the page loading the atlas and showing nothing.
 
 = 0.3.1 =
 * Fixed: the map in the `[sahaj_atlas]` shortcode and the Sahaj Atlas block is now square. 0.3.0
