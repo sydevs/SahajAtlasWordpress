@@ -111,7 +111,8 @@ const SIDEBAR_PAGE = `wp_insert_post(array('post_type'=>'page','post_status'=>'p
  *
  * ⚠ Shared by every host page `checkArticle()` visits. Its "the page scrolls past it" assertion
  * measures this padding, so a cell bringing its own page must pad it the same or it measures a
- * different page while reporting the same check.
+ * different page while reporting the same check. A page builder's host page pads its own layout
+ * with it, never `post_content`, which such a page does not render.
  */
 const ARTICLE_BEFORE = `str_repeat('<p>Before the map.</p>', 6)`
 const ARTICLE_AFTER = `str_repeat('<p>After the map.</p>', 40)`
@@ -123,8 +124,8 @@ const ARTICLE_AFTER = `str_repeat('<p>After the map.</p>', 40)`
 const ARTICLE_PAGE = `wp_insert_post(array('post_type'=>'page','post_status'=>'publish','post_title'=>'Article host','post_name'=>'article-host','post_content'=>${ARTICLE_BEFORE} . '[sahaj_atlas]' . ${ARTICLE_AFTER}));`
 
 /**
- * A host page built with Beaver Builder: a row holding a column holding the plugin's own module,
- * with text above and below it, so there is a page to scroll past the map.
+ * A host page built with Beaver Builder: a row → column-group → column holding the plugin's own
+ * module, with a text module above and below it, so there is a page to scroll past the map.
  *
  * ⚠ The layout lives in post meta, not in `post_content`, which is the whole reason
  * `sahaj_atlas_find_bb_module()` exists. `_fl_builder_data` holds node objects keyed by node id;
@@ -135,17 +136,26 @@ const ARTICLE_PAGE = `wp_insert_post(array('post_type'=>'page','post_status'=>'p
  * reads `$node->type`, and a seeded array would make every node invisible to Beaver Builder and to
  * this plugin alike — a cell that fails for the fixture's reason, not the plugin's.
  *
- * ⚠ `post_content` holds a stale `[sahaj_atlas]`, the way a page converted to Beaver Builder does.
- * Beaver Builder never renders it, so it is the shortcode scan that must lose to the layout. Let it
- * win and the module prints the "only one atlas" notice instead of the element, which a visitor
- * never sees — so this cell is where that resolution order is exercised at all.
+ * ⚠ `post_content` holds a stale `[sahaj_atlas]`, the way a page converted to Beaver Builder does,
+ * and nothing else. `FLBuilder::render_content()` discards `post_content` on a builder-enabled post,
+ * so padding put there is a page this check never loads, and the shortcode left there must lose to
+ * the layout. Let it win and the module prints the "only one atlas" notice in place of the element,
+ * which a logged-out visitor never sees — this cell is where that resolution order is exercised.
+ *
+ * ⚠ The column-group between the row and the column is load-bearing, not decoration. `row.php`
+ * hands each of a row's children to `FLBuilder::render_column_group()`, which reads children of
+ * type `column` — so a column parented straight to a row renders an empty group and the module
+ * inside it never renders at all.
  */
-const BB_MODULE_PAGE = `$bb = wp_insert_post(array('post_type'=>'page','post_status'=>'publish','post_title'=>'Builder host','post_name'=>'builder-host','post_content'=>${ARTICLE_BEFORE} . '[sahaj_atlas]' . ${ARTICLE_AFTER}));
+const BB_MODULE_PAGE = `$bb = wp_insert_post(array('post_type'=>'page','post_status'=>'publish','post_title'=>'Builder host','post_name'=>'builder-host','post_content'=>'[sahaj_atlas]'));
 update_post_meta($bb, '_fl_builder_enabled', 1);
 update_post_meta($bb, '_fl_builder_data', array(
   'rowone' => (object) array('node'=>'rowone','type'=>'row','parent'=>null,'position'=>0,'settings'=>(object) array()),
-  'colone' => (object) array('node'=>'colone','type'=>'column','parent'=>'rowone','position'=>0,'settings'=>(object) array('size'=>100)),
-  'modone' => (object) array('node'=>'modone','type'=>'module','parent'=>'colone','position'=>0,'settings'=>(object) array('type'=>'sahaj-atlas','map'=>'1','atlas'=>'','ratio'=>'')),
+  'grpone' => (object) array('node'=>'grpone','type'=>'column-group','parent'=>'rowone','position'=>0,'settings'=>(object) array()),
+  'colone' => (object) array('node'=>'colone','type'=>'column','parent'=>'grpone','position'=>0,'settings'=>(object) array('size'=>100)),
+  'padtop' => (object) array('node'=>'padtop','type'=>'module','parent'=>'colone','position'=>0,'settings'=>(object) array('type'=>'rich-text','text'=>${ARTICLE_BEFORE})),
+  'modone' => (object) array('node'=>'modone','type'=>'module','parent'=>'colone','position'=>1,'settings'=>(object) array('type'=>'sahaj-atlas','map'=>'1','atlas'=>'','ratio'=>'')),
+  'padend' => (object) array('node'=>'padend','type'=>'module','parent'=>'colone','position'=>2,'settings'=>(object) array('type'=>'rich-text','text'=>${ARTICLE_AFTER})),
 ));`
 
 /**
