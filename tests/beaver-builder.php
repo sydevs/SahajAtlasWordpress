@@ -240,7 +240,15 @@ remove_filter( 'wp_doing_ajax', '__return_true' );
 
 $sahaj_bb_post = get_post( sahaj_atlas_page_id() );
 
+sahaj_ok( 'no post is built with the builder', false === sahaj_atlas_bb_enabled( $sahaj_bb_post ) );
 sahaj_is( 'and no post has a builder layout', null, sahaj_atlas_bb_embed( $sahaj_bb_post ) );
+
+/*
+ * ⚠ That predicate is what holds every site without Beaver Builder on the block and shortcode
+ * scans, because `sahaj_atlas_resolve_embed()` returns the builder's answer — null included — the
+ * moment it is true. A `class_exists` dropped from it would take `post_content` out of the resolve
+ * on every site at once, and the lane has no builder to put back.
+ */
 
 // ---------------------------------------------------------------------------------------------
 

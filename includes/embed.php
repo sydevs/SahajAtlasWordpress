@@ -70,7 +70,7 @@ function sahaj_atlas_resolve_and_enqueue() {
 }
 
 /**
- * Which embed this page has, in priority order: the Atlas page, a block, a Beaver Builder module,
+ * Which embed this page has, in priority order: the Atlas page, a Beaver Builder layout, a block,
  * then a shortcode.
  *
  * @return array|null
@@ -90,6 +90,16 @@ function sahaj_atlas_resolve_embed() {
 		return null;
 	}
 
+	/*
+	 * ⚠ Ahead of both `post_content` scans, and decisive either way. `FLBuilder::render_content()`
+	 * replaces `the_content` wholesale on a builder-enabled post, so a block or shortcode a
+	 * conversion left behind is markup the page never serves. Resolving one would enqueue `auto.js`
+	 * for an element nothing prints, and the visitor would get the script and no map.
+	 */
+	if ( sahaj_atlas_bb_enabled( $post ) ) {
+		return sahaj_atlas_bb_embed( $post );
+	}
+
 	if ( has_block( 'sahaj-atlas/embed', $post ) ) {
 		foreach ( parse_blocks( $post->post_content ) as $block ) {
 			$found = sahaj_atlas_find_block( $block );
@@ -98,12 +108,6 @@ function sahaj_atlas_resolve_embed() {
 				return $found;
 			}
 		}
-	}
-
-	$builder = sahaj_atlas_bb_embed( $post );
-
-	if ( null !== $builder ) {
-		return $builder;
 	}
 
 	if ( has_shortcode( (string) $post->post_content, 'sahaj_atlas' ) ) {

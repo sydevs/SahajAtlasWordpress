@@ -134,8 +134,13 @@ const ARTICLE_PAGE = `wp_insert_post(array('post_type'=>'page','post_status'=>'p
  * ⚠ The nodes are written as objects (`(object)`), never arrays. `FLBuilderModel::get_nodes()`
  * reads `$node->type`, and a seeded array would make every node invisible to Beaver Builder and to
  * this plugin alike — a cell that fails for the fixture's reason, not the plugin's.
+ *
+ * ⚠ `post_content` holds a stale `[sahaj_atlas]`, the way a page converted to Beaver Builder does.
+ * Beaver Builder never renders it, so it is the shortcode scan that must lose to the layout. Let it
+ * win and the module prints the "only one atlas" notice instead of the element, which a visitor
+ * never sees — so this cell is where that resolution order is exercised at all.
  */
-const BB_MODULE_PAGE = `$bb = wp_insert_post(array('post_type'=>'page','post_status'=>'publish','post_title'=>'Builder host','post_name'=>'builder-host','post_content'=>${ARTICLE_BEFORE} . ${ARTICLE_AFTER}));
+const BB_MODULE_PAGE = `$bb = wp_insert_post(array('post_type'=>'page','post_status'=>'publish','post_title'=>'Builder host','post_name'=>'builder-host','post_content'=>${ARTICLE_BEFORE} . '[sahaj_atlas]' . ${ARTICLE_AFTER}));
 update_post_meta($bb, '_fl_builder_enabled', 1);
 update_post_meta($bb, '_fl_builder_data', array(
   'rowone' => (object) array('node'=>'rowone','type'=>'row','parent'=>null,'position'=>0,'settings'=>(object) array()),

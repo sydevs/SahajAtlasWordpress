@@ -40,13 +40,26 @@ function sahaj_atlas_load_bb_module() {
 }
 
 /**
+ * Whether this post's content is a Beaver Builder layout, rather than `post_content`.
+ *
+ * ⚠ This is what makes the builder branch decisive in `sahaj_atlas_resolve_embed()`, so it answers
+ * the enabled question alone — whether a layout then holds a module of ours is a separate answer.
+ *
+ * @param WP_Post $post The post being rendered.
+ * @return bool
+ */
+function sahaj_atlas_bb_enabled( $post ) {
+	return class_exists( 'FLBuilderModel' ) && (bool) FLBuilderModel::is_builder_enabled( $post->ID );
+}
+
+/**
  * The embed this post's Beaver Builder layout asks for, or null.
  *
  * @param WP_Post $post The post being rendered.
  * @return array|null
  */
 function sahaj_atlas_bb_embed( $post ) {
-	if ( ! class_exists( 'FLBuilderModel' ) || ! FLBuilderModel::is_builder_enabled( $post->ID ) ) {
+	if ( ! sahaj_atlas_bb_enabled( $post ) ) {
 		return null;
 	}
 
