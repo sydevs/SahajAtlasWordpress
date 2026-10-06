@@ -139,10 +139,10 @@ maintainers.
 == Changelog ==
 
 = 0.3.1 =
-* Fixed: the map in the `[sahaj_atlas]` shortcode and the Sahaj Atlas block is now four wide for
-  every three tall. 0.3.0 made it three wide for every four tall, which was too tall on most pages.
+* Fixed: the map in the `[sahaj_atlas]` shortcode and the Sahaj Atlas block is now square. 0.3.0
+  made it three wide for every four tall, which was too tall on most pages.
 * New: choose the map's shape with `ratio`, width to height — for example
-  `[sahaj_atlas ratio="16:9"]`, or "Shape" in the block's settings. Leave it out for 4:3.
+  `[sahaj_atlas ratio="16:9"]`, or "Shape" in the block's settings. Leave it out for a square.
 
 = 0.3.0 =
 * The Atlas page now renders the map even when a page builder or another template takes the page

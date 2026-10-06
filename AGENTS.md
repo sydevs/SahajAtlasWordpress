@@ -54,8 +54,8 @@ drives the whole design:
   does not place a block — 4 of the 9 surveyed sites use a page builder where a block never
   appears.
 - In-content embeds are a separate, secondary feature, shipped as both a shortcode and a block.
-  They show the map by default (owner, 2026-10-05), at the column's full width and 4:3 (width to
-  height; `ratio` changes it, owner 2026-10-06), capped at 80% of the screen, and send `gestures=cooperative` so the page scrolls past them. `map="false"`
+  They show the map by default (owner, 2026-10-05), at the column's full width and square (width to
+  height 1:1; `ratio` changes it, owner 2026-10-06), capped at 80% of the screen, and send `gestures=cooperative` so the page scrolls past them. `map="false"`
   gives the list, a single class, or its registration form.
 - The editor shows a static placeholder — the widget cannot upgrade to a live map inside its
   iframe.

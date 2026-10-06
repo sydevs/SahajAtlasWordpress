@@ -53,8 +53,8 @@
 						} ),
 						el( components.TextControl, {
 							label: __( 'Shape (optional)', 'sahaj-atlas' ),
-							help: __( 'Width to height, such as 16:9 or 1:1. Empty is 4:3: four wide for every three tall.', 'sahaj-atlas' ),
-							placeholder: '4:3',
+							help: __( 'Width to height, such as 16:9 or 4:3. Empty is a square.', 'sahaj-atlas' ),
+							placeholder: '1:1',
 							value: attributes.ratio || '',
 							onChange: function ( value ) {
 								props.setAttributes( { ratio: value } );

@@ -92,9 +92,9 @@ as `atlas="https://sahajatlas.com/gb"`.
 
 **`map="false"`** shows a list, without the map. Leave it out to show the map.
 
-**`ratio`** sets the shape, width to height. Leave it out for **4:3** — four units wide for every
-three tall. For a wider map use `ratio="16:9"`, for a square one `ratio="1:1"`, and for a tall one
-on a narrow page `ratio="3:4"`. For example: `[sahaj_atlas ratio="16:9"]`.
+**`ratio`** sets the shape, width to height. Leave it out for a **square**. For a wider map use
+`ratio="4:3"` or `ratio="16:9"`, and for a taller one `ratio="3:4"`. A wider shape is shorter, so
+on a narrow column — a phone — it is more likely to show the "Find a class near you" button. For example: `[sahaj_atlas ratio="16:9"]`.
 
 **How it fits on your page.** The atlas takes the full width of the column it sits in, in its
 shape — but never taller than most of the screen. Visitors scroll past
@@ -115,7 +115,7 @@ In the block editor, add the **Sahaj Atlas** block. In the block's settings pane
 
 - **Open at** is the same as `atlas` above. Paste an address from sahajatlas.com.
 - **Show the map** is on unless you turn it off, the same as leaving out `map="false"`.
-- **Shape** is the same as `ratio`, such as `16:9`. Leave it empty for 4:3.
+- **Shape** is the same as `ratio`, such as `16:9`. Leave it empty for a square.
 
 ---
 
