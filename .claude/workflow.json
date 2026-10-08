@@ -30,7 +30,7 @@
     },
     {
       "pattern": "^tests/atlas-url-contract\\.json$",
-      "reason": "Must stay byte-identical to SahajCloud's copy. CI diffs it and fails on drift. Update it only as the downstream half of a /cross-repo-issue, after SahajCloud merges to main."
+      "reason": "Must stay byte-identical to SahajCloud's copy. CI diffs it and fails on drift. Update it only as the downstream half of a cross-repo change (planned by /workflow:implement-roadmap), after SahajCloud merges to main."
     },
     {
       "pattern": "^pnpm-lock\\.yaml$",
