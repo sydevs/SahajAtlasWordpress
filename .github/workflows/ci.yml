@@ -82,3 +82,16 @@ jobs:
             -o /tmp/upstream.json
           diff -u /tmp/upstream.json tests/atlas-url-contract.json \
             || { echo "::error::tests/atlas-url-contract.json has drifted from SahajCloud. Copy the upstream file over it and re-check the specs in tests/contract.php."; exit 1; }
+
+  # Dependency-vulnerability gate. Fails only when this PR ADDS a dependency
+  # with a high or critical advisory that reaches production code. An
+  # advisory against a dependency already on main fails nothing here: the
+  # sydevs loop's daily Dependabot check fixes those, so an unrelated PR is
+  # never blocked by something it did not cause. Shared by the sydevs repos;
+  # the rules live in
+  # sydevs/claude-workflow/.github/workflows/dependency-review.yml.
+  dependencies:
+    name: Dependency Review
+    uses: sydevs/claude-workflow/.github/workflows/dependency-review.yml@main
+    permissions:
+      contents: read
