@@ -105,6 +105,8 @@ holding Ctrl (⌘ on a Mac) while scrolling. A hint on the map says so.
 Good to know:
 
 - **One atlas per page.** A second shortcode on the same page shows nothing.
+- **Pages and posts only.** On a list of posts — a blog page or an archive — the shortcode shows
+  nothing.
 - **Not on the Atlas page.** That page already has the atlas.
 - **A narrow column shows a button.** Where the column is under 360 pixels wide — a sidebar, and
   on many phones — the map shows a "Find a class near you" button instead, which opens the map

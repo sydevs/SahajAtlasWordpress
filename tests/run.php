@@ -614,6 +614,107 @@ $GLOBALS['sahaj_atlas_active']  = null;
 
 // ---------------------------------------------------------------------------------------------
 
+sahaj_group( 'An in-content embed no scan found claims the page as it renders' );
+
+/**
+ * Render one shortcode on a fresh request for `$query`, as the editor who would see a notice.
+ *
+ * ⚠ `did_action()` is per process, and this suite has already fired `wp_head` above. Each case
+ * states how far its own request has got instead, or the claim's "is a print still ahead" test
+ * would answer for the suite's history rather than for the case.
+ *
+ * @param WP_Query $query     The request's main query.
+ * @param string   $reached   The last of `wp_head` and `wp_footer` the request has fired, or ''.
+ * @param string   $shortcode The shortcode to render.
+ * @return string What the shortcode rendered.
+ */
+function sahaj_claim_render( $query, $reached = '', $shortcode = '[sahaj_atlas atlas="/gb"]' ) {
+	$GLOBALS['wp_query']                = $query;
+	$GLOBALS['wp_actions']['wp_head']   = in_array( $reached, array( 'wp_head', 'wp_footer' ), true ) ? 1 : 0;
+	$GLOBALS['wp_actions']['wp_footer'] = 'wp_footer' === $reached ? 1 : 0;
+	$GLOBALS['sahaj_atlas_active']      = null;
+	$GLOBALS['sahaj_atlas_printed']     = false;
+
+	wp_dequeue_script_module( 'sahaj-atlas' );
+
+	return do_shortcode( $shortcode );
+}
+
+/** The script-module tags core would print now. */
+function sahaj_claim_modules() {
+	ob_start();
+	wp_script_modules()->print_enqueued_script_modules();
+
+	return (string) ob_get_clean();
+}
+
+$sahaj_claim_actions = array( $GLOBALS['wp_actions']['wp_head'] ?? 0, $GLOBALS['wp_actions']['wp_footer'] ?? 0 );
+$sahaj_claim_query   = isset( $GLOBALS['wp_query'] ) ? $GLOBALS['wp_query'] : null;
+$sahaj_claim_user    = get_current_user_id();
+
+wp_set_current_user( 1 );
+
+/*
+ * ⚠ The case a Beaver Builder site hit: the shortcode sits in a builder text module, which the
+ * resolve never reads, so nothing was active when it rendered — and the editor was told another
+ * atlas came first on a page with no other atlas. `do_shortcode()` on a page whose own content
+ * holds no shortcode is that request.
+ */
+$sahaj_claimed = sahaj_claim_render( sahaj_query_page( $sahaj_plain_page ) );
+
+sahaj_ok( 'a shortcode no scan found still prints the element', 1 === substr_count( $sahaj_claimed, '<sahaj-atlas' ) );
+sahaj_ok( 'and enqueues the widget it asked for', false !== strpos( sahaj_claim_modules(), 'atlas=/gb' ) );
+
+$sahaj_second = do_shortcode( '[sahaj_atlas]' );
+
+sahaj_ok(
+	'a second one on that page is told another came first',
+	false !== strpos( $sahaj_second, 'came first' ) && false === strpos( $sahaj_second, '<sahaj-atlas' )
+);
+
+// A list of posts is many pages' content at once: which one would own the atlas is a guess.
+$sahaj_listing = sahaj_claim_render( new WP_Query( array( 'post_type' => 'post' ) ) );
+
+sahaj_ok( 'a list of posts prints no element', false === strpos( $sahaj_listing, '<sahaj-atlas' ) );
+sahaj_ok( 'and its notice says where an atlas can go, not that another came first', false !== strpos( $sahaj_listing, 'single page or post' ) && false === strpos( $sahaj_listing, 'came first' ) );
+sahaj_is( 'and enqueues nothing', '', sahaj_claim_modules() );
+
+// Past `wp_footer` the script has nowhere to print, and an element with no loader is an empty box.
+$sahaj_late = sahaj_claim_render( sahaj_query_page( $sahaj_plain_page ), 'wp_footer' );
+
+sahaj_ok( 'a shortcode rendered after the footer prints no element', false === strpos( $sahaj_late, '<sahaj-atlas' ) );
+sahaj_is( 'and enqueues nothing', '', sahaj_claim_modules() );
+
+// An SEO plugin building a description inside `<head>` renders the content too.
+$GLOBALS['sahaj_head_content'] = '';
+
+/** Render the shortcode from inside `<head>`. */
+function sahaj_claim_in_head() {
+	$GLOBALS['sahaj_head_content'] = do_shortcode( '[sahaj_atlas]' );
+}
+
+sahaj_claim_render( sahaj_query_page( $sahaj_plain_page ), '', '' );
+add_action( 'wp_head', 'sahaj_claim_in_head', 0 );
+ob_start();
+wp_head();
+ob_end_clean();
+remove_action( 'wp_head', 'sahaj_claim_in_head', 0 );
+
+// ⚠ The globals, not just the string: an empty string with the claim spent is the defect.
+sahaj_ok(
+	'a render inside <head> neither prints nor claims',
+	'' === $GLOBALS['sahaj_head_content'] && null === $GLOBALS['sahaj_atlas_active'] && ! $GLOBALS['sahaj_atlas_printed']
+);
+
+wp_dequeue_script_module( 'sahaj-atlas' );
+wp_set_current_user( $sahaj_claim_user );
+list( $GLOBALS['wp_actions']['wp_head'], $GLOBALS['wp_actions']['wp_footer'] ) = $sahaj_claim_actions;
+$GLOBALS['wp_query']            = $sahaj_claim_query;
+$GLOBALS['sahaj_atlas_printed'] = false;
+$GLOBALS['sahaj_atlas_active']  = null;
+
+// ---------------------------------------------------------------------------------------------
+
 require __DIR__ . '/beaver-builder.php';
 require __DIR__ . '/contract.php';
 require __DIR__ . '/sitemap.php';

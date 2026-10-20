@@ -379,9 +379,14 @@ async function check(run) {
     // `sahaj_atlas_embed_from_shortcode` scans the raw content. `sahaj_atlas_find_block` walks
     // the parsed block tree. So one working says nothing about the other. Neither path is
     // reachable from the PHP suite, because that suite never renders a post.
+    // ⚠ The builder page takes a third: no scan finds its shortcode (`tests/fixture-builder.php`),
+    // so the shortcode claims the page as it renders, and the loader is enqueued that late. Only a
+    // real page shows that core still prints it — in `<head>` on a block theme, whose template
+    // renders before it, and at `wp_footer` on a classic one.
     for (const [kind, slug] of [
       ['shortcode', '/shortcode-host/'],
       ['block', '/block-host/'],
+      ['builder', '/builder-host/'],
     ]) {
       const page = await fetch(base + slug)
       const body = await page.text()
@@ -414,6 +419,10 @@ async function check(run) {
       // would pass every assertion above.
       if (kind === 'shortcode') {
         ok('shortcode: the rest of the content survives', body.includes('Before.') && body.includes('After.'))
+      }
+
+      if (kind === 'builder') {
+        ok('builder: the page is the builder\'s, not post_content', body.includes('Built.') && !body.includes('Placeholder.'))
       }
     }
 

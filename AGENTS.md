@@ -192,6 +192,12 @@ the full story.
 27. Dropping a theme's hero does not reclaim the space it held, so the fix is two of the theme's
     own switches: the filter that yields no image, and the class whose rule releases the box. Which
     switch, and why not the shorter route, are both load-bearing. See page.php:193,218.
+28. The resolve on `template_redirect` sees only `post_content` and our own Beaver Builder module.
+    A shortcode in a builder's text module, Elementor's shortcode widget, a sidebar or a
+    theme-builder template renders all the same, so it claims the page as it renders — but only on
+    a request that resolved nothing, and only while core's script-module print is still ahead.
+    Before that, such a page printed nothing and told its editor another atlas "came first". See
+    embed.php:85,91, shortcode.php:58.
 
 ## What is built
 

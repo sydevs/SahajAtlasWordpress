@@ -55,7 +55,16 @@ function sahaj_atlas_resolve_and_enqueue() {
 		return;
 	}
 
-	$GLOBALS['sahaj_atlas_active'] = $active;
+	sahaj_atlas_activate( $active );
+}
+
+/**
+ * Make `$embed` this request's one embed, and enqueue the widget for it.
+ *
+ * @param array $embed A normalized embed.
+ */
+function sahaj_atlas_activate( $embed ) {
+	$GLOBALS['sahaj_atlas_active'] = $embed;
 
 	/*
 	 * ⚠ Use `wp_enqueue_script_module`, never `wp_enqueue_script`. `auto.js` is a real ES module. Its
@@ -66,7 +75,39 @@ function sahaj_atlas_resolve_and_enqueue() {
 	 * to a URL whose query string is the widget's whole configuration. The widget origin already
 	 * serves these files `must-revalidate`, so cache-busting is handled there.
 	 */
-	wp_enqueue_script_module( 'sahaj-atlas', sahaj_atlas_script_url( $active ), array(), null );
+	wp_enqueue_script_module( 'sahaj-atlas', sahaj_atlas_script_url( $embed ), array(), null );
+}
+
+/**
+ * Let an in-content embed claim the page as it renders, when nothing claimed it on
+ * `template_redirect`.
+ *
+ * ⚠ The resolve above reads `post_content` and our own Beaver Builder module, and nothing else. A
+ * shortcode in a page builder's text module, a widget, or a theme-builder template still renders
+ * through `do_shortcode()`, but never reached the scan — so no embed was active, the element was
+ * refused, and an editor was told another atlas "came first" on a page that had none. Deciding
+ * early still wins whenever it can: this only fills a request that resolved nothing.
+ *
+ * ⚠ The script must still have a print ahead of it. Core prints script modules at `wp_footer` on a
+ * classic theme, and at `wp_head` on a block theme before 6.9 — a block theme renders its template
+ * before `wp_head`, so its content is still in time. An element with no loader is an empty box.
+ *
+ * @param array $embed The embed rendering now.
+ */
+function sahaj_atlas_claim_embed( $embed ) {
+	if ( null !== $GLOBALS['sahaj_atlas_active'] || $GLOBALS['sahaj_atlas_printed'] ) {
+		return;
+	}
+
+	if ( is_admin() || is_feed() || ! is_singular() ) {
+		return;
+	}
+
+	if ( did_action( 'wp_footer' ) || ( wp_is_block_theme() && did_action( 'wp_head' ) ) ) {
+		return;
+	}
+
+	sahaj_atlas_activate( $embed );
 }
 
 /**
