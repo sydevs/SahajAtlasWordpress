@@ -4,7 +4,7 @@ Tags: meditation, map, events, classes
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.3.2
+Stable tag: 0.3.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -142,6 +142,14 @@ Settings → Sahaj Atlas names where the map rendered. If that row is red, send 
 maintainers.
 
 == Changelog ==
+
+= 0.3.3 =
+* Fixed: the `[sahaj_atlas]` shortcode now works inside a page builder's own modules — a Beaver
+  Builder text module, Elementor's shortcode widget, and others — and in widgets. Before, the map
+  did not appear there, and an editor saw "another one on this page came first" on a page with
+  no other atlas.
+* Fixed: when the shortcode cannot show an atlas, the message an editor sees now says why: another
+  atlas is already on the page, or the shortcode is on a list of posts rather than a page or post.
 
 = 0.3.2 =
 * New: Beaver Builder has a Sahaj Atlas module. Add a module to any page and pick "Sahaj Atlas",
