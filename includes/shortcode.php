@@ -54,16 +54,34 @@ function sahaj_atlas_render_embed( $embed ) {
 		return sahaj_atlas_editor_placeholder( $embed );
 	}
 
+	/*
+	 * ⚠ Nothing for a caller that is not rendering the page body — an SEO plugin building a
+	 * description inside `<head>`, or an excerpt. Either would spend the page's one print, or its
+	 * claim, on a string nobody sees. The Atlas page's own print refuses the same two.
+	 */
+	if ( doing_action( 'wp_head' ) || doing_filter( 'get_the_excerpt' ) ) {
+		return '';
+	}
+
+	$taken = null !== $GLOBALS['sahaj_atlas_active'] || $GLOBALS['sahaj_atlas_printed'];
+
+	sahaj_atlas_claim_embed( $embed );
+
 	$markup = sahaj_atlas_element_markup( $embed );
 
-	if ( '' === $markup ) {
-		// Something else on this page already claimed the one allowed widget.
+	if ( '' !== $markup ) {
+		return $markup;
+	}
+
+	if ( $taken ) {
 		return sahaj_atlas_admin_only_notice(
 			__( 'Sahaj Atlas: only one atlas can appear on a page, and another one on this page came first.', 'sahaj-atlas' )
 		);
 	}
 
-	return $markup;
+	return sahaj_atlas_admin_only_notice(
+		__( 'Sahaj Atlas: an atlas can appear only in the content of a single page or post.', 'sahaj-atlas' )
+	);
 }
 
 /**
