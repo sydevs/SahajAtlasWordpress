@@ -73,7 +73,7 @@ Each entry states the trap. Where a line number is given, the inline `⚠` comme
 the full story.
 
 1. `auto.js` is an ES module. Use `wp_enqueue_script_module()`, not `wp_enqueue_script()` with
-   `defer`. See embed.php:51.
+   `defer`. See embed.php:70.
 2. Print an explicit `<sahaj-atlas></sahaj-atlas>` element. Core prints script modules in the
    footer on classic themes, and in `<head>` on block themes — but the loader refuses `<head>`.
    Core adopts an existing element wherever it sits, so the script tag's own position no longer
@@ -88,14 +88,14 @@ the full story.
    footer, where the sizing script measures the element's top at the document's full height and the
    map computes to nothing — so it is a last resort, and diagnostics turns red on it rather than
    reporting the page healthy. A caller that runs `the_content` without rendering the page body,
-   `wp_trim_excerpt()` above all, must not spend the one print. See embed.php:291,311.
+   `wp_trim_excerpt()` above all, must not spend the one print. See sahaj-atlas.php:129, embed.php:441,467.
 4. Size `<sahaj-atlas>` with `display: block` and a definite height. This opts into a contained
    map: it draws inside its own box and stacking context, so the site header survives, and the map
    skips the compact-card question. SahajAtlasWeb#170 inverted the old rule — an unsized element
    now becomes `position: fixed; inset: 0` and covers the page, which is why the Atlas page had no
    header before #170.
 5. `min-height` is not a height. Use a definite height and `display: block` instead — a custom
-   element defaults to `inline` and cannot size itself. See embed.php:399, render.mjs:396,
+   element defaults to `inline` and cannot size itself. See embed.php:560, render.mjs:401,
    run.php:143.
 6. Never run `wp_kses()` on markup this plugin generates. `safecss_filter_attr()`'s property
    allowlist has no `display` property, so it silently reduced `display:block;height:520px` to
@@ -104,7 +104,7 @@ the full story.
 7. Never call `get_header()` on a block theme — it falls through to theme-compat and prints a
    duplicate, 2010-era `<!DOCTYPE html>`. See atlas-page.php:14,20,31.
 8. `get_footer()` is not `wp_footer()`. Always fire `wp_footer()` instead. See atlas-page.php:8,
-   sahaj-atlas.php:108.
+   sahaj-atlas.php:129.
 9. `redirect_canonical()` 301s deep links back to the page root. Suppress it when the **path**
    route is set, never on every atlas route — the contract publishes `/?p=42&atlas=…` mounts, and
    core's 301 to the pretty permalink is what carries a query-routed visitor to the canonical URL,
@@ -113,7 +113,7 @@ the full story.
 10. No translated string may run before `init` (WordPress 6.7) — not at file scope, in an
     activation hook, or on `plugins_loaded`. See sahaj-atlas.php:22.
 11. One `_wp_page_template` value serves both theme kinds. Core strips the suffix automatically,
-    so do not branch to "fix" it. See page.php:215.
+    so do not branch to "fix" it. See page.php:275.
 12. A front-page atlas refuses path routing, or it would turn the host's own 404 page into the
     atlas. See routing.php:227, tests/contract.php:130.
 13. An empty sitemap must return a 404, never an empty `<urlset>` or an index line. See
@@ -150,7 +150,7 @@ the full story.
     See seo.php:229.
 21. Enqueue `assets/atlas-page.js` in the footer. `<head>` has neither the element it measures nor
     `document.body`, so both the first measure and the observer are lost there — silently. See
-    embed.php:429, atlas-page.js:160.
+    embed.php:598, atlas-page.js:160.
 22. A header the theme takes out of flow occupies nothing for the element's own top to measure, so
     `assets/atlas-page.js` measures that header too, and the offset it writes is a **margin**, never
     padding. The offset walks to its answer over several frames, and asks for them itself — no
@@ -174,7 +174,7 @@ the full story.
     wordpress.org language pack would land, and this plugin ships from GitHub Releases.
     `wp_set_script_translations()` covers a second, independent reader: `wp.i18n` reads a `.json`
     keyed on an md5 of the script's path, never the `.mo`. Each piece fails silently in English.
-    See sahaj-atlas.php:108, embed.php:409, tests/i18n.php.
+    See sahaj-atlas.php:108, embed.php:630, tests/i18n.php.
 25. The sitemap's address follows the permalink shape, and two shapes break it. An `index.php`
     structure needs the prefix core keeps in `$wp_rewrite->root`, and cannot publish a `Sitemap:`
     line at all, so check 6 warns and names the line to paste. A plain structure can serve nothing,
@@ -199,25 +199,7 @@ the full story.
     Before that, such a page printed nothing and told its editor another atlas "came first". See
     embed.php:85,91, shortcode.php:58.
 
-## What is built
-
-Every module below is implemented and tested. `pnpm test:all` runs the full gate: the syntax
-check, the measurement checks, the PHP suite, then the render checks.
-
-| Module | Does |
-| --- | --- |
-| `includes/embed.php` | Resolves the page's one embed, builds the script URL, prints the element |
-| `assets/atlas-page.{css,js}` | Sizes the element below the theme's header, in flow or fixed — the contained-map opt-in |
-| `includes/page.php` | Owns the Atlas page, both template paths, and the theme-band switches |
-| `includes/routing.php` | Matches `parse_request`, reads `?atlas=`, and suppresses the canonical redirect |
-| `includes/shortcode.php` | Runs `[sahaj_atlas]`, sharing the block's render body |
-| `includes/beaver-builder.php` | Loads the module, and finds it in a saved layout |
-| `modules/sahaj-atlas/` | The Beaver Builder module: its form, and one call into the shared renderer |
-| `includes/settings.php` | Holds the two options, the settings screen, and the create-page button |
-| `includes/diagnostics.php` | Runs the eight checks — the last two read the live page back over loopback |
-| `includes/seo.php` | Takes over metadata and renders crawlable body content |
-| `includes/sitemap.php` | Serves `/sahaj-atlas-sitemap.xml`, `robots.txt`, and the SEO-plugin index lines |
-| `includes/updates.php` | Runs Plugin Update Checker against GitHub Releases |
+## Sitemaps
 
 Sitemaps ship (SahajCloud#651 supplied the endpoint that #650 requested). The plugin serves one
 sitemap file, `/sahaj-atlas-sitemap.xml`, instead of four SEO-plugin adapters we mostly cannot
@@ -236,13 +218,9 @@ PHP. The fifth runs the one shipped script in plain node.
 
 | Lane | Command | Covers |
 | --- | --- | --- |
-| Syntax | `pnpm lint` | `token_get_all(…, TOKEN_PARSE)` over every PHP file |
-| Measure | `pnpm test:measure` | `assets/atlas-page.js`'s header arithmetic, against a stubbed geometry |
-| Behaviour | `pnpm test` | The behaviour suite, in a booted WordPress 6.7 / PHP 7.4 |
-| Render | `pnpm test:render` | Real HTTP requests against a real server, per theme kind |
 | Browser | `pnpm test:browser` | The production widget in Chromium, in every free theme the fleet runs, plus page builders and hostile conditions. Local only; needs the network, `SAHAJ_ATLAS_TEST_KEY` (the "Sahaj Atlas (Local Test Key)" client's key, from a SahajCloud admin) in `.env.claude.local`, and Chromium (`pnpm exec playwright-core install chromium`, once). `--only <cell,…>` runs a subset, `--list` names them. `SAHAJ_ATLAS_WIDGET_FROM=<preview origin>` judges a SahajAtlasWeb PR's Cloudflare preview instead of production. |
 
-`pnpm test:all` runs the first four. The browser lane is the one that sees what a theme's CSS,
+The browser lane is the one that sees what a theme's CSS,
 the sizing script and the widget do to the page once a browser runs it, which is where every
 live defect so far has been (#36, SahajAtlasWeb#235, SahajAtlasWeb#236). It prints three verdicts: `FAIL`
 is the plugin's, and fails the run; `WIDGET` is a finding about the production widget, SahajAtlasWeb's to
@@ -265,30 +243,8 @@ More traps apply here. Their inline `⚠` comments carry the full detail.
   Atlas page. See tests/no-network.php. The browser lane is the exception for the **browser** only:
   the theme comes from wordpress.org and the widget from production, while PHP stays offline and
   the cell's last assertion proves it. See tests/browser.mjs.
-- Headless Chromium has no WebGL without software-GL flags, and Mapbox then refuses to mount,
-  which reads exactly like the widget failing to boot. The browser lane passes the flags. See
-  tests/browser.mjs.
-- The measure lane proves what the script decides, never what a browser lays out. Its geometry is
-  stubbed, so an assertion about real overlap belongs in the browser lane (#38, PR #44). That lane
-  retires this one only once it runs in CI and covers the same decisions; it is local-only, so it
-  does not. The lane reads the script's load position out of `includes/embed.php`, so a fixture
-  cannot keep modelling a page the plugin stopped serving. See tests/measure.mjs:9,13,30.
-- wp-playground-cli discards stdout when a step fails. See tests/bootstrap.php:5.
-- Pin versions with the blueprint's `preferredVersions`. Under @wp-playground/cli 3.1, `server`
-  ignores `--php` and `--wp` when given a blueprint, and a blueprint without the key boots the latest
-  WordPress on PHP 8.5. See tests/render.mjs:106.
-- Activate the plugin through a blueprint step. Do not call `activate_plugin()` after
-  `wp-load.php`. See tests/bootstrap.php:42.
-- `$_GET` is already slashed when a plugin reads it, so a fixture that assigns a raw value tests a
-  request WordPress never delivers. Set it through `sahaj_set_query_route()`. See
-  tests/run.php:270.
-- `update_option( 'permalink_structure', … )` does not reach `WP_Rewrite`, which caches the
-  structure in `init()`. Set it through `sahaj_set_permalink_structure()`. See tests/run.php:292.
-- The SEO endpoint's answers serve every lane from one file: `tests/fixtures/seo-answer.php`, a
-  region route and a root. The PHP suite requires it, and both render blueprints require it from the
-  mounted plugin. Three copies of an upstream response shape diverge the first time that shape
-  changes. Seed the root under every route the plugin asks about — the endpoint answers `/` and a
-  bare view route alike, but the cache is keyed on the route as asked.
+
+Traps that bind only while writing or changing a test live in `tests/AGENTS.md`.
 
 ## Where the truth lives
 
@@ -309,20 +265,10 @@ Ask, do not guess, when these docs and the code disagree. The code is what ships
 - The plugin slug is `sahaj-atlas`, byte-identical in three places: the release zip's top-level
   directory, the installed folder, and Plugin Update Checker's third argument. Confirmed free on
   wordpress.org as of 2026-08-25.
-- The text domain is `sahaj-atlas`, matching the slug.
-- **A `.po` file is the only translation anyone commits.** `.github/scripts/i18n.sh` builds the
-  `.pot` template, the `.mo` PHP reads and the `.json` files `wp.i18n` reads into the staged plugin
-  at package time, so `.gitignore` refuses all three. `package.sh` calls that script between staging
-  and zipping, which is why the zip CI inspects and the zip a release publishes cannot disagree. It
-  then refuses a zip holding a `.po` with no `.mo` beside it — the shape a translation takes when it
-  ships unread.
-- PHP follows WordPress coding standards, with real tabs — `.editorconfig` enforces this.
+- **A `.po` file is the only translation anyone commits.**
 - Pass every value reaching markup through the escape its sink wants: `esc_attr()` for an
   attribute, `esc_url()` for a URL, `esc_html()` for text — the `<title>` element included. The one
   exception is the SEO endpoint's `jsonLd` value, already escaped on arrival — echo it raw, never
   re-encode it.
-- **Merging a version bump to `main` is the release.** `release.yml` tags the commit that changed
-  the `Version:` header — or `main`'s tip, when a later workflow edit blocks that and the shipped
-  files match — builds the zip, and publishes it to every site. Change the version only in
-  a release PR, and never push a tag to cut one. `.github/scripts/package.sh` checks all four
-  version declarations and the zip's contents on every PR, and again before publishing.
+- **Merging a version bump to `main` is the release.** Change the version only in a release PR,
+  and never push a tag to cut one.

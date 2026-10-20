@@ -50,8 +50,8 @@ AGENTS.md's Decisions section lists the load-bearing choices. This table adds th
 
 ## Responsibilities, in full
 
-1. Register the site's settings — the API key, and the Atlas page's description opt-out — and an
-   admin screen.
+1. Register the site's settings — the API key, the Atlas page's description opt-out, and where the
+   Atlas page opens — and an admin screen.
 2. Create and own the Atlas page, and render it.
 3. Register the rule that makes path routing work.
 4. Enqueue `auto.js` with the right query string on the right pages.
