@@ -195,7 +195,12 @@ function sahaj_atlas_query_route() {
 	// ⚠ `wp_unslash()` is not optional. `wp_magic_quotes()` slashes every request variable before any
 	// plugin reads one, so `/\evil.com` arrives as `/\\evil.com` and would walk past the sanitiser's
 	// backslash check unrecognised.
-	return sahaj_atlas_clean_route( wp_unslash( $raw ) );
+	//
+	// ⚠ The widget nests its own view state in the value (`?atlas=/nl/amsterdam%3Fcenter%3D4.9,52.3`),
+	// which decodes to a route with a `?` in it. The endpoint 404s that, so only the path is the route.
+	$raw = wp_unslash( $raw );
+
+	return sahaj_atlas_clean_route( substr( $raw, 0, strcspn( $raw, '?#' ) ) );
 }
 
 /**

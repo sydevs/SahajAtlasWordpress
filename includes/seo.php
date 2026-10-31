@@ -586,7 +586,7 @@ function sahaj_atlas_seo_request( $route, $locale ) {
 	}
 
 	$response = wp_remote_get(
-		add_query_arg( $args, SAHAJ_ATLAS_API_ORIGIN . '/api/atlas/seo' ),
+		add_query_arg( rawurlencode_deep( $args ), SAHAJ_ATLAS_API_ORIGIN . '/api/atlas/seo' ),
 		array(
 			'timeout' => 5,
 			'headers' => array(

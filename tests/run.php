@@ -663,7 +663,7 @@ wp_set_current_user( 1 );
 $sahaj_claimed = sahaj_claim_render( sahaj_query_page( $sahaj_plain_page ) );
 
 sahaj_ok( 'a shortcode no scan found still prints the element', 1 === substr_count( $sahaj_claimed, '<sahaj-atlas' ) );
-sahaj_ok( 'and enqueues the widget it asked for', false !== strpos( sahaj_claim_modules(), 'atlas=/gb' ) );
+sahaj_ok( 'and enqueues the widget it asked for', false !== strpos( sahaj_claim_modules(), 'atlas=%2Fgb' ) );
 
 $sahaj_second = do_shortcode( '[sahaj_atlas]' );
 

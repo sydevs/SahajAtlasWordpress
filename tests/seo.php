@@ -133,6 +133,11 @@ sahaj_set_query_route( $sahaj_seo_route );
 sahaj_is( 'the route variable answers for `?atlas=` too', $sahaj_seo_route, sahaj_atlas_current_route() );
 sahaj_is( 'though the path router claimed nothing', '', sahaj_atlas_path_route() );
 
+// The widget nests its view state in the value, and the endpoint 404s a route carrying it.
+sahaj_set_query_route( $sahaj_seo_route . '?center=4.9,52.3#top' );
+sahaj_is( 'the widget\'s own view state is not part of the route', $sahaj_seo_route, sahaj_atlas_current_route() );
+sahaj_set_query_route( $sahaj_seo_route );
+
 /*
  * ⚠ The canonical redirect stays live here, and that is the point of keying it on the path route
  * alone. The contract publishes `/?p=42&atlas=…` mounts, and core's 301 to the pretty permalink is
@@ -401,7 +406,7 @@ sahaj_is( 'the page itself asks once', 1, count( $GLOBALS['sahaj_seo_requests'] 
 // page itself has no route of its own, so this is the one place the plugin supplies one.
 sahaj_ok(
 	'and asks as `/`, never as the empty route the endpoint refuses',
-	(bool) preg_match( '#[?&]route=/(&|$)#', (string) $GLOBALS['sahaj_seo_requests'][0] )
+	(bool) preg_match( '#[?&]route=%2F(&|$)#', (string) $GLOBALS['sahaj_seo_requests'][0] )
 );
 
 sahaj_seo_reset();
@@ -411,7 +416,7 @@ sahaj_atlas_seo_boot();
 
 sahaj_ok(
 	'a bare view route is sent verbatim, never normalized here',
-	(bool) preg_match( '#[?&]route=/search(&|$)#', (string) $GLOBALS['sahaj_seo_requests'][0] )
+	(bool) preg_match( '#[?&]route=%2Fsearch(&|$)#', (string) $GLOBALS['sahaj_seo_requests'][0] )
 );
 
 // ---------------------------------------------------------------------------------------------
