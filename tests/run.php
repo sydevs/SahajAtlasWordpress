@@ -717,13 +717,34 @@ $GLOBALS['sahaj_atlas_active']  = null;
 
 echo "\nUpdates come only from a release\n";
 
+/*
+ * ⚠ The strategies come from PUC itself, never a hand-written array. `GitHubApi` offers
+ * `latest_release` only on branch `master` or `main`, and that is the coupling worth asserting:
+ * lose the key and the filter returns an empty array, PUC chooses no reference, and no site is
+ * offered an update again — silently, with no diagnostics check on updates.
+ */
+$sahaj_api_class = \YahnisElsts\PluginUpdateChecker\v5\PucFactory::getLatestClassVersion( 'GitHubApi' );
+$sahaj_api       = new $sahaj_api_class( 'https://github.com/sydevs/SahajAtlasWordpress/' );
+
+sahaj_ok( 'PUC still builds its strategies where we can read them', method_exists( $sahaj_api, 'getUpdateDetectionStrategies' ) );
+
+$sahaj_strategies = array();
+
+if ( method_exists( $sahaj_api, 'getUpdateDetectionStrategies' ) ) {
+	$sahaj_offered = new ReflectionMethod( $sahaj_api, 'getUpdateDetectionStrategies' );
+	$sahaj_offered->setAccessible( true );
+
+	// PUC's own default branch, so this is the set production filters.
+	$sahaj_strategies = $sahaj_offered->invoke( $sahaj_api, 'master' );
+}
+
+sahaj_ok( 'and offers the latest release among them', isset( $sahaj_strategies[ $sahaj_api::STRATEGY_LATEST_RELEASE ] ) );
+sahaj_ok( 'beside the fallbacks the filter exists to drop', count( $sahaj_strategies ) > 1 );
+
 sahaj_is(
 	'the tag and branch fallbacks are dropped',
-	array( 'latest_release' => 'release' ),
-	apply_filters(
-		'puc_vcs_update_detection_strategies-sahaj-atlas',
-		array( 'latest_release' => 'release', 'latest_tag' => 'tag', 'branch' => 'branch' )
-	)
+	array( $sahaj_api::STRATEGY_LATEST_RELEASE ),
+	array_keys( apply_filters( 'puc_vcs_update_detection_strategies-sahaj-atlas', $sahaj_strategies ) )
 );
 
 // ---------------------------------------------------------------------------------------------
