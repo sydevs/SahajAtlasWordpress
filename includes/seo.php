@@ -525,14 +525,17 @@ function sahaj_atlas_seo_fetch( $route ) {
 		return isset( $cached['miss'] ) ? null : $cached;
 	}
 
-	$answer = sahaj_atlas_seo_request( $route, $locale );
-
 	// ⚠ A 400 means the locale was refused, not the route. SahajCloud validates `locale` against
-	// its own list. This plugin deliberately keeps no copy of that list — a hard-coded copy here
-	// would drift the day a language is added there. One retry with no locale is cheaper than a
-	// list, and it cannot go stale.
-	if ( 400 === $answer['status'] && '' !== $locale ) {
-		$answer = sahaj_atlas_seo_request( $route, '' );
+	// its own list, which holds `nl` but not `nl-NL`, and `pt-BR` but not `pt`. This plugin
+	// deliberately keeps no copy of that list — a hard-coded copy here would drift the day a
+	// language is added there. So a refused regional tag is retried as its bare language, then
+	// with no locale at all. Two retries are cheaper than a list, and they cannot go stale.
+	foreach ( array_unique( array( $locale, explode( '-', $locale )[0], '' ) ) as $ask ) {
+		$answer = sahaj_atlas_seo_request( $route, $ask );
+
+		if ( 400 !== $answer['status'] ) {
+			break;
+		}
 	}
 
 	if ( ! is_array( $answer['body'] ) ) {
@@ -610,8 +613,8 @@ function sahaj_atlas_seo_request( $route, $locale ) {
  * The locale to request: the page's own language, in the shape SahajCloud uses.
  *
  * WordPress writes locales as `en_US` or `pt_BR`. SahajCloud writes them as `en-AU` or `pt-BR`. An
- * unknown locale gets refused with a 400, and `sahaj_atlas_seo_fetch()` retries the request
- * without one.
+ * unknown locale gets refused with a 400, and `sahaj_atlas_seo_fetch()` retries the request with
+ * the bare language, then without one.
  *
  * @return string
  */
@@ -622,8 +625,8 @@ function sahaj_atlas_seo_locale() {
 		return '';
 	}
 
-	// A bare language code is always safe to send. A regional tag is sent as-is, and retried with
-	// no tag on a 400. This is how `en-GB` degrades to the server's default, instead of to the
-	// wrong language.
+	// A regional tag is sent as-is, so `pt-BR` and `en-AU` match exactly. On a 400 it is retried as
+	// its bare language, which is how `nl-NL` and `en-GB` reach `nl` and `en` rather than the
+	// server's default.
 	return isset( $parts[2] ) ? $parts[1] . '-' . strtoupper( $parts[2] ) : $parts[1];
 }
