@@ -57,12 +57,15 @@ function sahaj_atlas_register_updates() {
 		// tag, PUC would install GitHub's auto-generated source archive: no translations, and the
 		// tests and docs shipped to every site. REQUIRE alone is not enough, because PUC then falls
 		// through to the latest tag, so the filter drops every strategy but the latest release.
-		$vcs = '\\YahnisElsts\\PluginUpdateChecker\\v5p6\\Vcs\\Api';
-		$api->enableReleaseAssets( '/^sahaj-atlas.*\.zip$/i', $vcs::REQUIRE_RELEASE_ASSETS );
+		//
+		// ⚠ Read both constants off the instance. Naming the class spells the vendored minor
+		// version in a literal, and `load-v5p6.php` aliases no version-free `Vcs\Api`, so the next
+		// vendor bump would make this a `Class not found` fatal on `init` across thirteen sites.
+		$api->enableReleaseAssets( '/^sahaj-atlas.*\.zip$/i', $api::REQUIRE_RELEASE_ASSETS );
 		add_filter(
 			$checker->getUniqueName( 'vcs_update_detection_strategies' ),
-			function ( $strategies ) use ( $vcs ) {
-				return array_intersect_key( $strategies, array( $vcs::STRATEGY_LATEST_RELEASE => true ) );
+			function ( $strategies ) use ( $api ) {
+				return array_intersect_key( $strategies, array( $api::STRATEGY_LATEST_RELEASE => true ) );
 			}
 		);
 	}
