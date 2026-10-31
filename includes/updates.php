@@ -53,9 +53,17 @@ function sahaj_atlas_register_updates() {
 	$api = $checker->getVcsApi();
 
 	if ( $api ) {
-		// This uses releases, not tags. A tag exists the moment somebody pushes it, so tag-based
-		// checking would offer an update before CI attaches the built zip. PUC would then fall
-		// back to GitHub's auto-generated source archive — the wrongly-named one described above.
-		$api->enableReleaseAssets( '/^sahaj-atlas.*\.zip$/i' );
+		// Only a release carrying the built zip offers an update. Without the zip, or from a bare
+		// tag, PUC would install GitHub's auto-generated source archive: no translations, and the
+		// tests and docs shipped to every site. REQUIRE alone is not enough, because PUC then falls
+		// through to the latest tag, so the filter drops every strategy but the latest release.
+		$vcs = '\\YahnisElsts\\PluginUpdateChecker\\v5p6\\Vcs\\Api';
+		$api->enableReleaseAssets( '/^sahaj-atlas.*\.zip$/i', $vcs::REQUIRE_RELEASE_ASSETS );
+		add_filter(
+			$checker->getUniqueName( 'vcs_update_detection_strategies' ),
+			function ( $strategies ) use ( $vcs ) {
+				return array_intersect_key( $strategies, array( $vcs::STRATEGY_LATEST_RELEASE => true ) );
+			}
+		);
 	}
 }

@@ -715,6 +715,19 @@ $GLOBALS['sahaj_atlas_active']  = null;
 
 // ---------------------------------------------------------------------------------------------
 
+echo "\nUpdates come only from a release\n";
+
+sahaj_is(
+	'the tag and branch fallbacks are dropped',
+	array( 'latest_release' => 'release' ),
+	apply_filters(
+		'puc_vcs_update_detection_strategies-sahaj-atlas',
+		array( 'latest_release' => 'release', 'latest_tag' => 'tag', 'branch' => 'branch' )
+	)
+);
+
+// ---------------------------------------------------------------------------------------------
+
 require __DIR__ . '/beaver-builder.php';
 require __DIR__ . '/contract.php';
 require __DIR__ . '/sitemap.php';
