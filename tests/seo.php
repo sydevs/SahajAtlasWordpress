@@ -133,6 +133,11 @@ sahaj_set_query_route( $sahaj_seo_route );
 sahaj_is( 'the route variable answers for `?atlas=` too', $sahaj_seo_route, sahaj_atlas_current_route() );
 sahaj_is( 'though the path router claimed nothing', '', sahaj_atlas_path_route() );
 
+// The widget nests its view state in the value, and the endpoint 404s a route carrying it.
+sahaj_set_query_route( $sahaj_seo_route . '?center=4.9,52.3#top' );
+sahaj_is( 'the widget\'s own view state is not part of the route', $sahaj_seo_route, sahaj_atlas_current_route() );
+sahaj_set_query_route( $sahaj_seo_route );
+
 /*
  * ⚠ The canonical redirect stays live here, and that is the point of keying it on the path route
  * alone. The contract publishes `/?p=42&atlas=…` mounts, and core's 301 to the pretty permalink is
@@ -401,7 +406,7 @@ sahaj_is( 'the page itself asks once', 1, count( $GLOBALS['sahaj_seo_requests'] 
 // page itself has no route of its own, so this is the one place the plugin supplies one.
 sahaj_ok(
 	'and asks as `/`, never as the empty route the endpoint refuses',
-	(bool) preg_match( '#[?&]route=/(&|$)#', (string) $GLOBALS['sahaj_seo_requests'][0] )
+	(bool) preg_match( '#[?&]route=%2F(&|$)#', (string) $GLOBALS['sahaj_seo_requests'][0] )
 );
 
 sahaj_seo_reset();
@@ -411,8 +416,31 @@ sahaj_atlas_seo_boot();
 
 sahaj_ok(
 	'a bare view route is sent verbatim, never normalized here',
-	(bool) preg_match( '#[?&]route=/search(&|$)#', (string) $GLOBALS['sahaj_seo_requests'][0] )
+	(bool) preg_match( '#[?&]route=%2Fsearch(&|$)#', (string) $GLOBALS['sahaj_seo_requests'][0] )
 );
+
+// ---------------------------------------------------------------------------------------------
+
+sahaj_group( 'A refused regional locale asks again in its bare language' );
+
+/** SahajCloud lists `nl` but not `nl-NL`, and refuses an unlisted locale with a 400. */
+function sahaj_seo_refuse_region( $pre, $args, $url ) {
+	return preg_match( '#[?&]locale=[a-z]{2}-#', $url ) ? array_merge( $pre, array( 'response' => array( 'code' => 400, 'message' => '' ) ) ) : $pre;
+}
+
+add_filter( 'determine_locale', 'sahaj_seo_dutch' );
+add_filter( 'pre_http_request', 'sahaj_seo_refuse_region', 11, 3 );
+
+sahaj_seo_reset();
+sahaj_seo_stub( $sahaj_seo_root );
+sahaj_atlas_seo_boot();
+
+sahaj_is( 'an nl_NL site asks twice', 2, count( $GLOBALS['sahaj_seo_requests'] ) );
+sahaj_ok( 'and the second time for `nl`, not for the server\'s default', (bool) preg_match( '#[?&]locale=nl(&|$)#', (string) end( $GLOBALS['sahaj_seo_requests'] ) ) );
+
+delete_transient( sahaj_atlas_seo_slot( '/' ) );
+remove_filter( 'pre_http_request', 'sahaj_seo_refuse_region', 11 );
+remove_filter( 'determine_locale', 'sahaj_seo_dutch' );
 
 // ---------------------------------------------------------------------------------------------
 

@@ -393,7 +393,7 @@ function sahaj_atlas_script_url( $embed ) {
 	 * WordPress already sets from the site language. A second source of truth here could only
 	 * disagree with the page it sits on.
 	 */
-	return add_query_arg( $args, SAHAJ_ATLAS_WIDGET_ORIGIN . '/auto.js' );
+	return add_query_arg( rawurlencode_deep( $args ), SAHAJ_ATLAS_WIDGET_ORIGIN . '/auto.js' );
 }
 
 /**
