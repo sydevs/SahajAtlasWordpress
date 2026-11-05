@@ -271,8 +271,8 @@ Ask, do not guess, when these docs and the code disagree. The code is what ships
   wordpress.org as of 2026-08-25.
 - Every release attaches the zip twice: `sahaj-atlas-<version>.zip` and `sahaj-atlas.zip`. The
   second is the permanent download link, `releases/latest/download/sahaj-atlas.zip`, that README.md
-  and readme.txt give volunteers, and that SahajCloud's install guide names (SahajCloud#1058).
-  Rename or drop it and that link 404s for every new install.
+  and readme.txt give volunteers. SahajCloud's install guide will name the file once
+  SahajCloud#1058 lands. Rename or drop it and that link 404s for every new install.
 - **A `.po` file is the only translation anyone commits.**
 - Pass every value reaching markup through the escape its sink wants: `esc_attr()` for an
   attribute, `esc_url()` for a URL, `esc_html()` for text — the `<title>` element included. The one
