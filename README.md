@@ -27,9 +27,10 @@ You need two things:
 
 ## 1. Install the plugin
 
-1. Go to the [Releases page](../../releases) and download the newest file named
-   **`sahaj-atlas-<version>.zip`** (the one with the highest number).
-   ⚠ Do **not** download "Source code (zip)". That one will not install correctly.
+1. Download **[sahaj-atlas.zip](https://github.com/sydevs/SahajAtlasWordpress/releases/latest/download/sahaj-atlas.zip)**.
+   The link always gives the newest version.
+   ⚠ Do **not** download "Source code (zip)" from the Releases page. That one will not install
+   correctly.
 2. In WordPress, go to **Plugins → Add New Plugin**, and press **Upload Plugin** at the top.
 3. Choose the file you downloaded, and press **Install Now**.
 4. Press **Activate**.

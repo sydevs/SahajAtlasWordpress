@@ -56,8 +56,13 @@ jobs:
           # release without the asset, delivers nothing.
           ASSETS=$(gh release view "v$VERSION" --json assets --jq '.assets[].name' 2>/dev/null || true)
           if grep -qxF "sahaj-atlas-$VERSION.zip" <<<"$ASSETS"; then
-            echo "v$VERSION is already released."
             echo "skip=true" >>"$GITHUB_OUTPUT"
+            if grep -qxF sahaj-atlas.zip <<<"$ASSETS"; then
+              echo "v$VERSION is already released."
+            else
+              echo "v$VERSION was released without sahaj-atlas.zip. Attaching a copy."
+              echo "backfill=v$VERSION" >>"$GITHUB_OUTPUT"
+            fi
             exit 0
           fi
 
@@ -99,6 +104,19 @@ jobs:
             echo "target=$TARGET"
           } >>"$GITHUB_OUTPUT"
 
+      # Copies the asset the release already has, rather than rebuilding: a rebuild differs byte for
+      # byte (the POT's creation date, file times) from the zip sites installed.
+      - name: Attach sahaj-atlas.zip to a release made without it
+        if: steps.plan.outputs.backfill != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.plan.outputs.backfill }}
+        run: |
+          DIR=$(mktemp -d)
+          gh release download "$TAG" --pattern "sahaj-atlas-${TAG#v}.zip" --dir "$DIR"
+          cp "$DIR/sahaj-atlas-${TAG#v}.zip" "$DIR/sahaj-atlas.zip"
+          gh release upload "$TAG" "$DIR/sahaj-atlas.zip"
+
       - name: Build the plugin zip
         if: steps.plan.outputs.skip != 'true'
         id: package
@@ -116,6 +134,7 @@ jobs:
           TAG: v${{ steps.plan.outputs.version }}
           TARGET: ${{ steps.plan.outputs.target }}
           ZIP: ${{ steps.package.outputs.zip }}
+          STABLE_ZIP: ${{ steps.package.outputs.stable_zip }}
         run: |
           if ! git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
             git -c user.name='github-actions[bot]' \
@@ -124,9 +143,10 @@ jobs:
             git push origin "refs/tags/$TAG"
           fi
 
+          # The versioned zip first: the update checker takes the first asset its filter matches.
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$ZIP"
+            gh release upload "$TAG" "$ZIP" "$STABLE_ZIP" --clobber
           else
             gh release create "$TAG" --verify-tag --title "$TAG" \
-              --notes "See readme.txt for the changelog." "$ZIP"
+              --notes "See readme.txt for the changelog." "$ZIP" "$STABLE_ZIP"
           fi
