@@ -143,7 +143,7 @@ jobs:
             git push origin "refs/tags/$TAG"
           fi
 
-          # The versioned zip first: the update checker takes the first asset its filter matches.
+          # --clobber, because a part-finished run may already have attached one of the two names.
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$ZIP" "$STABLE_ZIP" --clobber
           else

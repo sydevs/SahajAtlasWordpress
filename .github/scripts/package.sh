@@ -57,9 +57,10 @@ fi
 # The slug must match `SAHAJ_ATLAS_SLUG` in `includes/updates.php`. Never let the two values diverge.
 ZIP="sahaj-atlas-$VERSION.zip"
 # ⚠ The same zip again, under a name no release changes, so
-# releases/latest/download/sahaj-atlas.zip always answers with the newest. SahajCloud's Install tab
-# and README.md send volunteers there. The update checker's filter in includes/updates.php matches
-# both names; the two are byte-identical, so which one it takes does not matter.
+# releases/latest/download/sahaj-atlas.zip always answers with the newest. README.md and readme.txt
+# send volunteers there, and SahajCloud's install guide will name the file (SahajCloud#1058). The
+# update checker's filter in includes/updates.php matches both names; the two are byte-identical, so
+# which one it takes does not matter.
 STABLE_ZIP="sahaj-atlas.zip"
 rm -rf "$OUT/sahaj-atlas" "${OUT:?}/$ZIP" "${OUT:?}/$STABLE_ZIP"
 mkdir -p "$OUT/sahaj-atlas"
