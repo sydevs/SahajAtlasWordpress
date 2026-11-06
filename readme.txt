@@ -4,7 +4,7 @@ Tags: meditation, map, events, classes
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.3.3
+Stable tag: 0.3.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -142,6 +142,16 @@ Settings → Sahaj Atlas names where the map rendered. If that row is red, send 
 maintainers.
 
 == Changelog ==
+
+= 0.3.4 =
+* Fixed: a site whose language is Dutch, German, Italian or the like now gives search engines that
+  language's title and description. It was handed the English ones. A few languages still get
+  English, including any WordPress lists as a variant, such as "German (Formal)".
+* Fixed: a link copied from the map, which remembers where the map was pointing, now carries the
+  atlas title and description. Those pages fell back to your site's generic ones.
+* Fixed: an update offered in WordPress now always installs the plugin's own zip. It could install
+  GitHub's source copy instead, which lands beside this plugin as a second one, and the two then
+  refuse each other's map.
 
 = 0.3.3 =
 * Fixed: the `[sahaj_atlas]` shortcode now works inside a page builder's own modules — a Beaver
