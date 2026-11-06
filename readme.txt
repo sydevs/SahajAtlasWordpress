@@ -144,12 +144,14 @@ maintainers.
 == Changelog ==
 
 = 0.3.4 =
-* Fixed: a site in a language other than English now gives search engines its own language. Most
-  national sites showed the English title and description instead.
+* Fixed: a site whose language is Dutch, German, Italian or the like now gives search engines that
+  language's title and description. It was handed the English ones. A language WordPress lists as
+  a variant, such as "German (Formal)", still gets English.
 * Fixed: a link copied from the map, which remembers where the map was pointing, now carries the
   atlas title and description. Those pages fell back to your site's generic ones.
 * Fixed: an update offered in WordPress now always installs the plugin's own zip. It could install
-  GitHub's source copy, which is missing files the plugin needs to run.
+  GitHub's source copy instead, which lands beside this plugin as a second one, and the two then
+  refuse each other's map.
 
 = 0.3.3 =
 * Fixed: the `[sahaj_atlas]` shortcode now works inside a page builder's own modules — a Beaver
