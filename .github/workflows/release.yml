@@ -134,7 +134,6 @@ jobs:
           TAG: v${{ steps.plan.outputs.version }}
           TARGET: ${{ steps.plan.outputs.target }}
           ZIP: ${{ steps.package.outputs.zip }}
-          STABLE_ZIP: ${{ steps.package.outputs.stable_zip }}
         run: |
           if ! git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
             git -c user.name='github-actions[bot]' \
@@ -142,6 +141,14 @@ jobs:
               tag -a "$TAG" "$TARGET" -m "$TAG"
             git push origin "refs/tags/$TAG"
           fi
+
+          # ⚠ The same zip again, under a name no release changes, so
+          # releases/latest/download/sahaj-atlas.zip always answers with the newest. README.md and
+          # readme.txt send volunteers there, and SahajCloud's install guide will name the file
+          # (SahajCloud#1058). The update checker's filter in includes/updates.php matches both
+          # names; the two are byte-identical, so which one it takes does not matter.
+          STABLE_ZIP="$(dirname "$ZIP")/sahaj-atlas.zip"
+          cp "$ZIP" "$STABLE_ZIP"
 
           # The versioned zip first: the update checker takes the first asset its filter matches.
           if gh release view "$TAG" >/dev/null 2>&1; then

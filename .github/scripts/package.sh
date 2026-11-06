@@ -56,12 +56,7 @@ fi
 #
 # The slug must match `SAHAJ_ATLAS_SLUG` in `includes/updates.php`. Never let the two values diverge.
 ZIP="sahaj-atlas-$VERSION.zip"
-# ⚠ The same zip again, under a name no release changes, so
-# releases/latest/download/sahaj-atlas.zip always answers with the newest. SahajCloud's Install tab
-# and README.md send volunteers there. The update checker's filter in includes/updates.php matches
-# both names; the two are byte-identical, so which one it takes does not matter.
-STABLE_ZIP="sahaj-atlas.zip"
-rm -rf "$OUT/sahaj-atlas" "${OUT:?}/$ZIP" "${OUT:?}/$STABLE_ZIP"
+rm -rf "$OUT/sahaj-atlas" "${OUT:?}/$ZIP"
 mkdir -p "$OUT/sahaj-atlas"
 rsync -a --exclude-from="$SRC/.distignore" "$SRC/" "$OUT/sahaj-atlas/"
 
@@ -110,14 +105,11 @@ LEAKED=$(printf '%s\n' "$LISTING" |
 [ -z "$LEAKED" ] ||
 	fail "Dev-only files reached the zip, so .distignore has lost a line: $(printf '%s\n' "$LEAKED" | cut -d/ -f2 | sort -u | tr '\n' ' ')"
 
-cp "$OUT/$ZIP" "$OUT/$STABLE_ZIP"
-
 echo "Built $OUT/$ZIP: $(printf '%s\n' "$LISTING" | grep -vc '/$') files, v$VERSION, pending release: $PENDING."
 if [ -n "${GITHUB_OUTPUT:-}" ]; then
 	{
 		echo "version=$VERSION"
 		echo "zip=$OUT/$ZIP"
-		echo "stable_zip=$OUT/$STABLE_ZIP"
 		echo "pending=$PENDING"
 	} >>"$GITHUB_OUTPUT"
 fi
