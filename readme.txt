@@ -145,8 +145,8 @@ maintainers.
 
 = 0.3.4 =
 * Fixed: a site whose language is Dutch, German, Italian or the like now gives search engines that
-  language's title and description. It was handed the English ones. A language WordPress lists as
-  a variant, such as "German (Formal)", still gets English.
+  language's title and description. It was handed the English ones. A few languages still get
+  English, including any WordPress lists as a variant, such as "German (Formal)".
 * Fixed: a link copied from the map, which remembers where the map was pointing, now carries the
   atlas title and description. Those pages fell back to your site's generic ones.
 * Fixed: an update offered in WordPress now always installs the plugin's own zip. It could install
