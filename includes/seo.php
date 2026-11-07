@@ -612,20 +612,20 @@ function sahaj_atlas_seo_request( $route, $locale ) {
 /**
  * The locale to request: the page's own language, in the shape SahajCloud uses.
  *
- * WordPress writes locales as `en_US` or `pt_BR`. SahajCloud writes them as `en-AU` or `pt-BR`. An
- * unknown locale gets refused with a 400, and `sahaj_atlas_seo_fetch()` retries the request with
- * the bare language, then without one.
+ * WordPress writes locales as `en_US` or `pt_BR`, and also as `de_DE_formal` or `ckb`. SahajCloud
+ * writes them as `en-AU` or `pt-BR`. An unknown locale gets refused with a 400, and
+ * `sahaj_atlas_seo_fetch()` retries the request with the bare language, then without one.
  *
  * @return string
  */
 function sahaj_atlas_seo_locale() {
 	$locale = str_replace( '_', '-', (string) determine_locale() );
 
-	// ⚠ Read only the first two subtags, and let the language be three letters. WordPress ships
-	// locales SahajCloud has no tag for — `de_DE_formal`, `pt_PT_ao90`, `ckb` — and an anchored
-	// `xx`/`xx-YY` pattern matched none of them, so the request carried no locale and a
-	// "German (Formal)" site got English metadata (#80). A variant subtag is nothing the retry
-	// chain can ask for anyway.
+	// ⚠ Only the first two subtags are read, and the language may be three letters. A variant
+	// subtag is nothing the retry chain can ask for, and an anchored `xx`/`xx-YY` pattern refused
+	// the whole locale rather than trimming it, so the request carried no locale at all (#80).
+	// The refusal still earns its place over a bare split: it spends no round trip on a value
+	// with no language subtag to read — `default`, `x`.
 	if ( ! preg_match( '/^([a-z]{2,3})(?:-([A-Za-z]{2}))?(?:-|$)/', $locale, $parts ) ) {
 		return '';
 	}
