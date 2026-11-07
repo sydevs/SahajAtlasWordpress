@@ -621,7 +621,12 @@ function sahaj_atlas_seo_request( $route, $locale ) {
 function sahaj_atlas_seo_locale() {
 	$locale = str_replace( '_', '-', (string) determine_locale() );
 
-	if ( ! preg_match( '/^([a-z]{2})(?:-([A-Za-z]{2}))?$/', $locale, $parts ) ) {
+	// ⚠ Read only the first two subtags, and let the language be three letters. WordPress ships
+	// locales SahajCloud has no tag for — `de_DE_formal`, `pt_PT_ao90`, `ckb` — and an anchored
+	// `xx`/`xx-YY` pattern matched none of them, so the request carried no locale and a
+	// "German (Formal)" site got English metadata (#80). A variant subtag is nothing the retry
+	// chain can ask for anyway.
+	if ( ! preg_match( '/^([a-z]{2,3})(?:-([A-Za-z]{2}))?(?:-|$)/', $locale, $parts ) ) {
 		return '';
 	}
 

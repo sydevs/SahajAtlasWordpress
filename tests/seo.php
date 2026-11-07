@@ -444,6 +444,73 @@ remove_filter( 'determine_locale', 'sahaj_seo_dutch' );
 
 // ---------------------------------------------------------------------------------------------
 
+sahaj_group( 'A locale WordPress spells with a third subtag still asks in its language' );
+
+/** @return string WordPress's locale for "German (Formal)". Its third subtag is not a region. */
+function sahaj_seo_german_formal() {
+	return 'de_DE_formal';
+}
+
+/** @return string Central Kurdish, whose language subtag is three letters and carries no region. */
+function sahaj_seo_sorani() {
+	return 'ckb';
+}
+
+/** @return string What a site whose locale was filtered away hands the plugin. */
+function sahaj_seo_no_locale() {
+	return '';
+}
+
+/** Refuse every locale, so one case walks the whole chain down to the server's own choice. */
+function sahaj_seo_refuse_locale( $pre, $args, $url ) {
+	return preg_match( '#[?&]locale=#', $url ) ? array_merge( $pre, array( 'response' => array( 'code' => 400, 'message' => '' ) ) ) : $pre;
+}
+
+add_filter( 'pre_http_request', 'sahaj_seo_refuse_locale', 11, 3 );
+add_filter( 'determine_locale', 'sahaj_seo_german_formal' );
+
+sahaj_seo_reset();
+sahaj_seo_stub( $sahaj_seo_root );
+sahaj_atlas_seo_boot();
+
+// ⚠ Before #80 this asked once, with no `locale` at all: the pattern admitted `xx` and `xx-YY`
+// only, so `de-DE-formal` matched nothing and the retry chain in `sahaj_atlas_seo_fetch()` had no
+// tag to drop. A count assertion alone passes against that defect, since one request is also what
+// a refused chain's last hop makes. The order below is what catches it.
+sahaj_is( 'a "German (Formal)" site asks three times', 3, count( $GLOBALS['sahaj_seo_requests'] ) );
+sahaj_ok( 'first for `de-DE`, the third subtag dropped', (bool) preg_match( '#[?&]locale=de-DE(&|$)#', (string) $GLOBALS['sahaj_seo_requests'][0] ) );
+sahaj_ok( 'then for `de`', (bool) preg_match( '#[?&]locale=de(&|$)#', (string) $GLOBALS['sahaj_seo_requests'][1] ) );
+sahaj_ok( 'then for nothing, letting the server choose', 0 === preg_match( '#[?&]locale=#', (string) $GLOBALS['sahaj_seo_requests'][2] ) );
+
+delete_transient( sahaj_atlas_seo_slot( '/' ) );
+remove_filter( 'determine_locale', 'sahaj_seo_german_formal' );
+add_filter( 'determine_locale', 'sahaj_seo_sorani' );
+
+sahaj_seo_reset();
+sahaj_seo_stub( $sahaj_seo_root );
+sahaj_atlas_seo_boot();
+
+sahaj_ok( 'a three-letter language is asked for, not dropped', (bool) preg_match( '#[?&]locale=ckb(&|$)#', (string) $GLOBALS['sahaj_seo_requests'][0] ) );
+sahaj_is( 'and with no region to drop, the chain is one hop shorter', 2, count( $GLOBALS['sahaj_seo_requests'] ) );
+
+delete_transient( sahaj_atlas_seo_slot( '/' ) );
+remove_filter( 'determine_locale', 'sahaj_seo_sorani' );
+add_filter( 'determine_locale', 'sahaj_seo_no_locale' );
+
+sahaj_seo_reset();
+sahaj_seo_stub( $sahaj_seo_root );
+sahaj_atlas_seo_boot();
+
+// Widening the language subtag must not admit a value with no language subtag in it.
+sahaj_is( 'a site with no locale asks once', 1, count( $GLOBALS['sahaj_seo_requests'] ) );
+sahaj_ok( 'and names no locale', 0 === preg_match( '#[?&]locale=#', (string) $GLOBALS['sahaj_seo_requests'][0] ) );
+
+delete_transient( sahaj_atlas_seo_slot( '/' ) );
+remove_filter( 'determine_locale', 'sahaj_seo_no_locale' );
+remove_filter( 'pre_http_request', 'sahaj_seo_refuse_locale', 11 );
+
+// ---------------------------------------------------------------------------------------------
+
 sahaj_group( 'The opt-out costs no round trip' );
 
 update_option( SAHAJ_ATLAS_OPTION_SEO_ROOT_OPT_OUT, '1' );
