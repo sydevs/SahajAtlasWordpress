@@ -621,11 +621,9 @@ function sahaj_atlas_seo_request( $route, $locale ) {
 function sahaj_atlas_seo_locale() {
 	$locale = str_replace( '_', '-', (string) determine_locale() );
 
-	// ⚠ Only the first two subtags are read, and the language may be three letters. A variant
-	// subtag is nothing the retry chain can ask for, and an anchored `xx`/`xx-YY` pattern refused
-	// the whole locale rather than trimming it, so the request carried no locale at all (#80).
-	// The refusal still earns its place over a bare split: it spends no round trip on a value
-	// with no language subtag to read — `default`, `x`.
+	// ⚠ The refusal earns its place over a bare split: it spends no round trip on a value with no
+	// language subtag to read — `default`, `x`. The trailing `(?:-|$)` keeps a two-letter variant
+	// out of the region group, so `be_tarask` asks for `be`, not `be-TA` (#80).
 	if ( ! preg_match( '/^([a-z]{2,3})(?:-([A-Za-z]{2}))?(?:-|$)/', $locale, $parts ) ) {
 		return '';
 	}
