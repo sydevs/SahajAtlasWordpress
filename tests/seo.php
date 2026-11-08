@@ -55,9 +55,12 @@ function sahaj_seo_suppressed() {
 	return false !== has_filter( 'aioseo_disable', '__return_true' );
 }
 
-/** @return string A Dutch locale, for the slot-keying assertion below. */
-function sahaj_seo_dutch() {
-	return 'nl_NL';
+/** The locale `determine_locale()` reports while the filter below is on. */
+$GLOBALS['sahaj_seo_locale'] = '';
+
+/** @return string Stand in for the site's language setting. Set the global, never this. */
+function sahaj_seo_site_locale() {
+	return $GLOBALS['sahaj_seo_locale'];
 }
 
 /** @return string The head block the takeover would print. */
@@ -352,6 +355,8 @@ $GLOBALS['wp_query'] = $sahaj_seo_page_query;
 $GLOBALS['sahaj_seo_requests'] = array();
 /** What the stub answers with: `array{status:int, body:mixed}`. */
 $GLOBALS['sahaj_seo_answer'] = array( 'status' => 404, 'body' => array( 'errors' => array() ) );
+/** A pattern whose matching URL the stub refuses with a 400, or an empty string to refuse none. */
+$GLOBALS['sahaj_seo_refuse'] = '';
 
 /**
  * Stand in for `GET /api/atlas/seo`.
@@ -366,6 +371,13 @@ function sahaj_seo_http_stub( $pre, $args, $url ) {
 
 	$answer = $GLOBALS['sahaj_seo_answer'];
 
+	// SahajCloud validates `locale` against its own list and refuses an unlisted one with a 400,
+	// which is what sends `sahaj_atlas_seo_fetch()` down its retry chain. Which locales a case
+	// refuses is its own business, so the pattern is data rather than a second stub.
+	if ( '' !== $GLOBALS['sahaj_seo_refuse'] && preg_match( $GLOBALS['sahaj_seo_refuse'], $url ) ) {
+		$answer['status'] = 400;
+	}
+
 	return array(
 		'headers'  => array(),
 		'body'     => is_string( $answer['body'] ) ? $answer['body'] : wp_json_encode( $answer['body'] ),
@@ -378,16 +390,33 @@ function sahaj_seo_http_stub( $pre, $args, $url ) {
 /**
  * Arm the stub, forget every request made before now, and drop every cached answer.
  *
- * @param mixed $body   The body to answer with.
- * @param int   $status The status to answer with.
+ * @param mixed  $body   The body to answer with.
+ * @param int    $status The status to answer with.
+ * @param string $refuse A pattern whose matching URL is answered with a 400 instead.
  */
-function sahaj_seo_stub( $body, $status = 200 ) {
+function sahaj_seo_stub( $body, $status = 200, $refuse = '' ) {
 	$GLOBALS['sahaj_seo_requests'] = array();
 	$GLOBALS['sahaj_seo_answer']   = array( 'status' => $status, 'body' => $body );
+	$GLOBALS['sahaj_seo_refuse']   = $refuse;
 
 	foreach ( $GLOBALS['sahaj_seo_slots'] as $slot ) {
 		delete_transient( sahaj_atlas_seo_slot( $slot ) );
 	}
+}
+
+/**
+ * The `locale` one recorded request asked for.
+ *
+ * An empty string means that request named no locale. It also answers for a request that was
+ * never made, so a case reading a hop asserts how many hops there were as well.
+ *
+ * @param int $nth Which request, counting from zero.
+ * @return string
+ */
+function sahaj_seo_asked_locale( $nth ) {
+	$url = isset( $GLOBALS['sahaj_seo_requests'][ $nth ] ) ? (string) $GLOBALS['sahaj_seo_requests'][ $nth ] : '';
+
+	return preg_match( '#[?&]locale=([^&]*)#', $url, $parts ) ? urldecode( $parts[1] ) : '';
 }
 
 add_filter( 'pre_http_request', 'sahaj_seo_http_stub', 10, 3 );
@@ -423,24 +452,62 @@ sahaj_ok(
 
 sahaj_group( 'A refused regional locale asks again in its bare language' );
 
-/** SahajCloud lists `nl` but not `nl-NL`, and refuses an unlisted locale with a 400. */
-function sahaj_seo_refuse_region( $pre, $args, $url ) {
-	return preg_match( '#[?&]locale=[a-z]{2}-#', $url ) ? array_merge( $pre, array( 'response' => array( 'code' => 400, 'message' => '' ) ) ) : $pre;
-}
+add_filter( 'determine_locale', 'sahaj_seo_site_locale' );
 
-add_filter( 'determine_locale', 'sahaj_seo_dutch' );
-add_filter( 'pre_http_request', 'sahaj_seo_refuse_region', 11, 3 );
+// SahajCloud lists `nl` but not `nl-NL`, and refuses an unlisted locale with a 400.
+$GLOBALS['sahaj_seo_locale'] = 'nl_NL';
 
 sahaj_seo_reset();
-sahaj_seo_stub( $sahaj_seo_root );
+sahaj_seo_stub( $sahaj_seo_root, 200, '#[?&]locale=[a-z]{2}-#' );
 sahaj_atlas_seo_boot();
 
 sahaj_is( 'an nl_NL site asks twice', 2, count( $GLOBALS['sahaj_seo_requests'] ) );
-sahaj_ok( 'and the second time for `nl`, not for the server\'s default', (bool) preg_match( '#[?&]locale=nl(&|$)#', (string) end( $GLOBALS['sahaj_seo_requests'] ) ) );
+sahaj_is( 'and the second time for `nl`, not for the server\'s default', 'nl', sahaj_seo_asked_locale( 1 ) );
 
 delete_transient( sahaj_atlas_seo_slot( '/' ) );
-remove_filter( 'pre_http_request', 'sahaj_seo_refuse_region', 11 );
-remove_filter( 'determine_locale', 'sahaj_seo_dutch' );
+
+// ---------------------------------------------------------------------------------------------
+
+sahaj_group( 'A locale WordPress spells with a third subtag still asks in its language' );
+
+// Every locale is refused here, so one case walks the whole chain to the server's own choice.
+$GLOBALS['sahaj_seo_locale'] = 'de_DE_formal';
+
+sahaj_seo_reset();
+sahaj_seo_stub( $sahaj_seo_root, 200, '#[?&]locale=#' );
+sahaj_atlas_seo_boot();
+
+// ⚠ A count assertion alone passes against the defect: one request is also what the chain's last
+// hop makes, which is all a "German (Formal)" site asked for before #80. The per-hop order is what
+// catches it.
+sahaj_is( 'a "German (Formal)" site asks three times', 3, count( $GLOBALS['sahaj_seo_requests'] ) );
+sahaj_is( 'first for `de-DE`, the third subtag dropped', 'de-DE', sahaj_seo_asked_locale( 0 ) );
+sahaj_is( 'then for `de`', 'de', sahaj_seo_asked_locale( 1 ) );
+sahaj_is( 'then for nothing, letting the server choose', '', sahaj_seo_asked_locale( 2 ) );
+
+delete_transient( sahaj_atlas_seo_slot( '/' ) );
+$GLOBALS['sahaj_seo_locale'] = 'ckb';
+
+sahaj_seo_reset();
+sahaj_seo_stub( $sahaj_seo_root, 200, '#[?&]locale=#' );
+sahaj_atlas_seo_boot();
+
+sahaj_is( 'a three-letter language is asked for, not dropped', 'ckb', sahaj_seo_asked_locale( 0 ) );
+sahaj_is( 'and with no region to drop, the chain is one hop shorter', 2, count( $GLOBALS['sahaj_seo_requests'] ) );
+
+delete_transient( sahaj_atlas_seo_slot( '/' ) );
+$GLOBALS['sahaj_seo_locale'] = '';
+
+sahaj_seo_reset();
+sahaj_seo_stub( $sahaj_seo_root, 200, '#[?&]locale=#' );
+sahaj_atlas_seo_boot();
+
+// Widening the language subtag must not admit a value with no language subtag in it.
+sahaj_is( 'a site with no locale asks once', 1, count( $GLOBALS['sahaj_seo_requests'] ) );
+sahaj_is( 'and names no locale', '', sahaj_seo_asked_locale( 0 ) );
+
+delete_transient( sahaj_atlas_seo_slot( '/' ) );
+remove_filter( 'determine_locale', 'sahaj_seo_site_locale' );
 
 // ---------------------------------------------------------------------------------------------
 
@@ -693,13 +760,14 @@ sahaj_ok( 'a different route gets a different slot', sahaj_atlas_seo_slot( '/' )
 
 $sahaj_seo_slot_before = sahaj_atlas_seo_slot( '/' );
 
-add_filter( 'determine_locale', 'sahaj_seo_dutch' );
+$GLOBALS['sahaj_seo_locale'] = 'nl_NL';
+add_filter( 'determine_locale', 'sahaj_seo_site_locale' );
 
 // ⚠ The root's copy is written per locale upstream. A slot that ignored the locale would serve a
 // Dutch visitor the English description the first English visitor cached.
 sahaj_ok( 'and a different locale too', $sahaj_seo_slot_before !== sahaj_atlas_seo_slot( '/' ) );
 
-remove_filter( 'determine_locale', 'sahaj_seo_dutch' );
+remove_filter( 'determine_locale', 'sahaj_seo_site_locale' );
 
 update_option( SAHAJ_ATLAS_OPTION_KEY, 'another-key-456' );
 

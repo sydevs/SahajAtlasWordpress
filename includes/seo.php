@@ -612,16 +612,19 @@ function sahaj_atlas_seo_request( $route, $locale ) {
 /**
  * The locale to request: the page's own language, in the shape SahajCloud uses.
  *
- * WordPress writes locales as `en_US` or `pt_BR`. SahajCloud writes them as `en-AU` or `pt-BR`. An
- * unknown locale gets refused with a 400, and `sahaj_atlas_seo_fetch()` retries the request with
- * the bare language, then without one.
+ * WordPress writes locales as `en_US` or `pt_BR`, and also as `de_DE_formal` or `ckb`. SahajCloud
+ * writes them as `en-AU` or `pt-BR`. An unknown locale gets refused with a 400, and
+ * `sahaj_atlas_seo_fetch()` retries the request with the bare language, then without one.
  *
  * @return string
  */
 function sahaj_atlas_seo_locale() {
 	$locale = str_replace( '_', '-', (string) determine_locale() );
 
-	if ( ! preg_match( '/^([a-z]{2})(?:-([A-Za-z]{2}))?$/', $locale, $parts ) ) {
+	// ⚠ The refusal earns its place over a bare split: it spends no round trip on a value with no
+	// language subtag to read — `default`, `x`. The trailing `(?:-|$)` keeps a two-letter variant
+	// out of the region group, so `be_tarask` asks for `be`, not `be-TA` (#80).
+	if ( ! preg_match( '/^([a-z]{2,3})(?:-([A-Za-z]{2}))?(?:-|$)/', $locale, $parts ) ) {
 		return '';
 	}
 
