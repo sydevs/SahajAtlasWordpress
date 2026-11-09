@@ -11,22 +11,27 @@ description: When a code comment earns its place, and which comments must never 
   version is wrong.
 - **Never narrate the code.** No "loop over the users", no restating a name, a type or a signature,
   no `} // end if`.
-- **Never narrate the change.** No "updated to", "as requested", "fixed the off-by-one". A comment
-  must read correctly to someone who opens the file fresh and never saw the diff. Change context
-  belongs in the commit message.
+- **Never narrate the change.** No "updated to", "removed the old", "as requested", "fixed the
+  off-by-one". A comment must read correctly to someone who opens the file fresh and never saw the
+  diff. Change context belongs in the commit message.
 - **Never point at a moving target.** A spec section, a requirements doc, a design doc — all get
   superseded. Encode the substance instead. A ticket number, an RFC, a permalink, or a maintained
   doc at a stable path stays fine as a breadcrumb.
+- **A comment must stand on its own with its link cut.** The address survives. What sits behind it
+  can change.
 - **Apply the razor to every comment you keep, not only to the ones you cut.** "Carries a real
   *why*" and "is worded minimally" are separate judgements. A genuine *why* can still be three times
-  too long. A five-line block rarely survives intact.
+  too long. Cut the mechanism the code already shows, the consequence of the consequence, and the
+  justification of the justification. A five-line block rarely survives intact.
 - **A one-line summary on a public function or endpoint is fine.** Restating a single clear line
   never is.
-- **Never delete a tool directive, a `⚠` line, a cross-repo sync pointer, or a `#NNN` breadcrumb.**
-  Directives change what a compiler, linter or formatter does. `⚠` is this workspace's own
-  load-bearing marker. Nothing but prose enforces the couplings between these five repos.
-
-TODOs are fine and need no issue ID. A TODO is a marker, not a substitute for the work.
+- **Never delete a tool directive, a `⚠` line, a cross-repo sync pointer, a `#NNN` breadcrumb, or
+  a `shortcut:` marker.** Directives change what a compiler, linter or formatter does. `⚠` is
+  this workspace's own load-bearing marker. Nothing but prose enforces the couplings between these
+  five repos.
+- **A limit you accept is `shortcut: <the limit>, <when to upgrade>`**, one line beside the code it
+  limits. One with no trigger is the one that rots.
+- **TODOs are fine and need no issue ID.** A TODO is a marker, not a substitute for the work.
 
 <!-- canonical:end -->
 
