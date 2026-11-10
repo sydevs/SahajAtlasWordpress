@@ -163,8 +163,9 @@ refusal this approach still needs.
 | Path routing live | Permalinks are not "Plain", the client record has a canonical embed path, and a request to a deep path returns the Atlas page's body class. |
 | URL matches SahajCloud | The page's host and path match the client record's canonical embed path. |
 
-An empty `allowedDomains` list on the client record blocks the embed report entirely, rather than
-allowing every origin. See AGENTS.md's Traps section for why.
+An empty `allowedDomains` list on the client record allows every origin, which is SahajCloud's
+backward-compatible default rather than a refusal. See AGENTS.md's Traps section for the matching
+rules this panel mirrors.
 
 ## File layout notes
 
