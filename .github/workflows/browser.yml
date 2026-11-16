@@ -24,46 +24,44 @@ jobs:
     name: Browser lane (production widget)
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # A step's `if:` can read the `env` context, so the job's own env carries the gate. ⚠ It carries
+    # whether the secret is set, never the secret: a job-level value reaches every step, and
+    # `pnpm install` runs dependencies' own install scripts. Only the lane itself gets the key.
+    env:
+      HAS_TEST_KEY: ${{ secrets.SAHAJ_ATLAS_TEST_KEY != '' }}
     steps:
       # A skip has to be visible. A missing secret would otherwise either fail the run, which
       # blames the plugin for a configuration gap, or pass it, which reads as coverage nobody has.
-      - name: Check for SAHAJ_ATLAS_TEST_KEY
-        id: key
-        env:
-          SAHAJ_ATLAS_TEST_KEY: ${{ secrets.SAHAJ_ATLAS_TEST_KEY }}
+      - name: Say that nothing ran
+        if: env.HAS_TEST_KEY != 'true'
         run: |
-          if [ -n "$SAHAJ_ATLAS_TEST_KEY" ]; then
-            echo "present=true" >>"$GITHUB_OUTPUT"
-          else
-            echo "present=false" >>"$GITHUB_OUTPUT"
-            echo "::warning title=Browser lane skipped::The SAHAJ_ATLAS_TEST_KEY repository secret is not set, so nothing ran. Add the Sahaj Atlas (Local Test Key) client's key from a SahajCloud admin."
-            {
-              echo "### Browser lane skipped"
-              echo
-              echo "The \`SAHAJ_ATLAS_TEST_KEY\` repository secret is not set, so this run tested nothing."
-            } >>"$GITHUB_STEP_SUMMARY"
-          fi
+          echo "::warning title=Browser lane skipped::The SAHAJ_ATLAS_TEST_KEY repository secret is not set, so nothing ran. Add the Sahaj Atlas (Local Test Key) client's key from a SahajCloud admin."
+          {
+            echo "### Browser lane skipped"
+            echo
+            echo "The \`SAHAJ_ATLAS_TEST_KEY\` repository secret is not set, so this run tested nothing."
+          } >>"$GITHUB_STEP_SUMMARY"
 
-      - if: steps.key.outputs.present == 'true'
+      - if: env.HAS_TEST_KEY == 'true'
         uses: actions/checkout@v7
 
-      - if: steps.key.outputs.present == 'true'
+      - if: env.HAS_TEST_KEY == 'true'
         uses: pnpm/action-setup@v6
 
-      - if: steps.key.outputs.present == 'true'
+      - if: env.HAS_TEST_KEY == 'true'
         uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
           cache: pnpm
 
-      - if: steps.key.outputs.present == 'true'
+      - if: env.HAS_TEST_KEY == 'true'
         run: pnpm install --frozen-lockfile
 
-      - if: steps.key.outputs.present == 'true'
+      - if: env.HAS_TEST_KEY == 'true'
         run: pnpm exec playwright-core install --with-deps chromium
 
       - name: Run the browser lane
-        if: steps.key.outputs.present == 'true'
+        if: env.HAS_TEST_KEY == 'true'
         env:
           SAHAJ_ATLAS_TEST_KEY: ${{ secrets.SAHAJ_ATLAS_TEST_KEY }}
         run: |
@@ -71,7 +69,7 @@ jobs:
           pnpm test:browser 2>&1 | tee browser-output.txt
 
       - name: Summarise the verdicts
-        if: always() && steps.key.outputs.present == 'true'
+        if: always() && env.HAS_TEST_KEY == 'true'
         run: |
           {
             echo "### Browser lane"
