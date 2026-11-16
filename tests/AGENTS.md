@@ -15,9 +15,10 @@ test. Their inline `⚠` comments carry the full detail. Paths are from the repo
   does not. The lane reads the script's load position out of `includes/embed.php`, so a fixture
   cannot keep modelling a page the plugin stopped serving. See tests/measure.mjs:9,13,30.
 - wp-playground-cli discards stdout when a step fails. See tests/bootstrap.php:5.
-- Pin versions with the blueprint's `preferredVersions`. Under @wp-playground/cli 3.1, `server`
+- Pin versions with the blueprint's `preferredVersions`, which `tests/versions.mjs` writes from
+  `SAHAJ_ATLAS_PHP` and `SAHAJ_ATLAS_WP`. A `--php` or `--wp` flag changes nothing. Under @wp-playground/cli 3.1, `server`
   ignores `--php` and `--wp` when given a blueprint, and a blueprint without the key boots the latest
-  WordPress on PHP 8.5. See tests/render.mjs:106.
+  WordPress on PHP 8.5. See tests/render.mjs:110.
 - A command with no blueprint takes the CLI's own default instead, PHP 8.3, not the fleet's 7.4
   floor. `pnpm lint` and `pnpm test`'s report fallback are the two, and both pass `--php 7.4`. A
   syntax lane on 8.3 passes `?->` and every other PHP 8 construct a client site cannot parse.

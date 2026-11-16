@@ -43,3 +43,7 @@ tests/screenshots/
 
 # Worktrees from /implement-ticket — a second checkout of this repo, never source
 .claude/worktrees/
+
+# CI-only PHPCS install (.github/phpcs)
+.github/phpcs/vendor/
+.github/phpcs/composer.lock

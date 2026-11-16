@@ -57,6 +57,50 @@ jobs:
       - name: Render checks (block and classic themes)
         run: pnpm test:render
 
+  # PHP 7.4 is the declared floor and has been end-of-life since 2022, so the job above is the
+  # only one that proves the floor and none proves what most sites now run. This one runs the same
+  # suites on a current PHP and WordPress. The two "latest" values float on purpose: a red run
+  # here after a core or PHP release is the signal. It reports only the lanes that boot WordPress;
+  # lint and the measurement script do not depend on the version. See tests/versions.mjs.
+  current:
+    name: Tests (PHP 8.3, WordPress latest)
+    runs-on: ubuntu-latest
+    env:
+      SAHAJ_ATLAS_PHP: '8.3'
+      SAHAJ_ATLAS_WP: latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Integration tests
+        run: pnpm test
+
+      - name: Render checks (block and classic themes)
+        run: pnpm test:render
+
+  # Security and PHP-compatibility sniffs, not the full WordPress standard. Composer runs here
+  # only: .github is in .distignore, so none of it reaches the zip, and the plugin keeps its
+  # no-build-step rule. The ruleset says why it is narrow.
+  phpcs:
+    name: PHPCS (security and compatibility)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install PHP_CodeSniffer and the rulesets
+        run: composer update --working-dir=.github/phpcs --no-interaction --no-progress --prefer-dist
+
+      - name: Run PHPCS
+        run: .github/phpcs/vendor/bin/phpcs --standard=.github/phpcs/phpcs.xml
+
   contract:
     name: URL contract in sync
     runs-on: ubuntu-latest
