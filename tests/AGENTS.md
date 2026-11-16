@@ -18,6 +18,9 @@ test. Their inline `⚠` comments carry the full detail. Paths are from the repo
 - Pin versions with the blueprint's `preferredVersions`. Under @wp-playground/cli 3.1, `server`
   ignores `--php` and `--wp` when given a blueprint, and a blueprint without the key boots the latest
   WordPress on PHP 8.5. See tests/render.mjs:106.
+- A command with no blueprint takes the CLI's own default instead, PHP 8.3, not the fleet's 7.4
+  floor. `pnpm lint` and `pnpm test`'s report fallback are the two, and both pass `--php 7.4`. A
+  syntax lane on 8.3 passes `?->` and every other PHP 8 construct a client site cannot parse.
 - Activate the plugin through a blueprint step. Do not call `activate_plugin()` after
   `wp-load.php`. See tests/bootstrap.php:42.
 - `$_GET` is already slashed when a plugin reads it, so a fixture that assigns a raw value tests a
