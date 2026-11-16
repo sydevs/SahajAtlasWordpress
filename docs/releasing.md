@@ -15,8 +15,9 @@ be the first to see a release).
 1. **Download the zip CI built for the release PR.** Every PR run of **CI / Lint & test** builds
    it with `.github/scripts/package.sh`, the same script the release runs, and keeps it as the
    `sahaj-atlas-zip` artifact. Open the run from the PR's **Checks** tab and take it from
-   **Artifacts**, or run `gh run download <run-id> -n sahaj-atlas-zip`. A browser download wraps
-   it in a second zip: unwrap that, and install the `sahaj-atlas-<version>.zip` inside.
+   **Artifacts**, or run `gh run download <run-id> -n sahaj-atlas-zip`. Take it only from a green
+   run. A browser download wraps it in a second zip: unwrap that, and install the
+   `sahaj-atlas-<version>.zip` inside.
 
    ⚠ Do not build this zip by hand. `package.sh . build` copies the working tree, not the commit,
    so anything untracked beside it ships to the volunteer's site. CI builds from a clean checkout.

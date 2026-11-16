@@ -22,15 +22,6 @@ jobs:
         id: package
         run: .github/scripts/package.sh . build
 
-      # ⚠ The canary check installs this artifact. Rebuilding it by hand would ship a working tree
-      # — whatever is untracked, not what the commit holds. See docs/releasing.md.
-      - name: Keep the zip for the canary check
-        uses: actions/upload-artifact@v7
-        with:
-          name: sahaj-atlas-zip
-          path: ${{ steps.package.outputs.zip }}
-          if-no-files-found: error
-
       - name: Say what merging releases
         if: steps.package.outputs.pending == 'true'
         env:
@@ -65,6 +56,16 @@ jobs:
       # themes. A pass on one kind does not test the other.
       - name: Render checks (block and classic themes)
         run: pnpm test:render
+
+      # ⚠ The canary check installs this artifact, so it is published last, where a failed step
+      # above leaves none to install. Rebuilding it by hand would ship a working tree — whatever
+      # is untracked, not what the commit holds. See docs/releasing.md.
+      - name: Keep the zip for the canary check
+        uses: actions/upload-artifact@v7
+        with:
+          name: sahaj-atlas-zip
+          path: ${{ steps.package.outputs.zip }}
+          if-no-files-found: error
 
   contract:
     name: URL contract in sync
