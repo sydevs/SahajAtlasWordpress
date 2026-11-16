@@ -15,7 +15,6 @@
 		  .github/phpcs/vendor/bin/phpcs, with the standard set to this file (see the PHPCS job)
 	-->
 
-	<file>.</file>
 	<exclude-pattern>*/.git/*</exclude-pattern>
 	<exclude-pattern>*/.claude/*</exclude-pattern>
 	<exclude-pattern>*/.github/*</exclude-pattern>

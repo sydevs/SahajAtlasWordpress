@@ -99,7 +99,7 @@ jobs:
         run: composer update --working-dir=.github/phpcs --no-interaction --no-progress --prefer-dist
 
       - name: Run PHPCS
-        run: .github/phpcs/vendor/bin/phpcs --standard=.github/phpcs/phpcs.xml
+        run: .github/phpcs/vendor/bin/phpcs --standard=.github/phpcs/phpcs.xml .
 
   contract:
     name: URL contract in sync
