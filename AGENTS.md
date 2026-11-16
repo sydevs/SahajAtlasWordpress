@@ -220,7 +220,7 @@ PHP. The fifth runs the one shipped script in plain node.
 
 | Lane | Command | Covers |
 | --- | --- | --- |
-| Syntax | `pnpm lint` | `token_get_all(…, TOKEN_PARSE)` over every PHP file |
+| Syntax | `pnpm lint` | `token_get_all(…, TOKEN_PARSE)` over every PHP file, on PHP 7.4 |
 | Measure | `pnpm test:measure` | `assets/atlas-page.js`'s header arithmetic, against a stubbed geometry |
 | Behaviour | `pnpm test` | The behaviour suite, in a booted WordPress 6.7 / PHP 7.4 |
 | Render | `pnpm test:render` | Real HTTP requests against a real server, per theme kind |

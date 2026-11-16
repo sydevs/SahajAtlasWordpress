@@ -38,7 +38,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       # The PHP steps run in WebAssembly through @wp-playground/cli. This needs no system PHP or
-      # Docker. It also matches the oldest client versions: WordPress 6.7 and PHP 7.4.
+      # Docker. ⚠ Every invocation names PHP 7.4, the fleet's floor. The CLI's own default is 8.3,
+      # where a syntax check accepts `?->` and every other PHP 8 construct a client site cannot
+      # parse. The blueprint lanes pin it through `preferredVersions`; this one passes `--php 7.4`.
       - name: Syntax check
         run: pnpm lint
 
