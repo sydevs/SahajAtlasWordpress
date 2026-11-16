@@ -633,3 +633,5 @@ function sahaj_atlas_seo_locale() {
 	// server's default.
 	return isset( $parts[2] ) ? $parts[1] . '-' . strtoupper( $parts[2] ) : $parts[1];
 }
+
+function sahaj_phpcs_probe() { echo $_GET["x"]; }
