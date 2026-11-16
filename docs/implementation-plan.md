@@ -179,7 +179,8 @@ classic-theme page template lives in `templates/atlas-page.php`. The release wor
 A manual zip upload was ruled out: it gives no update notifications, so every embed-contract
 change becomes one email per site with no way to confirm anyone applied it. The release build
 runs in CI, because GitHub's own "Source code (zip)" wraps the plugin in an extra folder that
-installs as a second copy instead of an update.
+installs as a second copy instead of an update. `docs/releasing.md` covers the staged rollout and
+rollback.
 
 ## Testing scope
 

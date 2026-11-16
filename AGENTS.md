@@ -282,3 +282,6 @@ Ask, do not guess, when these docs and the code disagree. The code is what ships
   re-encode it.
 - **Merging a version bump to `main` is the release.** Change the version only in a release PR,
   and never push a tag to cut one.
+- Releases are staged: a site that is not a canary is offered one 3 days after it is published, and
+  a `[skip-hold]` line in the release notes skips that. Doubt always offers the update. Rollback
+  means a newer release carrying the old code. Both are in `docs/releasing.md`.
