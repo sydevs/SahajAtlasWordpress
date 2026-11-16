@@ -11,8 +11,7 @@
 		PHP only sees the code a test happens to run.
 
 		Run it from the repository root:
-		  composer install -d .github/phpcs
-		  .github/phpcs/vendor/bin/phpcs, with the standard set to this file (see the PHPCS job)
+		  composer install -d .github/phpcs && .github/phpcs/vendor/bin/phpcs --standard=.github/phpcs/phpcs.xml .
 	-->
 
 	<exclude-pattern>*/.git/*</exclude-pattern>

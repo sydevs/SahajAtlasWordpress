@@ -228,11 +228,22 @@ PHP. The fifth runs the one shipped script in plain node.
 
 `pnpm test` and `pnpm test:render` boot the floor, WordPress 6.7 on PHP 7.4, unless
 `SAHAJ_ATLAS_PHP` and `SAHAJ_ATLAS_WP` say otherwise (`SAHAJ_ATLAS_PHP=8.3 SAHAJ_ATLAS_WP=latest pnpm test`).
-CI runs both: the floor job, and "Tests (PHP 8.3, WordPress latest)". The suite also fails on any
-PHP deprecation, warning or notice raised from the plugin's own files. A separate CI job, "PHPCS",
-runs the security and PHP-compatibility sniffs in `.github/phpcs/phpcs.xml` through composer;
-composer is CI-only and nothing of it ships. It is not a `pnpm` lane. Each `phpcs:ignore` names the
-sniff it suppresses.
+CI runs both: the floor job, and "Tests (current PHP and WordPress)", whose versions are pinned.
+`.github/workflows/upstream.yml` runs the same two lanes against WordPress `latest` on a schedule,
+so a core release is found without failing anyone's pull request. The suite also fails on any PHP
+deprecation, warning or notice raised from the plugin's own files.
+
+A separate CI job, "PHPCS", runs the security and PHP-compatibility sniffs in
+`.github/phpcs/phpcs.xml` through composer; composer is CI-only and nothing of it ships. It is not
+a `pnpm` lane. Each `phpcs:ignore` names the sniff it suppresses. It needs PHP and composer on
+PATH, which the lanes above do not:
+
+```sh
+composer install -d .github/phpcs && .github/phpcs/vendor/bin/phpcs --standard=.github/phpcs/phpcs.xml .
+```
+
+`.github/phpcs/composer.lock` is committed, so every run sniffs with the same rules. Raising a
+sniff version is `composer update -d .github/phpcs`, in its own commit.
 
 `pnpm test:all` runs the first four. The browser lane is the one that sees what a theme's CSS,
 the sizing script and the widget do to the page once a browser runs it, which is where every
