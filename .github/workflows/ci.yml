@@ -59,15 +59,19 @@ jobs:
 
   # PHP 7.4 is the declared floor and has been end-of-life since 2022, so the job above is the
   # only one that proves the floor and none proves what most sites now run. This one runs the same
-  # suites on a current PHP and WordPress. The two "latest" values float on purpose: a red run
-  # here after a core or PHP release is the signal. It reports only the lanes that boot WordPress;
-  # lint and the measurement script do not depend on the version. See tests/versions.mjs.
+  # suites on a current PHP and WordPress. It reports only the lanes that boot WordPress; lint and
+  # the measurement script do not depend on the version. See tests/versions.mjs.
+  #
+  # ⚠ Both versions are pinned, and raising one is a deliberate commit. A floating `latest` turns a
+  # pull request that changed nothing red on a core release day — the policy the `dependencies` job
+  # below writes down. browser.yml and upstream.yml are where an upstream release is allowed to go
+  # red, because neither blocks anyone.
   current:
-    name: Tests (PHP 8.3, WordPress latest)
+    name: Tests (current PHP and WordPress)
     runs-on: ubuntu-latest
     env:
       SAHAJ_ATLAS_PHP: '8.3'
-      SAHAJ_ATLAS_WP: latest
+      SAHAJ_ATLAS_WP: '7.1'
     steps:
       - uses: actions/checkout@v7
 
