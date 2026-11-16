@@ -749,7 +749,6 @@ sahaj_is(
 
 // ---------------------------------------------------------------------------------------------
 
-require __DIR__ . '/rollout.php';
 require __DIR__ . '/beaver-builder.php';
 require __DIR__ . '/contract.php';
 require __DIR__ . '/sitemap.php';
