@@ -283,5 +283,5 @@ Ask, do not guess, when these docs and the code disagree. The code is what ships
 - **Merging a version bump to `main` is the release.** Change the version only in a release PR,
   and never push a tag to cut one.
 - Every site is offered a release as soon as it is published; there is no hold. Before merging a
-  release PR, install its zip by hand on a canary site and check it. The canary step and the
-  rollback procedure are in `docs/releasing.md`.
+  release PR, install the zip its CI run built on the canary sites `docs/releasing.md` names, and
+  check them. That file carries the canary step and the rollback procedure.
