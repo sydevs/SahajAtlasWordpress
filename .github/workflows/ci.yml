@@ -95,8 +95,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # ⚠ `install`, never `update`: `.github/phpcs/composer.lock` is committed so every run sniffs
+      # with the same rules. `WordPress.Security` is a category reference, so a WPCS minor that adds
+      # a sniff would otherwise fail a PR that changed nothing.
       - name: Install PHP_CodeSniffer and the rulesets
-        run: composer update --working-dir=.github/phpcs --no-interaction --no-progress --prefer-dist
+        run: composer install --working-dir=.github/phpcs --no-interaction --no-progress --prefer-dist
 
       - name: Run PHPCS
         run: .github/phpcs/vendor/bin/phpcs --standard=.github/phpcs/phpcs.xml .

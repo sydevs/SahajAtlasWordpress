@@ -44,6 +44,6 @@ tests/screenshots/
 # Worktrees from /implement-ticket — a second checkout of this repo, never source
 .claude/worktrees/
 
-# CI-only PHPCS install (.github/phpcs)
+# CI-only PHPCS install (.github/phpcs). composer.lock IS committed: the sniff set has to be
+# the same on every run, or a WPCS release turns an unrelated PR red.
 .github/phpcs/vendor/
-.github/phpcs/composer.lock
