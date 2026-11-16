@@ -42,6 +42,7 @@ AGENTS.md's Decisions section lists the load-bearing choices. This table adds th
 | API key | Issued by hand. The setup screen names who to ask. |
 | Diagnostics | A status panel. For this audience, it is the difference between self-service and 13 support emails. |
 | Distribution | A public repo, GitHub Releases, and Plugin Update Checker. |
+| Rollout | No hold and no staged ring. Every site is offered a release as soon as it is published. The gate is a manual canary check before the merge, in `docs/releasing.md`. |
 | URL and CMS match | The plugin reports the page's URL. A human sets the matching value in SahajCloud. The panel warns on a mismatch. |
 | SEO conflicts | The plugin takes over SEO on atlas pages. It does not feed the site's own SEO plugin. |
 | Existing embeds | Documented only. Installation instructions say to remove an old embed first. The plugin does not detect or remove it. |
