@@ -21,3 +21,13 @@ README.md
 # Agent configuration — dev-only, and `.mcp.json` names internal services.
 .claude
 .mcp.json
+
+# ⚠ Gitignored, so no commit carries them — but a build from a working tree copies whatever is
+# there. `.env.claude.local` holds a live SahajCloud key, and `wordpress/` is a whole WordPress
+# install. Both would ship to a volunteer's site.
+.env*
+wordpress
+wp-content
+test-results
+playwright-report
+.playground
