@@ -12,7 +12,7 @@
 
 		Run it from the repository root:
 		  composer install -d .github/phpcs
-		  .github/phpcs/vendor/bin/phpcs --standard=.github/phpcs/phpcs.xml
+		  .github/phpcs/vendor/bin/phpcs, with the standard set to this file (see the PHPCS job)
 	-->
 
 	<file>.</file>
