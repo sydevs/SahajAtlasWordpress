@@ -59,5 +59,9 @@ Sites that never took the bad release are offered 0.3.6 and nothing else.
 A site that cannot wait for the fix can go back to the previous version itself: download
 `sahaj-atlas-<version>.zip` from that release, then on **Plugins > Add New > Upload Plugin**
 choose "Replace current with uploaded". With WP-CLI:
-`wp plugin install <zip-url> --force`. Its settings are kept. The site is offered the bad release
-again at its next check, so turn off automatic updates for the plugin there until the fix is out.
+`wp plugin install <zip-url> --force`. Its settings are kept.
+
+Do this only once step 1 has drafted the bad release. A draft is not the latest release, so the
+downgraded site is offered nothing, and it takes 0.3.6 by itself once that publishes. Leave
+automatic updates on: they are the plugin's only way back onto a site nobody here controls. While
+the bad release is still published, a downgraded site is offered it again within 12 hours.
