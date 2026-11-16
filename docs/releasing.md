@@ -12,10 +12,14 @@ This is a manual step. Nothing enforces it.
 Canary sites: _to be named by the owner_ (one or more low-traffic sites whose volunteer agrees to
 be the first to see a release).
 
-1. **Build the zip from the release PR's branch**, from a checkout with an `origin` remote:
-   `.github/scripts/package.sh . build`. It checks the version declarations and writes
-   `build/sahaj-atlas-<version>.zip`, the file the release will attach. It needs system PHP
-   (`i18n.sh` uses it). CI runs the same script but keeps no zip.
+1. **Download the zip CI built for the release PR.** Every PR run of **CI / Lint & test** builds
+   it with `.github/scripts/package.sh`, the same script the release runs, and keeps it as the
+   `sahaj-atlas-zip` artifact. Open the run from the PR's **Checks** tab and take it from
+   **Artifacts**, or run `gh run download <run-id> -n sahaj-atlas-zip`. A browser download wraps
+   it in a second zip: unwrap that, and install the `sahaj-atlas-<version>.zip` inside.
+
+   ⚠ Do not build this zip by hand. `package.sh . build` copies the working tree, not the commit,
+   so anything untracked beside it ships to the volunteer's site. CI builds from a clean checkout.
 2. **Install it by hand on each canary site.** On **Plugins > Add New > Upload Plugin**, choose the
    zip and "Replace current with uploaded". With WP-CLI: `wp plugin install <zip> --force`.
    Settings are kept.
