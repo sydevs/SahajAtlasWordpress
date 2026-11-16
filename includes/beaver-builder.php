@@ -161,7 +161,6 @@ function sahaj_atlas_first_bb_module( array $children, $parent, $is_visible ) {
  * @return bool
  */
 function sahaj_atlas_bb_editing() {
-	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- presence only; nothing is read.
 	return ( class_exists( 'FLBuilderModel' ) && FLBuilderModel::is_builder_active() )
-		|| ( wp_doing_ajax() && isset( $_POST['fl_builder_data'] ) );
+		|| ( wp_doing_ajax() && isset( $_POST['fl_builder_data'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- presence only; nothing is read.
 }
