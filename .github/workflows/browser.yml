@@ -60,16 +60,16 @@ jobs:
           fi
 
   browser:
-    name: Browser lane, shard ${{ matrix.shard }}/4
+    name: Browser lane, shard ${{ matrix.shard }}/2
     needs: gate
     if: needs.gate.outputs.has_key == 'true'
     runs-on: ubuntu-latest
     # The backstop. The lane step has its own, shorter timeout so the summary still runs.
-    timeout-minutes: 30
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@v7
 
@@ -85,19 +85,19 @@ jobs:
       - run: pnpm exec playwright-core install --with-deps chromium
 
       - name: Run the browser lane
-        timeout-minutes: 22
+        timeout-minutes: 15
         env:
           SAHAJ_ATLAS_TEST_KEY: ${{ secrets.SAHAJ_ATLAS_TEST_KEY }}
         run: |
           set -o pipefail
-          pnpm test:browser --shard ${{ matrix.shard }}/4 2>&1 | tee browser-output.txt
+          pnpm test:browser --shard ${{ matrix.shard }}/2 2>&1 | tee browser-output.txt
 
       # `always()`, not `success()`: a failed or timed-out lane is exactly when the verdicts matter.
       - name: Summarise the verdicts
         if: always()
         run: |
           {
-            echo "### Browser lane, shard ${{ matrix.shard }}/4"
+            echo "### Browser lane, shard ${{ matrix.shard }}/2"
             echo
             echo '```'
             if [ -f browser-output.txt ]; then
