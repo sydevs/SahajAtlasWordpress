@@ -1,0 +1,89 @@
+name: Browser lane
+
+# ⚠ `pnpm test:browser` is the only lane that sees real theme CSS and the live widget, and it has
+# found every live defect so far (#36, SahajAtlasWeb#235, SahajAtlasWeb#236). It needs the network,
+# so it cannot be a required check. It runs on a pull request only when the PR touches a file that
+# shapes the embed, and on demand. Nothing in this repo runs on a schedule.
+#
+# ⚠ Never a required check. A path-filtered workflow that a ruleset requires never reports on a PR
+# outside its paths, and the merge waits forever. A red run is a FAIL verdict, which is this
+# plugin's. A WIDGET verdict is SahajAtlasWeb's, and shows in the summary without failing the run.
+on:
+  pull_request:
+    paths:
+      - 'sahaj-atlas.php'
+      - 'includes/**'
+      - 'templates/**'
+      - 'assets/**'
+      - 'blocks/**'
+      - 'modules/**'
+      - 'tests/browser.mjs'
+      - '.github/workflows/browser.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: browser-lane
+  cancel-in-progress: false
+
+jobs:
+  browser:
+    name: Browser lane (production widget)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # A step's `if:` can read the `env` context, so the job's own env carries the gate. ⚠ It carries
+    # whether the secret is set, never the secret: a job-level value reaches every step, and
+    # `pnpm install` runs dependencies' own install scripts. Only the lane itself gets the key.
+    env:
+      HAS_TEST_KEY: ${{ secrets.SAHAJ_ATLAS_TEST_KEY != '' }}
+    steps:
+      # A skip has to be visible. A missing secret would otherwise either fail the run, which
+      # blames the plugin for a configuration gap, or pass it, which reads as coverage nobody has.
+      - name: Say that nothing ran
+        if: env.HAS_TEST_KEY != 'true'
+        run: |
+          echo "::warning title=Browser lane skipped::The SAHAJ_ATLAS_TEST_KEY repository secret is not set, so nothing ran. Add the Sahaj Atlas (Local Test Key) client's key from a SahajCloud admin."
+          {
+            echo "### Browser lane skipped"
+            echo
+            echo "The \`SAHAJ_ATLAS_TEST_KEY\` repository secret is not set, so this run tested nothing."
+          } >>"$GITHUB_STEP_SUMMARY"
+
+      - if: env.HAS_TEST_KEY == 'true'
+        uses: actions/checkout@v7
+
+      - if: env.HAS_TEST_KEY == 'true'
+        uses: pnpm/action-setup@v6
+
+      - if: env.HAS_TEST_KEY == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - if: env.HAS_TEST_KEY == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - if: env.HAS_TEST_KEY == 'true'
+        run: pnpm exec playwright-core install --with-deps chromium
+
+      - name: Run the browser lane
+        if: env.HAS_TEST_KEY == 'true'
+        env:
+          SAHAJ_ATLAS_TEST_KEY: ${{ secrets.SAHAJ_ATLAS_TEST_KEY }}
+        run: |
+          set -o pipefail
+          pnpm test:browser 2>&1 | tee browser-output.txt
+
+      - name: Summarise the verdicts
+        if: always() && env.HAS_TEST_KEY == 'true'
+        run: |
+          {
+            echo "### Browser lane"
+            echo
+            echo '```'
+            grep -E '^\s*(FAIL|WIDGET|KNOWN)\b' browser-output.txt || echo "No FAIL, WIDGET or KNOWN verdicts."
+            echo '```'
+          } >>"$GITHUB_STEP_SUMMARY"
