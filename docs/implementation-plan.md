@@ -42,7 +42,7 @@ AGENTS.md's Decisions section lists the load-bearing choices. This table adds th
 | API key | Issued by hand. The setup screen names who to ask. |
 | Diagnostics | A status panel. For this audience, it is the difference between self-service and 13 support emails. |
 | Distribution | A public repo, GitHub Releases, and Plugin Update Checker. |
-| Rollout | No hold and no staged ring. Every site is offered a release as soon as it is published. The gate is a manual canary check before the merge, in `docs/releasing.md`. |
+| Rollout | No hold and no staged ring. Every site is offered a release as soon as it is published. The gate is CI, which boots the built zip. `docs/releasing.md` has the rollback. |
 | URL and CMS match | The plugin reports the page's URL. A human sets the matching value in SahajCloud. The panel warns on a mismatch. |
 | SEO conflicts | The plugin takes over SEO on atlas pages. It does not feed the site's own SEO plugin. |
 | Existing embeds | Documented only. Installation instructions say to remove an old embed first. The plugin does not detect or remove it. |
@@ -180,8 +180,7 @@ classic-theme page template lives in `templates/atlas-page.php`. The release wor
 A manual zip upload was ruled out: it gives no update notifications, so every embed-contract
 change becomes one email per site with no way to confirm anyone applied it. The release build
 runs in CI, because GitHub's own "Source code (zip)" wraps the plugin in an extra folder that
-installs as a second copy instead of an update. `docs/releasing.md` covers the pre-release canary
-check and rollback.
+installs as a second copy instead of an update. `docs/releasing.md` covers rollback.
 
 ## Testing scope
 

@@ -57,15 +57,10 @@ jobs:
       - name: Render checks (block and classic themes)
         run: pnpm test:render
 
-      # ⚠ The canary check installs this artifact, so it is published last, where a failed step
-      # above leaves none to install. Rebuilding it by hand would ship a working tree — whatever
-      # is untracked, not what the commit holds. See docs/releasing.md.
-      - name: Keep the zip for the canary check
-        uses: actions/upload-artifact@v7
-        with:
-          name: sahaj-atlas-zip
-          path: ${{ steps.package.outputs.zip }}
-          if-no-files-found: error
+      # ⚠ Every step above mounts the working tree. This one boots the zip sites install, so a file
+      # `.distignore` wrongly leaves out fails the PR, not every site's next automatic update.
+      - name: Boot the built zip
+        run: pnpm test:zip "${{ steps.package.outputs.zip }}"
 
   contract:
     name: URL contract in sync

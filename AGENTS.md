@@ -224,6 +224,7 @@ PHP. The fifth runs the one shipped script in plain node.
 | Measure | `pnpm test:measure` | `assets/atlas-page.js`'s header arithmetic, against a stubbed geometry |
 | Behaviour | `pnpm test` | The behaviour suite, in a booted WordPress 6.7 / PHP 7.4 |
 | Render | `pnpm test:render` | Real HTTP requests against a real server, per theme kind |
+| Zip | `pnpm test:zip <zip>` | The built release zip, unzipped and mounted in place of the source tree: the plugin loads, a shortcode page renders the `<sahaj-atlas>` element and the loader tag, and the plugin raises no PHP error. Catches a file `.distignore` wrongly leaves out. CI runs it on the zip `package.sh` builds; locally, build one first (`.github/scripts/package.sh . build`, needs PHP). Not in `pnpm test:all`. |
 | Browser | `pnpm test:browser` | The production widget in Chromium, in every free theme the fleet runs, plus page builders and hostile conditions. Local only; needs the network, `SAHAJ_ATLAS_TEST_KEY` (the "Sahaj Atlas (Local Test Key)" client's key, from a SahajCloud admin) in `.env.claude.local`, and Chromium (`pnpm exec playwright-core install chromium`, once). `--only <cell,…>` runs a subset, `--list` names them. `SAHAJ_ATLAS_WIDGET_FROM=<preview origin>` judges a SahajAtlasWeb PR's Cloudflare preview instead of production. |
 
 `pnpm test:all` runs the first four. The browser lane is the one that sees what a theme's CSS,
@@ -282,6 +283,5 @@ Ask, do not guess, when these docs and the code disagree. The code is what ships
   re-encode it.
 - **Merging a version bump to `main` is the release.** Change the version only in a release PR,
   and never push a tag to cut one.
-- Every site is offered a release as soon as it is published; there is no hold. Before merging a
-  release PR, install the zip its CI run built on the canary sites `docs/releasing.md` names, and
-  check them. That file carries the canary step and the rollback procedure.
+- Every site is offered a release as soon as it is published; there is no hold. CI boots the built
+  zip (`pnpm test:zip`) before merge, and `docs/releasing.md` carries the rollback procedure.

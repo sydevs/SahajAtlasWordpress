@@ -9,6 +9,7 @@
     "test": "rm -f .test-network.txt && wp-playground-cli run-blueprint --blueprint tests/blueprint.json --mount .:/wordpress/wp-content/plugins/sahaj-atlas --verbosity quiet; php tests/report.php 2>/dev/null || wp-playground-cli php --php 7.4 --mount .:/plugin -- /plugin/tests/report.php",
     "start": "wp-playground-cli start --auto-mount .",
     "test:render": "node tests/render.mjs",
+    "test:zip": "node tests/zip.mjs",
     "test:browser": "node tests/browser.mjs",
     "test:all": "pnpm lint && pnpm test:measure && pnpm test && pnpm test:render"
   },
