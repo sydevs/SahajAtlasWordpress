@@ -9,7 +9,7 @@ name: Browser lane
 # outside its paths, and the merge waits forever. A red run is a FAIL verdict, which is this
 # plugin's. A WIDGET verdict is SahajAtlasWeb's, and shows in the summary without failing the run.
 #
-# ⚠ The lane is 23 cells, each booting a WordPress and a Chromium page, one after another. Run as one
+# ⚠ The lane is 22 cells, each booting a WordPress and a Chromium page, one after another. Run as one
 # job it outlasted a 60-minute budget and was cancelled with no log (run 44154134735). So it runs as
 # a matrix of shards (`--shard k/n`), each with a step timeout inside a job timeout. The summary step
 # runs `always()`, so a shard that times out still says which cell it stopped on.
@@ -64,8 +64,11 @@ jobs:
     needs: gate
     if: needs.gate.outputs.has_key == 'true'
     runs-on: ubuntu-latest
-    # The backstop. The lane step has its own, shorter timeout so the summary still runs.
-    timeout-minutes: 20
+    # ⚠ A backstop, not a budget. The lane step takes a shorter one so the summary step still
+    # runs, and both are derived from the shard count: a cell measures 50–94s, so a shard of 11 is
+    # 10 to 17 minutes, and the step has to absorb one 8-minute cell timeout on top and still print
+    # its tally — hence 25. The job adds checkout, install and the Chromium download.
+    timeout-minutes: 32
     strategy:
       fail-fast: false
       matrix:
@@ -87,7 +90,7 @@ jobs:
       - run: pnpm exec playwright-core install --with-deps chromium
 
       - name: Run the browser lane
-        timeout-minutes: 15
+        timeout-minutes: 25
         env:
           SAHAJ_ATLAS_TEST_KEY: ${{ secrets.SAHAJ_ATLAS_TEST_KEY }}
         run: pnpm test:browser --shard ${{ matrix.shard }}/2
