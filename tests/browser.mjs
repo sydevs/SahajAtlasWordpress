@@ -23,6 +23,7 @@
  */
 
 import { spawn } from 'node:child_process'
+import { appendFileSync, writeFileSync } from 'node:fs'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -34,6 +35,19 @@ const NETWORK_LOG = '.test-network.txt'
 const SCREENSHOTS = 'tests/screenshots'
 const PAGE = '/find-a-class/'
 const BASE_PORT = 8830
+
+/**
+ * The shard's verdicts, appended line by line as the run goes.
+ *
+ * ⚠ On disk as it happens, never held until the end. CI kills the lane step on a timeout, which
+ * is exactly when the verdicts are wanted, so a block written once at the end would be lost there.
+ * `.github/workflows/browser.yml` prints this file and re-derives nothing from stdout. `tally` is
+ * the line only a run that finished writes.
+ */
+const SUMMARY = 'browser-summary.txt'
+
+/** @param {string} line */
+const summarise = (line) => appendFileSync(SUMMARY, `${line}\n`)
 
 /**
  * The sentence the widget logs when it chooses the compact card (`docs/embedding.md`, "Entering the
@@ -273,7 +287,7 @@ if (shard && cells.length === 0) {
 }
 
 // ⚠ A cell that hangs must not eat the shard's whole budget. The lane measures about 15 minutes
-// over 23 cells, so 8 minutes is a hang rather than a slow cell. Deliberately not an env knob:
+// over 22 cells, so 8 minutes is a hang rather than a slow cell. Deliberately not an env knob:
 // `Number('8m')` is NaN, and `setTimeout(fn, NaN)` fires at once, reporting every cell as hung.
 const CELL_TIMEOUT_MS = 8 * 60 * 1000
 
@@ -935,10 +949,14 @@ async function run(browser, cell, index) {
   await rm(NETWORK_LOG, { force: true })
 
   console.log(`\n${cell.name}${cell.known ? '  (known failure: ' + cell.known + ')' : ''}`)
+  summarise(`cell  ${cell.name}${cell.known ? ' (known failure)' : ''}`)
 
   let cellFailures = 0
 
-  const report = (verdict, label, detail) => console.log(`  ${verdict} ${label}${detail ? `\n        ${detail}` : ''}`)
+  const report = (verdict, label, detail) => {
+    console.log(`  ${verdict} ${label}${detail ? `\n        ${detail}` : ''}`)
+    summarise(`${verdict} ${label}`)
+  }
 
   // ⚠ One object per cell, never a module-level one. A timed-out cell's checks go on resolving
   // after the next cell has started, and a shared binding charged them to that cell — counted
@@ -955,12 +973,9 @@ async function run(browser, cell, index) {
       report(cell.known ? 'KNOWN' : 'FAIL ', label, detail)
     },
     widget(label, condition, detail = '') {
-      if (condition) {
-        console.log(`  ok    ${label}`)
-        return
-      }
+      if (condition) return console.log(`  ok    ${label}`)
       widgetFindings += 1
-      console.log(`  WIDGET ${label}${detail ? `\n        ${detail}` : ''}`)
+      report('WIDGET', label, detail)
     },
   }
 
@@ -1064,6 +1079,7 @@ async function run(browser, cell, index) {
 }
 
 await mkdir(SCREENSHOTS, { recursive: true })
+writeFileSync(SUMMARY, '')
 
 /**
  * ⚠ Headless Chromium has no WebGL unless it is given software GL. Mapbox then refuses to mount
@@ -1079,7 +1095,10 @@ const browser = await chromium
   })
 
 try {
-  if (shard) console.log(`Shard ${shardArg}: ${cells.map((c) => c.name).join(', ')}`)
+  if (shard) {
+    console.log(`Shard ${shardArg}: ${cells.map((c) => c.name).join(', ')}`)
+    summarise(`shard  ${shardArg}: ${cells.map((c) => c.name).join(', ')}`)
+  }
 
   for (const [index, cell] of cells.entries()) {
     const started = Date.now()
@@ -1098,14 +1117,19 @@ try {
       liveServer?.kill('SIGKILL')
       failures += 1
       console.log(`  FAIL  ${cell.name}: the cell hung\n        no verdict after ${CELL_TIMEOUT_MS / 1000}s; its server was killed`)
+      summarise(`FAIL  ${cell.name}: the cell hung after ${CELL_TIMEOUT_MS / 1000}s`)
       await Promise.race([running.catch(() => {}), sleep(30000)])
     }
 
-    console.log(`  time  ${cell.name} ${Math.round((Date.now() - started) / 1000)}s`)
+    const seconds = Math.round((Date.now() - started) / 1000)
+
+    console.log(`  time  ${cell.name} ${seconds}s`)
+    summarise(`time  ${cell.name} ${seconds}s`)
   }
 } finally {
   await browser.close()
 }
 
 console.log(`\n${failures} failure(s), ${knownFailures} known, ${widgetFindings} widget finding(s) (SahajAtlasWeb's to settle; check its open tickets before filing)`)
+summarise(`tally ${failures} failure(s), ${knownFailures} known, ${widgetFindings} widget finding(s)`)
 process.exit(failures > 0 ? 1 : 0)

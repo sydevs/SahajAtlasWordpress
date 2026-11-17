@@ -88,11 +88,12 @@ jobs:
         timeout-minutes: 15
         env:
           SAHAJ_ATLAS_TEST_KEY: ${{ secrets.SAHAJ_ATLAS_TEST_KEY }}
-        run: |
-          set -o pipefail
-          pnpm test:browser --shard ${{ matrix.shard }}/2 2>&1 | tee browser-output.txt
+        run: pnpm test:browser --shard ${{ matrix.shard }}/2
 
       # `always()`, not `success()`: a failed or timed-out lane is exactly when the verdicts matter.
+      # ⚠ `tests/browser.mjs` appends to this file as it runs, so a shard the step timeout kills
+      # still names every verdict and the cell it stopped on. Nothing here re-derives a count the
+      # script already holds; `tally` is the line only a finished run writes.
       - name: Summarise the verdicts
         if: always()
         run: |
@@ -100,14 +101,11 @@ jobs:
             echo "### Browser lane, shard ${{ matrix.shard }}/2"
             echo
             echo '```'
-            if [ -f browser-output.txt ]; then
-              grep -E '^\s*(FAIL|WIDGET|KNOWN)\b|^[0-9]+ failure' browser-output.txt || echo "No FAIL, WIDGET or KNOWN verdicts."
-              echo
-              grep -E '^\s+time\s' browser-output.txt || true
-              echo "Last cell started: $(grep -E '^[a-z0-9-]+( |$)' browser-output.txt | grep -v '^Shard' | tail -1)"
-              grep -q '^[0-9]* failure' browser-output.txt || echo "The lane did not finish: no final tally."
+            if [ -s browser-summary.txt ]; then
+              cat browser-summary.txt
+              grep -q '^tally ' browser-summary.txt || echo "The lane did not finish: no final tally."
             else
-              echo "The lane produced no output."
+              echo "The lane wrote no verdicts."
             fi
             echo '```'
           } >>"$GITHUB_STEP_SUMMARY"
