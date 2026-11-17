@@ -36,3 +36,6 @@ test. Their inline `⚠` comments carry the full detail. Paths are from the repo
   mounted plugin. Three copies of an upstream response shape diverge the first time that shape
   changes. Seed the root under every route the plugin asks about — the endpoint answers `/` and a
   bare view route alike, but the cache is keyed on the route as asked.
+- The zip lane (`tests/zip.mjs`) mounts the unzipped plugin, so `tests/` is absent from it. Anything
+  a blueprint needs from `tests/` is mounted from the source tree at `/sahaj-tests`, never required
+  from the plugin directory. A test that must see a file the zip lacks is the point of that lane.

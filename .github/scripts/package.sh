@@ -100,7 +100,7 @@ while read -r po; do
 done <<<"$(grep -E '^sahaj-atlas/languages/sahaj-atlas-[^/]+\.po$' <<<"$LISTING" || true)"
 
 LEAKED=$(printf '%s\n' "$LISTING" |
-	grep -E '^sahaj-atlas/(\.git|\.github|\.claude|tests|docs|node_modules|build)/|^sahaj-atlas/(package\.json|pnpm-lock\.yaml|\.mcp\.json|AGENTS\.md|CLAUDE\.md|README\.md)$' ||
+	grep -E '^sahaj-atlas/(\.git|\.github|\.claude|tests|docs|node_modules|build|wordpress|wp-content)/|^sahaj-atlas/(package\.json|pnpm-lock\.yaml|\.mcp\.json|AGENTS\.md|CLAUDE\.md|README\.md)$|^sahaj-atlas/\.env' ||
 	true)
 [ -z "$LEAKED" ] ||
 	fail "Dev-only files reached the zip, so .distignore has lost a line: $(printf '%s\n' "$LEAKED" | cut -d/ -f2 | sort -u | tr '\n' ' ')"
