@@ -272,8 +272,10 @@ if (shard && cells.length === 0) {
   process.exit(2)
 }
 
-// A cell that hangs must not eat the job's whole budget. One cell takes about a minute or two.
-const CELL_TIMEOUT_MS = Number(process.env.SAHAJ_ATLAS_CELL_TIMEOUT_MS ?? 8 * 60 * 1000)
+// ⚠ A cell that hangs must not eat the shard's whole budget. The lane measures about 15 minutes
+// over 23 cells, so 8 minutes is a hang rather than a slow cell. Deliberately not an env knob:
+// `Number('8m')` is NaN, and `setTimeout(fn, NaN)` fires at once, reporting every cell as hung.
+const CELL_TIMEOUT_MS = 8 * 60 * 1000
 
 if (args.includes('--list')) {
   for (const cell of CELLS) console.log(`${cell.name.padEnd(18)} ${cell.theme ?? ''} ${cell.plugins?.join(',') ?? ''} ${cell.known ? '(known failure)' : ''}`)
