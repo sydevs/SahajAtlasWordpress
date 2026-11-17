@@ -63,6 +63,8 @@ function sahaj_group( $group ) {
 
 sahaj_group( 'The plugin loaded' );
 
+echo '  runtime PHP ' . PHP_VERSION . ', WordPress ' . get_bloginfo( 'version' ) . "\n";
+
 sahaj_ok( 'is active', is_plugin_active( 'sahaj-atlas/sahaj-atlas.php' ) );
 sahaj_is( 'registered the shortcode', true, shortcode_exists( 'sahaj_atlas' ) );
 sahaj_ok( 'registered the block', WP_Block_Type_Registry::get_instance()->is_registered( 'sahaj-atlas/embed' ) );
@@ -781,6 +783,13 @@ $sahaj_escaped = defined( 'SAHAJ_ATLAS_NETWORK_LOG' ) && file_exists( SAHAJ_ATLA
 	: '';
 
 sahaj_is( 'every request a lane made, that lane stubbed', '', $sahaj_escaped );
+
+// ---------------------------------------------------------------------------------------------
+
+sahaj_group( 'PHP raised nothing in the plugin' );
+
+// ⚠ Last, so it covers every lane above. Set by the handler in tests/bootstrap.php.
+sahaj_is( 'no deprecation, warning or notice from plugin code', array(), array_values( array_unique( $GLOBALS['sahaj_php_diagnostics'] ) ) );
 
 // ---------------------------------------------------------------------------------------------
 

@@ -18,6 +18,7 @@
 import { spawn } from 'node:child_process'
 import { readFile, rm } from 'node:fs/promises'
 import { setTimeout as sleep } from 'node:timers/promises'
+import { blueprintFor } from './versions.mjs'
 
 /**
  * Where `tests/no-network.php` records an outbound request it refused.
@@ -98,19 +99,22 @@ async function waitForAtlasPage(port) {
 async function check(run) {
   console.log(`\n${run.theme} theme`)
 
+  const { path: blueprint, php, wp } = blueprintFor(run.blueprint)
+  console.log(`  PHP ${php}, WordPress ${wp}`)
+
   const args = [
     'wp-playground-cli',
     'server',
     '--blueprint',
-    run.blueprint,
-    // Pinned to the fleet's floor. ⚠ Under @wp-playground/cli 3.1 the blueprint's
-    // `preferredVersions` is what pins it: given a blueprint, `server` ignores these flags, and a
-    // blueprint without the key boots the latest WordPress on PHP 8.5 (measured 2026-10-01). Both
-    // blueprints carry the key; the flags stay for a CLI that reverses the precedence.
+    blueprint,
+    // ⚠ Under @wp-playground/cli 3.1 the blueprint's `preferredVersions` is what pins the
+    // runtime (tests/versions.mjs writes them): given a blueprint, `server` ignores these flags,
+    // and a blueprint without the key boots the latest WordPress on PHP 8.5 (measured
+    // 2026-10-01). The flags stay for a CLI that reverses the precedence.
     '--php',
-    '7.4',
+    php,
     '--wp',
-    '6.7',
+    wp,
     '--mount',
     '.:/wordpress/wp-content/plugins/sahaj-atlas',
     ...run.mounts.flatMap((mount) => ['--mount', mount]),

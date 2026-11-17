@@ -62,6 +62,39 @@ jobs:
       - name: Boot the built zip
         run: pnpm test:zip "${{ steps.package.outputs.zip }}"
 
+  # PHP 7.4 is the declared floor and has been end-of-life since 2022, so the job above is the
+  # only one that proves the floor and none proves what most sites now run. This one runs the same
+  # suites on a current PHP and WordPress. It reports only the lanes that boot WordPress; lint and
+  # the measurement script do not depend on the version. See tests/versions.mjs.
+  #
+  # ⚠ WordPress is `latest`, so a core release shows up on the next pull request instead of on a
+  # site. That can turn an unrelated PR red on a release day, which is the point: it is the only
+  # lane that sees a new core. It is not a required check. PHP stays pinned, and raising it is a
+  # deliberate commit. Nothing in this repo runs on a schedule.
+  current:
+    name: Tests (current PHP and WordPress)
+    runs-on: ubuntu-latest
+    env:
+      SAHAJ_ATLAS_PHP: '8.3'
+      SAHAJ_ATLAS_WP: latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Integration tests
+        run: pnpm test
+
+      - name: Render checks (block and classic themes)
+        run: pnpm test:render
+
   contract:
     name: URL contract in sync
     runs-on: ubuntu-latest

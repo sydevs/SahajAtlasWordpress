@@ -19,6 +19,27 @@ ini_set( 'error_reporting', (string) E_ALL );
 
 @unlink( SAHAJ_ATLAS_TEST_OUT );
 
+/*
+ * ⚠ A PHP 8 deprecation or warning raised by the plugin's own code is printed and then forgotten:
+ * display_errors shows it, and nothing fails. The PHP 8 lane exists to catch exactly these, so the
+ * handler records each one and tests/run.php turns the list into a failure. It returns false so
+ * PHP's own reporting carries on. Vendored and test code is not this plugin's to fix.
+ */
+$GLOBALS['sahaj_php_diagnostics'] = array();
+
+set_error_handler(
+	function ( $severity, $message, $file, $line ) {
+		$own = '/wordpress/wp-content/plugins/sahaj-atlas/';
+
+		if ( 0 === strpos( $file, $own ) && ! preg_match( '#^' . preg_quote( $own, '#' ) . '(vendor|tests)/#', $file ) ) {
+			$GLOBALS['sahaj_php_diagnostics'][] = substr( $file, strlen( $own ) ) . ":$line $message";
+		}
+
+		return false;
+	},
+	E_ALL
+);
+
 ob_start();
 
 // A fatal error never reaches the end of this file. The shutdown handler flushes output instead.
