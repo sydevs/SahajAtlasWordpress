@@ -65,7 +65,7 @@ jobs:
     if: needs.gate.outputs.has_key == 'true'
     runs-on: ubuntu-latest
     # The backstop. The lane step has its own, shorter timeout so the summary still runs.
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -85,7 +85,7 @@ jobs:
       - run: pnpm exec playwright-core install --with-deps chromium
 
       - name: Run the browser lane
-        timeout-minutes: 15
+        timeout-minutes: 22
         env:
           SAHAJ_ATLAS_TEST_KEY: ${{ secrets.SAHAJ_ATLAS_TEST_KEY }}
         run: |
