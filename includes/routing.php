@@ -181,7 +181,7 @@ function sahaj_atlas_path_route() {
  * @return string
  */
 function sahaj_atlas_query_route() {
-	// phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- a public URL parameter on a read-only request, unslashed and sanitized below once the cheap guards pass.
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- a public URL parameter on a read-only request, sanitized below once the cheap guards pass.
 	$raw = isset( $_GET[ SAHAJ_ATLAS_ROUTE_PARAM ] ) ? $_GET[ SAHAJ_ATLAS_ROUTE_PARAM ] : '';
 
 	if ( ! is_string( $raw ) || '' === $raw || ! sahaj_atlas_is_atlas_page() ) {

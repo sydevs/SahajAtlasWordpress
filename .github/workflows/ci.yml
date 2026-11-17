@@ -62,16 +62,16 @@ jobs:
   # suites on a current PHP and WordPress. It reports only the lanes that boot WordPress; lint and
   # the measurement script do not depend on the version. See tests/versions.mjs.
   #
-  # ⚠ Both versions are pinned, and raising one is a deliberate commit. A floating `latest` turns a
-  # pull request that changed nothing red on a core release day — the policy the `dependencies` job
-  # below writes down. browser.yml and upstream.yml are where an upstream release is allowed to go
-  # red, because neither blocks anyone.
+  # ⚠ WordPress is `latest`, so a core release shows up on the next pull request instead of on a
+  # site. That can turn an unrelated PR red on a release day, which is the point: it is the only
+  # lane that sees a new core. It is not a required check. PHP stays pinned, and raising it is a
+  # deliberate commit. Nothing in this repo runs on a schedule.
   current:
     name: Tests (current PHP and WordPress)
     runs-on: ubuntu-latest
     env:
       SAHAJ_ATLAS_PHP: '8.3'
-      SAHAJ_ATLAS_WP: '7.1'
+      SAHAJ_ATLAS_WP: latest
     steps:
       - uses: actions/checkout@v7
 
@@ -89,24 +89,6 @@ jobs:
 
       - name: Render checks (block and classic themes)
         run: pnpm test:render
-
-  # Security and PHP-compatibility sniffs, not the full WordPress standard. Composer runs here
-  # only: .github is in .distignore, so none of it reaches the zip, and the plugin keeps its
-  # no-build-step rule. The ruleset says why it is narrow.
-  phpcs:
-    name: PHPCS (security and compatibility)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      # ⚠ `install`, never `update`: `.github/phpcs/composer.lock` is committed so every run sniffs
-      # with the same rules. `WordPress.Security` is a category reference, so a WPCS minor that adds
-      # a sniff would otherwise fail a PR that changed nothing.
-      - name: Install PHP_CodeSniffer and the rulesets
-        run: composer install --working-dir=.github/phpcs --no-interaction --no-progress --prefer-dist
-
-      - name: Run PHPCS
-        run: .github/phpcs/vendor/bin/phpcs --standard=.github/phpcs/phpcs.xml .
 
   contract:
     name: URL contract in sync

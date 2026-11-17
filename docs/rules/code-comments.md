@@ -54,5 +54,5 @@ anything here is far higher than in the TypeScript repos.
   `<sahaj-atlas>` a height is the opt-in for a contained map (SahajAtlasWeb#170) lives in four files
   across three repos. CSS has no type system to carry it.
 
-Nothing here catches a mistake for you. There is no formatter and no ESLint. `pnpm lint` is a syntax check, and CI's PHPCS job checks only
-security and PHP compatibility.
+Nothing here catches a mistake for you. There is no formatter, no phpcs and no ESLint — `pnpm lint`
+is a syntax check only.

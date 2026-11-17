@@ -2,14 +2,23 @@ name: Browser lane
 
 # ⚠ `pnpm test:browser` is the only lane that sees real theme CSS and the live widget, and it has
 # found every live defect so far (#36, SahajAtlasWeb#235, SahajAtlasWeb#236). It needs the network,
-# so it cannot gate a PR. This runs it against production on a schedule instead: a theme or the
-# widget can break the plugin on a day nobody touched this repo.
+# so it cannot be a required check. It runs on a pull request only when the PR touches a file that
+# shapes the embed, and on demand. Nothing in this repo runs on a schedule.
 #
-# Never a required check, and never triggered by a PR. A red run is a FAIL verdict, which is this
+# ⚠ Never a required check. A path-filtered workflow that a ruleset requires never reports on a PR
+# outside its paths, and the merge waits forever. A red run is a FAIL verdict, which is this
 # plugin's. A WIDGET verdict is SahajAtlasWeb's, and shows in the summary without failing the run.
 on:
-  schedule:
-    - cron: '41 5 * * *'
+  pull_request:
+    paths:
+      - 'sahaj-atlas.php'
+      - 'includes/**'
+      - 'templates/**'
+      - 'assets/**'
+      - 'blocks/**'
+      - 'modules/**'
+      - 'tests/browser.mjs'
+      - '.github/workflows/browser.yml'
   workflow_dispatch:
 
 permissions:

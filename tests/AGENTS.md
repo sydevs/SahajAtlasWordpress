@@ -11,8 +11,8 @@ test. Their inline `⚠` comments carry the full detail. Paths are from the repo
   tests/browser.mjs.
 - The measure lane proves what the script decides, never what a browser lays out. Its geometry is
   stubbed, so an assertion about real overlap belongs in the browser lane (#38, PR #44). That lane
-  retires this one only once it runs in CI and covers the same decisions; it is local-only, so it
-  does not. The lane reads the script's load position out of `includes/embed.php`, so a fixture
+  retires this one only once it covers the same decisions and runs on every PR; it runs in CI only
+  when a PR touches an embed-shaping file, and skips without a secret, so it does not. The lane reads the script's load position out of `includes/embed.php`, so a fixture
   cannot keep modelling a page the plugin stopped serving. See tests/measure.mjs:9,13,30.
 - wp-playground-cli discards stdout when a step fails. See tests/bootstrap.php:5.
 - Pin versions with the blueprint's `preferredVersions`. That key is each lane's default, and
