@@ -7,7 +7,7 @@
  * with a theme installed from wordpress.org, loads the production widget in Chromium, and
  * measures.
  *
- *   SAHAJ_ATLAS_TEST_KEY=… pnpm test:browser [--only astra,mesmerize] [--list]
+ *   SAHAJ_ATLAS_TEST_KEY=… pnpm test:browser [--only astra,mesmerize] [--shard 2/4] [--list]
  *
  * ⚠ This lane needs the network, unlike the other three: wordpress.org for the theme zip, and
  * sahajatlas.com plus cloud.sydevelopers.com for the widget and its reads. PHP still makes no
@@ -254,7 +254,26 @@ if (only && (only.length === 0 || unknown.length)) {
   process.exit(2)
 }
 
-const cells = only ? CELLS.filter((c) => only.includes(c.name)) : CELLS
+// `--shard k/n` keeps every n-th cell, starting at the k-th (1-based), so CI can run the lane as a
+// matrix. It composes with `--only`: the subset is chosen first, then dealt out round-robin.
+const shardArg = args.includes('--shard') ? (args[args.indexOf('--shard') + 1] ?? '') : null
+const shard = shardArg === null ? null : shardArg.match(/^(\d+)\/(\d+)$/)?.slice(1).map(Number)
+
+if (shardArg !== null && (!shard || shard[1] < 1 || shard[0] < 1 || shard[0] > shard[1])) {
+  console.error(`--shard needs k/n with 1 <= k <= n, got "${shardArg}".`)
+  process.exit(2)
+}
+
+const selected = only ? CELLS.filter((c) => only.includes(c.name)) : CELLS
+const cells = shard ? selected.filter((_, i) => i % shard[1] === shard[0] - 1) : selected
+
+if (shard && cells.length === 0) {
+  console.error(`--shard ${shardArg} leaves no cell out of ${selected.length}.`)
+  process.exit(2)
+}
+
+// A cell that hangs must not eat the job's whole budget. One cell takes about a minute or two.
+const CELL_TIMEOUT_MS = Number(process.env.SAHAJ_ATLAS_CELL_TIMEOUT_MS ?? 8 * 60 * 1000)
 
 if (args.includes('--list')) {
   for (const cell of CELLS) console.log(`${cell.name.padEnd(18)} ${cell.theme ?? ''} ${cell.plugins?.join(',') ?? ''} ${cell.known ? '(known failure)' : ''}`)
@@ -268,6 +287,8 @@ if (!key) {
   process.exit(2)
 }
 
+/** The server of the cell now running, so a cell that times out can have it killed. */
+let liveServer = null
 let failures = 0
 let widgetFindings = 0
 let knownFailures = 0
@@ -961,6 +982,7 @@ async function run(browser, cell, index) {
 
   server.stdout.on('data', (chunk) => output.push(chunk))
   server.stderr.on('data', (chunk) => output.push(chunk))
+  liveServer = server
   server.on('exit', (code) => (exited = code))
   server.on('error', (error) => (exited = error.message))
 
@@ -1048,8 +1070,29 @@ const browser = await chromium
   })
 
 try {
+  if (shard) console.log(`Shard ${shardArg}: ${cells.map((c) => c.name).join(', ')}`)
+
   for (const [index, cell] of cells.entries()) {
-    await run(browser, cell, index)
+    const started = Date.now()
+    const running = run(browser, cell, index)
+    let timer
+    const timedOut = await Promise.race([
+      running.then(() => false),
+      new Promise((resolve) => (timer = setTimeout(() => resolve(true), CELL_TIMEOUT_MS))),
+    ])
+
+    clearTimeout(timer)
+
+    if (timedOut) {
+      // Kill the cell's server so its pending page work fails fast, then give it a moment to unwind
+      // before the next cell replaces `scope`.
+      liveServer?.kill('SIGKILL')
+      failures += 1
+      console.log(`  FAIL  ${cell.name}: the cell hung\n        no verdict after ${CELL_TIMEOUT_MS / 1000}s; its server was killed`)
+      await Promise.race([running.catch(() => {}), sleep(30000)])
+    }
+
+    console.log(`  time  ${cell.name} ${Math.round((Date.now() - started) / 1000)}s`)
   }
 } finally {
   await browser.close()

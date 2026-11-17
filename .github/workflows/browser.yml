@@ -8,6 +8,11 @@ name: Browser lane
 # ⚠ Never a required check. A path-filtered workflow that a ruleset requires never reports on a PR
 # outside its paths, and the merge waits forever. A red run is a FAIL verdict, which is this
 # plugin's. A WIDGET verdict is SahajAtlasWeb's, and shows in the summary without failing the run.
+#
+# ⚠ The lane is 23 cells, each booting a WordPress and a Chromium page, one after another. Run as one
+# job it outlasted a 60-minute budget and was cancelled with no log (run 44154134735). So it runs as
+# a matrix of shards (`--shard k/n`), each with a step timeout inside a job timeout. The summary step
+# runs `always()`, so a shard that times out still says which cell it stopped on.
 on:
   pull_request:
     paths:
@@ -29,61 +34,80 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  browser:
-    name: Browser lane (production widget)
+  # A skip has to be visible. A missing secret would otherwise either fail the run, which blames the
+  # plugin for a configuration gap, or pass it, which reads as coverage nobody has. One gate job
+  # decides, so a skip is one warning rather than one per shard. ⚠ It carries whether the secret is
+  # set, never the secret: only the lane step gets the key.
+  gate:
+    name: Is the test key set
     runs-on: ubuntu-latest
-    timeout-minutes: 60
-    # A step's `if:` can read the `env` context, so the job's own env carries the gate. ⚠ It carries
-    # whether the secret is set, never the secret: a job-level value reaches every step, and
-    # `pnpm install` runs dependencies' own install scripts. Only the lane itself gets the key.
+    timeout-minutes: 5
+    outputs:
+      has_key: ${{ steps.key.outputs.has_key }}
     env:
       HAS_TEST_KEY: ${{ secrets.SAHAJ_ATLAS_TEST_KEY != '' }}
     steps:
-      # A skip has to be visible. A missing secret would otherwise either fail the run, which
-      # blames the plugin for a configuration gap, or pass it, which reads as coverage nobody has.
-      - name: Say that nothing ran
-        if: env.HAS_TEST_KEY != 'true'
+      - id: key
         run: |
-          echo "::warning title=Browser lane skipped::The SAHAJ_ATLAS_TEST_KEY repository secret is not set, so nothing ran. Add the Sahaj Atlas (Local Test Key) client's key from a SahajCloud admin."
-          {
-            echo "### Browser lane skipped"
-            echo
-            echo "The \`SAHAJ_ATLAS_TEST_KEY\` repository secret is not set, so this run tested nothing."
-          } >>"$GITHUB_STEP_SUMMARY"
+          echo "has_key=$HAS_TEST_KEY" >>"$GITHUB_OUTPUT"
+          if [ "$HAS_TEST_KEY" != 'true' ]; then
+            echo "::warning title=Browser lane skipped::The SAHAJ_ATLAS_TEST_KEY repository secret is not set, so nothing ran. Add the Sahaj Atlas (Local Test Key) client's key from a SahajCloud admin."
+            {
+              echo "### Browser lane skipped"
+              echo
+              echo "The \`SAHAJ_ATLAS_TEST_KEY\` repository secret is not set, so this run tested nothing."
+            } >>"$GITHUB_STEP_SUMMARY"
+          fi
 
-      - if: env.HAS_TEST_KEY == 'true'
-        uses: actions/checkout@v7
+  browser:
+    name: Browser lane, shard ${{ matrix.shard }}/4
+    needs: gate
+    if: needs.gate.outputs.has_key == 'true'
+    runs-on: ubuntu-latest
+    # The backstop. The lane step has its own, shorter timeout so the summary still runs.
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v7
 
-      - if: env.HAS_TEST_KEY == 'true'
-        uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@v6
 
-      - if: env.HAS_TEST_KEY == 'true'
-        uses: actions/setup-node@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
           cache: pnpm
 
-      - if: env.HAS_TEST_KEY == 'true'
-        run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
 
-      - if: env.HAS_TEST_KEY == 'true'
-        run: pnpm exec playwright-core install --with-deps chromium
+      - run: pnpm exec playwright-core install --with-deps chromium
 
       - name: Run the browser lane
-        if: env.HAS_TEST_KEY == 'true'
+        timeout-minutes: 22
         env:
           SAHAJ_ATLAS_TEST_KEY: ${{ secrets.SAHAJ_ATLAS_TEST_KEY }}
         run: |
           set -o pipefail
-          pnpm test:browser 2>&1 | tee browser-output.txt
+          pnpm test:browser --shard ${{ matrix.shard }}/4 2>&1 | tee browser-output.txt
 
+      # `always()`, not `success()`: a failed or timed-out lane is exactly when the verdicts matter.
       - name: Summarise the verdicts
-        if: always() && env.HAS_TEST_KEY == 'true'
+        if: always()
         run: |
           {
-            echo "### Browser lane"
+            echo "### Browser lane, shard ${{ matrix.shard }}/4"
             echo
             echo '```'
-            grep -E '^\s*(FAIL|WIDGET|KNOWN)\b' browser-output.txt || echo "No FAIL, WIDGET or KNOWN verdicts."
+            if [ -f browser-output.txt ]; then
+              grep -E '^\s*(FAIL|WIDGET|KNOWN)\b|^[0-9]+ failure' browser-output.txt || echo "No FAIL, WIDGET or KNOWN verdicts."
+              echo
+              grep -E '^\s+time\s' browser-output.txt || true
+              echo "Last cell started: $(grep -E '^[a-z0-9-]+( |$)' browser-output.txt | grep -v '^Shard' | tail -1)"
+              grep -q '^[0-9]* failure' browser-output.txt || echo "The lane did not finish: no final tally."
+            else
+              echo "The lane produced no output."
+            fi
             echo '```'
           } >>"$GITHUB_STEP_SUMMARY"
