@@ -286,8 +286,8 @@ if (shard && cells.length === 0) {
   process.exit(2)
 }
 
-// ⚠ A cell that hangs must not eat the shard's whole budget. A cell measures 50–94s, so 8 minutes
-// is a hang rather than a slow cell. Deliberately not an env knob: `Number('8m')` is NaN, and
+// ⚠ A cell that hangs must not eat the shard's whole budget. A cell takes about a minute — 11 of
+// them ran in 13.3 minutes — so 8 minutes is a hang rather than a slow cell. Deliberately not an env knob: `Number('8m')` is NaN, and
 // `setTimeout(fn, NaN)` fires at once, reporting every cell as hung.
 const CELL_TIMEOUT_MS = 8 * 60 * 1000
 
