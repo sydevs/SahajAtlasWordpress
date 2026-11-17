@@ -80,6 +80,8 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
 
+      # ⚠ Never give this job an `env` carrying the key. A job-level value reaches every step, and
+      # `pnpm install` runs dependencies' own install scripts. Only the lane step gets the key.
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm exec playwright-core install --with-deps chromium
