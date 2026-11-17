@@ -7,7 +7,7 @@
  * with a theme installed from wordpress.org, loads the production widget in Chromium, and
  * measures.
  *
- *   SAHAJ_ATLAS_TEST_KEY=… pnpm test:browser [--only astra,mesmerize] [--list]
+ *   SAHAJ_ATLAS_TEST_KEY=… pnpm test:browser [--only astra,mesmerize] [--shard 2/4] [--list]
  *
  * ⚠ This lane needs the network, unlike the other three: wordpress.org for the theme zip, and
  * sahajatlas.com plus cloud.sydevelopers.com for the widget and its reads. PHP still makes no
@@ -23,6 +23,7 @@
  */
 
 import { spawn } from 'node:child_process'
+import { appendFileSync, writeFileSync } from 'node:fs'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -34,6 +35,19 @@ const NETWORK_LOG = '.test-network.txt'
 const SCREENSHOTS = 'tests/screenshots'
 const PAGE = '/find-a-class/'
 const BASE_PORT = 8830
+
+/**
+ * The shard's verdicts, appended line by line as the run goes.
+ *
+ * ⚠ On disk as it happens, never held until the end. CI kills the lane step on a timeout, which
+ * is exactly when the verdicts are wanted, so a block written once at the end would be lost there.
+ * `.github/workflows/browser.yml` prints this file and re-derives nothing from stdout. `tally` is
+ * the line only a run that finished writes.
+ */
+const SUMMARY = 'browser-summary.txt'
+
+/** @param {string} line */
+const summarise = (line) => appendFileSync(SUMMARY, `${line}\n`)
 
 /**
  * The sentence the widget logs when it chooses the compact card (`docs/embedding.md`, "Entering the
@@ -254,7 +268,28 @@ if (only && (only.length === 0 || unknown.length)) {
   process.exit(2)
 }
 
-const cells = only ? CELLS.filter((c) => only.includes(c.name)) : CELLS
+// `--shard k/n` keeps every n-th cell, starting at the k-th (1-based), so CI can run the lane as a
+// matrix. It composes with `--only`: the subset is chosen first, then dealt out round-robin.
+const shardArg = args.includes('--shard') ? (args[args.indexOf('--shard') + 1] ?? '') : null
+const shard = shardArg === null ? null : shardArg.match(/^(\d+)\/(\d+)$/)?.slice(1).map(Number)
+
+if (shardArg !== null && (!shard || shard[1] < 1 || shard[0] < 1 || shard[0] > shard[1])) {
+  console.error(`--shard needs k/n with 1 <= k <= n, got "${shardArg}".`)
+  process.exit(2)
+}
+
+const selected = only ? CELLS.filter((c) => only.includes(c.name)) : CELLS
+const cells = shard ? selected.filter((_, i) => i % shard[1] === shard[0] - 1) : selected
+
+if (shard && cells.length === 0) {
+  console.error(`--shard ${shardArg} leaves no cell out of ${selected.length}.`)
+  process.exit(2)
+}
+
+// ⚠ A cell that hangs must not eat the shard's whole budget. A cell takes about a minute — 11 of
+// them ran in 13.3 minutes — so 8 minutes is a hang rather than a slow cell. Deliberately not an env knob: `Number('8m')` is NaN, and
+// `setTimeout(fn, NaN)` fires at once, reporting every cell as hung.
+const CELL_TIMEOUT_MS = 8 * 60 * 1000
 
 if (args.includes('--list')) {
   for (const cell of CELLS) console.log(`${cell.name.padEnd(18)} ${cell.theme ?? ''} ${cell.plugins?.join(',') ?? ''} ${cell.known ? '(known failure)' : ''}`)
@@ -268,6 +303,8 @@ if (!key) {
   process.exit(2)
 }
 
+/** The server of the cell now running, so a cell that times out can have it killed. */
+let liveServer = null
 let failures = 0
 let widgetFindings = 0
 let knownFailures = 0
@@ -283,9 +320,8 @@ let knownFailures = 0
  *   SahajAtlasWeb ticket, never a red plugin lane, so it is counted and printed only.
  *
  * @typedef {(label: string, condition: boolean, detail?: string) => void} Check
- * @type {{ok: Check, fit: Check, widget: Check}}
+ * @typedef {{ok: Check, fit: Check, widget: Check}} Checks
  */
-let scope = { ok: () => {}, fit: () => {}, widget: () => {} }
 
 /**
  * @param {string} name The file next to this one whose `SAHAJ_ATLAS_TEST_KEY=` line holds the key.
@@ -566,8 +602,9 @@ async function login(context, base) {
  * @param {Cell} cell
  * @param {{name: string, width: number, height: number}} viewport
  * @param {number} port
+ * @param {Checks} checks
  */
-async function checkAtlasPage(browser, cell, viewport, port) {
+async function checkAtlasPage(browser, cell, viewport, port, checks) {
   const base = `http://127.0.0.1:${port}`
   const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height } })
   const label = `${cell.name} @ ${viewport.name}`
@@ -598,7 +635,7 @@ async function checkAtlasPage(browser, cell, viewport, port) {
 
     await page.screenshot({ path: join(SCREENSHOTS, `${cell.name}-${viewport.name}.png`) }).catch(() => {})
 
-    const { ok, fit, widget } = scope
+    const { ok, fit, widget } = checks
 
     fit(`${label}: the widget booted inside <sahaj-atlas>`, booted && m.scope, booted ? 'no .sy-atlas' : `no boot${log.dump()}`)
 
@@ -618,7 +655,7 @@ async function checkAtlasPage(browser, cell, viewport, port) {
 
     if (compact && viewport.compactAllowed) {
       console.log(`  info  ${label}: the compact card, as a ${viewport.height}px screen allows (${m.element.height}px below the header)`)
-      await checkOverlay(page, `${label} overlay`, join(SCREENSHOTS, `${cell.name}-${viewport.name}-overlay.png`))
+      await checkOverlay(page, `${label} overlay`, join(SCREENSHOTS, `${cell.name}-${viewport.name}-overlay.png`), checks)
     } else {
       fit(`${label}: the widget kept the full interface`, !compact, `${m.element.height}px below the header at top ${m.element.top}${log.dump()}`)
       // A region view shows a search button, not the box, so a start route has none to test.
@@ -673,8 +710,9 @@ async function checkAtlasPage(browser, cell, viewport, port) {
  * @param {Cell} cell
  * @param {{name: string, width: number, height: number}} viewport
  * @param {number} port
+ * @param {Checks} checks
  */
-async function checkArticle(browser, cell, viewport, port) {
+async function checkArticle(browser, cell, viewport, port, checks) {
   const base = `http://127.0.0.1:${port}`
   const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, hasTouch: viewport.width < 768 })
   const label = `${cell.name} @ article ${viewport.name}`
@@ -685,7 +723,7 @@ async function checkArticle(browser, cell, viewport, port) {
 
     const page = await context.newPage()
     const log = collectConsole(page, label)
-    const { fit, widget } = scope
+    const { fit, widget } = checks
 
     await page.goto(`${base}/${host}/`, { waitUntil: 'load', timeout: 90000 })
     await page.waitForSelector('sahaj-atlas .sy-atlas', { timeout: 45000 }).catch(() => {})
@@ -735,8 +773,9 @@ async function checkArticle(browser, cell, viewport, port) {
  * @param {import('playwright-core').Browser} browser
  * @param {Cell} cell
  * @param {number} port
+ * @param {Checks} checks
  */
-async function checkSidebar(browser, cell, port) {
+async function checkSidebar(browser, cell, port, checks) {
   const base = `http://127.0.0.1:${port}`
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } })
   const label = `${cell.name} @ sidebar`
@@ -746,7 +785,7 @@ async function checkSidebar(browser, cell, port) {
 
     const page = await context.newPage()
     const log = collectConsole(page, label)
-    const { fit } = scope
+    const { fit } = checks
 
     await page.goto(`${base}/sidebar-host/`, { waitUntil: 'load', timeout: 90000 })
 
@@ -759,7 +798,7 @@ async function checkSidebar(browser, cell, port) {
 
     if (!card) return
 
-    await checkOverlay(page, label, join(SCREENSHOTS, `${cell.name}-sidebar-overlay.png`))
+    await checkOverlay(page, label, join(SCREENSHOTS, `${cell.name}-sidebar-overlay.png`), checks)
   } finally {
     await context.close()
   }
@@ -772,9 +811,10 @@ async function checkSidebar(browser, cell, port) {
  * @param {import('playwright-core').Page} page
  * @param {string} label
  * @param {string} screenshot
+ * @param {Checks} checks
  */
-async function checkOverlay(page, label, screenshot) {
-  const { widget } = scope
+async function checkOverlay(page, label, screenshot, checks) {
+  const { widget } = checks
 
   // The card is "a heading and one button" (`docs/embedding.md`), so its one button is the press.
   // Everything after it is the widget's overlay, read through its internals: WIDGET verdicts only.
@@ -835,8 +875,9 @@ async function checkOverlay(page, label, screenshot) {
  * @param {import('playwright-core').Browser} browser
  * @param {Cell} cell
  * @param {number} port
+ * @param {Checks} checks
  */
-async function checkPanel(browser, cell, port) {
+async function checkPanel(browser, cell, port, checks) {
   const base = `http://127.0.0.1:${port}`
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } })
   const label = `${cell.name} @ panel`
@@ -858,7 +899,7 @@ async function checkPanel(browser, cell, port) {
       })),
     )
 
-    const { fit } = scope
+    const { fit } = checks
     const placement = rows.find((row) => /placement/i.test(row.label))
     // ⚠ A word match: "Page description" contains `script`, and sits above this row.
     const script = rows.find((row) => /\bscript\b/i.test(row.label))
@@ -908,12 +949,19 @@ async function run(browser, cell, index) {
   await rm(NETWORK_LOG, { force: true })
 
   console.log(`\n${cell.name}${cell.known ? '  (known failure: ' + cell.known + ')' : ''}`)
+  summarise(`cell  ${cell.name}${cell.known ? ' (known failure)' : ''}`)
 
   let cellFailures = 0
 
-  const report = (verdict, label, detail) => console.log(`  ${verdict} ${label}${detail ? `\n        ${detail}` : ''}`)
+  const report = (verdict, label, detail) => {
+    console.log(`  ${verdict} ${label}${detail ? `\n        ${detail}` : ''}`)
+    summarise(`${verdict} ${label}`)
+  }
 
-  scope = {
+  // ⚠ One object per cell, never a module-level one. A timed-out cell's checks go on resolving
+  // after the next cell has started, and a shared binding charged them to that cell — counted
+  // under its `known` flag, while the label still named the cell that hung.
+  const checks = {
     ok(label, condition, detail = '') {
       if (condition) return console.log(`  ok    ${label}`)
       failures += 1
@@ -925,19 +973,16 @@ async function run(browser, cell, index) {
       report(cell.known ? 'KNOWN' : 'FAIL ', label, detail)
     },
     widget(label, condition, detail = '') {
-      if (condition) {
-        console.log(`  ok    ${label}`)
-        return
-      }
+      if (condition) return console.log(`  ok    ${label}`)
       widgetFindings += 1
-      console.log(`  WIDGET ${label}${detail ? `\n        ${detail}` : ''}`)
+      report('WIDGET', label, detail)
     },
   }
 
   // ⚠ A server left over from an interrupted run still answers on this port, and every check
   // below would then measure that run's site instead of this cell's — and pass or fail on it.
   if (await fetch(`http://127.0.0.1:${port}/`).then(() => true, () => false)) {
-    scope.ok(`${cell.name}: port ${port} is free`, false, 'a server from an earlier run still answers here; stop it and run again')
+    checks.ok(`${cell.name}: port ${port} is free`, false, 'a server from an earlier run still answers here; stop it and run again')
     return
   }
 
@@ -961,13 +1006,14 @@ async function run(browser, cell, index) {
 
   server.stdout.on('data', (chunk) => output.push(chunk))
   server.stderr.on('data', (chunk) => output.push(chunk))
+  liveServer = server
   server.on('exit', (code) => (exited = code))
   server.on('error', (error) => (exited = error.message))
 
   try {
     if (!(await waitFor(port, PAGE, () => exited !== null))) {
       await writeFile(serverLog, Buffer.concat(output))
-      scope.ok(
+      checks.ok(
         `${cell.name}: the Atlas page is served`,
         false,
         exited !== null ? `the server exited (${exited}); its output is in ${serverLog}` : `timed out waiting for a 200; server output in ${serverLog}`,
@@ -992,26 +1038,26 @@ async function run(browser, cell, index) {
       // footer before the element on every page, and finds one where the theme printed none.
       const footerAt = served.search(/<footer[\s>]|<[a-z]+\s[^>]*class="[^"]*(?:wp-block-template-part[^"]*footer|site-footer)/)
 
-      scope.fit(`${cell.name}: printed from the ${want} path`, served.includes(`data-sahaj-atlas-render="${want}"`), (served.match(/<sahaj-atlas[^>]*>/) ?? [])[0] ?? 'no element')
+      checks.fit(`${cell.name}: printed from the ${want} path`, served.includes(`data-sahaj-atlas-render="${want}"`), (served.match(/<sahaj-atlas[^>]*>/) ?? [])[0] ?? 'no element')
 
       if (want === 'content') {
-        scope.fit(`${cell.name}: the theme's footer is kept`, footerAt >= 0, served.slice(-300))
-        scope.fit(`${cell.name}: with the element above it`, elementAt >= 0 && elementAt < footerAt, `element ${elementAt}, footer ${footerAt}`)
+        checks.fit(`${cell.name}: the theme's footer is kept`, footerAt >= 0, served.slice(-300))
+        checks.fit(`${cell.name}: with the element above it`, elementAt >= 0 && elementAt < footerAt, `element ${elementAt}, footer ${footerAt}`)
       }
     }
 
     for (const viewport of VIEWPORTS) {
-      await checkAtlasPage(browser, cell, viewport, port).catch((error) => scope.ok(`${cell.name} @ ${viewport.name}: the check ran to the end`, false, String(error.message).split('\n')[0]))
+      await checkAtlasPage(browser, cell, viewport, port, checks).catch((error) => checks.ok(`${cell.name} @ ${viewport.name}: the check ran to the end`, false, String(error.message).split('\n')[0]))
     }
 
     if (cell.article) {
       for (const viewport of [VIEWPORTS[0], VIEWPORTS[2]]) {
-        await checkArticle(browser, cell, viewport, port).catch((error) => scope.ok(`${cell.name} @ article ${viewport.name}: the check ran to the end`, false, String(error.message).split('\n')[0]))
+        await checkArticle(browser, cell, viewport, port, checks).catch((error) => checks.ok(`${cell.name} @ article ${viewport.name}: the check ran to the end`, false, String(error.message).split('\n')[0]))
       }
     }
-    if (cell.sidebar) await checkSidebar(browser, cell, port).catch((error) => scope.ok(`${cell.name} @ sidebar: the check ran to the end`, false, String(error.message).split('\n')[0]))
+    if (cell.sidebar) await checkSidebar(browser, cell, port, checks).catch((error) => checks.ok(`${cell.name} @ sidebar: the check ran to the end`, false, String(error.message).split('\n')[0]))
 
-    if (cell.panel) await checkPanel(browser, cell, port).catch((error) => scope.ok(`${cell.name} @ panel: the check ran to the end`, false, String(error.message).split('\n')[0]))
+    if (cell.panel) await checkPanel(browser, cell, port, checks).catch((error) => checks.ok(`${cell.name} @ panel: the check ran to the end`, false, String(error.message).split('\n')[0]))
 
     const escaped = await readFile(NETWORK_LOG, 'utf8').catch(() => null)
 
@@ -1020,7 +1066,7 @@ async function run(browser, cell, index) {
 
     // The invariant is SahajCloud, the call that once ran on every test run (#28). Core and other
     // plugins, Plugin Update Checker among them, are refused all the same and only named.
-    scope.ok(`${cell.name}: the plugin's PHP never reached SahajCloud`, escaped !== null && ours.length === 0, escaped === null ? 'no log — the mu-plugin never loaded' : ours.join(' '))
+    checks.ok(`${cell.name}: the plugin's PHP never reached SahajCloud`, escaped !== null && ours.length === 0, escaped === null ? 'no log — the mu-plugin never loaded' : ours.join(' '))
 
     if (theirs.length) console.log(`  info  ${cell.name}: core or another plugin tried ${new Set(theirs.map((url) => new URL(url).host)).size} host(s), refused: ${[...new Set(theirs.map((url) => new URL(url).host))].join(', ')}`)
   } finally {
@@ -1033,6 +1079,7 @@ async function run(browser, cell, index) {
 }
 
 await mkdir(SCREENSHOTS, { recursive: true })
+writeFileSync(SUMMARY, '')
 
 /**
  * ⚠ Headless Chromium has no WebGL unless it is given software GL. Mapbox then refuses to mount
@@ -1048,12 +1095,41 @@ const browser = await chromium
   })
 
 try {
+  if (shard) {
+    console.log(`Shard ${shardArg}: ${cells.map((c) => c.name).join(', ')}`)
+    summarise(`shard  ${shardArg}: ${cells.map((c) => c.name).join(', ')}`)
+  }
+
   for (const [index, cell] of cells.entries()) {
-    await run(browser, cell, index)
+    const started = Date.now()
+    const running = run(browser, cell, index)
+    let timer
+    const timedOut = await Promise.race([
+      running.then(() => false),
+      new Promise((resolve) => (timer = setTimeout(() => resolve(true), CELL_TIMEOUT_MS))),
+    ])
+
+    clearTimeout(timer)
+
+    if (timedOut) {
+      // Kill the cell's server so its pending page work fails fast, then give it a moment to
+      // unwind, so what it still counts lands before the tally.
+      liveServer?.kill('SIGKILL')
+      failures += 1
+      console.log(`  FAIL  ${cell.name}: the cell hung\n        no verdict after ${CELL_TIMEOUT_MS / 1000}s; its server was killed`)
+      summarise(`FAIL  ${cell.name}: the cell hung after ${CELL_TIMEOUT_MS / 1000}s`)
+      await Promise.race([running.catch(() => {}), sleep(30000)])
+    }
+
+    const seconds = Math.round((Date.now() - started) / 1000)
+
+    console.log(`  time  ${cell.name} ${seconds}s`)
+    summarise(`time  ${cell.name} ${seconds}s`)
   }
 } finally {
   await browser.close()
 }
 
 console.log(`\n${failures} failure(s), ${knownFailures} known, ${widgetFindings} widget finding(s) (SahajAtlasWeb's to settle; check its open tickets before filing)`)
+summarise(`tally ${failures} failure(s), ${knownFailures} known, ${widgetFindings} widget finding(s)`)
 process.exit(failures > 0 ? 1 : 0)

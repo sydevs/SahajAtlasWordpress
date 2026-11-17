@@ -14,6 +14,13 @@ test. Their inline `⚠` comments carry the full detail. Paths are from the repo
   retires this one only once it covers the same decisions and runs on every PR; it runs in CI only
   when a PR touches an embed-shaping file, and skips without a secret, so it does not. The lane reads the script's load position out of `includes/embed.php`, so a fixture
   cannot keep modelling a page the plugin stopped serving. See tests/measure.mjs:9,13,30.
+- The browser lane's cells run one after another, so CI deals them out with `--shard k/n` (2 shards in
+  `.github/workflows/browser.yml`). A cell's port comes from its place in its own shard's list. A
+  new cell needs no workflow change, but a slow one lengthens a shard; `--list` and the `time` lines
+  show where. Both CI timeouts are derived from the shard count, so changing it moves them too.
+- The lane's CI summary is `browser-summary.txt`, which the lane appends to as it runs; the workflow
+  prints that file and derives nothing from stdout. A shard the step timeout kills has its verdicts
+  on disk already, so a new verdict kind has to be written there, or CI will not show it.
 - wp-playground-cli discards stdout when a step fails. See tests/bootstrap.php:5.
 - Pin versions with the blueprint's `preferredVersions`. That key is each lane's default, and
   `tests/versions.mjs` overrides it only when `SAHAJ_ATLAS_PHP` or `SAHAJ_ATLAS_WP` is set, so

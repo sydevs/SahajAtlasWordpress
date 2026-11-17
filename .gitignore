@@ -38,6 +38,9 @@ tests/screenshots/
 # Outbound requests tests/no-network.php refused during a run
 .test-network.txt
 
+# The browser lane's verdicts, written for the CI step summary
+browser-summary.txt
+
 # Per-user Claude config (the other three repos ignore this too)
 .claude/settings.local.json
 
