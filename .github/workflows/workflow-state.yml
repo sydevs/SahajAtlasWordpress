@@ -59,3 +59,21 @@ jobs:
     with:
       dry-run: ${{ vars.BOT_DISPATCH == 'dry' }}
     secrets: inherit
+
+  # A contract-sync PR whose copy matches its source, byte for byte, is
+  # approved by this check instead of a person; any other is left to you.
+  # `claude/chore-sync-contracts` is contractSync.branch in loop-config.json —
+  # change both together.
+  # https://github.com/sydevs/claude-workflow/blob/main/.github/workflows/contract-verify.yml
+  verify-contract-sync:
+    if: >-
+      (vars.BOT_DISPATCH == 'on' || vars.BOT_DISPATCH == 'dry')
+      && github.event_name == 'pull_request_target'
+      && contains(fromJSON('["opened", "reopened", "synchronize", "ready_for_review"]'), github.event.action)
+      && github.event.pull_request.head.ref == 'claude/chore-sync-contracts'
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: sydevs/claude-workflow/.github/workflows/contract-verify.yml@main
+    with:
+      dry-run: ${{ vars.BOT_DISPATCH == 'dry' }}
