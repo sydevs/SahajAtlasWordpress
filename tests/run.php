@@ -758,6 +758,7 @@ require __DIR__ . '/domains.php';
 require __DIR__ . '/seo.php';
 require __DIR__ . '/i18n.php';
 require __DIR__ . '/start.php';
+require __DIR__ . '/diagnostics.php';
 
 // ---------------------------------------------------------------------------------------------
 
