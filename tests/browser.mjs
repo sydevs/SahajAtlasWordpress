@@ -893,7 +893,9 @@ async function checkPanel(browser, cell, port, checks) {
 
     const rows = await page.evaluate(() =>
       [...document.querySelectorAll('table.widefat tbody tr')].map((row) => ({
-        glyph: row.children[0]?.textContent.trim() ?? '',
+        // ⚠ The glyph's own span. The cell also carries the verdict as a word for a screen reader,
+        // so the cell's `textContent` reads "✓Passed" and matches no glyph.
+        glyph: row.children[0]?.querySelector('[aria-hidden="true"]')?.textContent.trim() ?? '',
         label: row.children[1]?.textContent.trim() ?? '',
         detail: row.children[2]?.textContent.trim() ?? '',
       })),
