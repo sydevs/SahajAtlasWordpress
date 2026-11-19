@@ -37,10 +37,12 @@ function sahaj_atlas_render_diagnostics() {
 	echo '<table class="widefat striped" style="max-width:60rem"><tbody>';
 
 	foreach ( sahaj_atlas_checks() as $check ) {
+		list( $glyph, $word ) = sahaj_atlas_status_verdict( $check['status'] );
+
 		printf(
 			'<tr><td style="width:1.5rem"><span aria-hidden="true">%s</span><span class="screen-reader-text">%s</span></td><td style="width:14rem"><strong>%s</strong></td><td>%s</td></tr>',
-			esc_html( sahaj_atlas_status_glyph( $check['status'] ) ),
-			esc_html( sahaj_atlas_status_word( $check['status'] ) ),
+			esc_html( $glyph ),
+			esc_html( $word ),
 			esc_html( $check['label'] ),
 			// ⚠ `strong` belongs here. Two checks emit it around a name the volunteer is meant to
 			// read, and without it `wp_kses` strips the tag and nothing says why the text is plain.
@@ -52,37 +54,21 @@ function sahaj_atlas_render_diagnostics() {
 }
 
 /**
- * One glyph per status. The panel uses text, not colour, so it works for a colour-blind reader and
- * in a pasted support email. It does not reach a screen reader, which announces neither `!` nor
- * `–` at its default punctuation level — `sahaj_atlas_status_word()` is what carries the verdict
- * there.
+ * The verdict a row shows: a glyph, and the word beside it.
+ *
+ * Text, not colour, so the panel works for a colour-blind reader and in a pasted support email.
+ * The glyph reaches the eye alone — a screen reader announces neither `!` nor `–` at its default
+ * punctuation level — so the word is what carries the verdict there.
  *
  * @param string $status One of ok|warn|fail|idle.
- * @return string
+ * @return array{0:string, 1:string} The glyph, then its word.
  */
-function sahaj_atlas_status_glyph( $status ) {
+function sahaj_atlas_status_verdict( $status ) {
 	$map = array(
-		'ok'   => '✓',
-		'warn' => '!',
-		'fail' => '✗',
-		'idle' => '–',
-	);
-
-	return isset( $map[ $status ] ) ? $map[ $status ] : '–';
-}
-
-/**
- * One word per status, keyed and defaulted like the glyph map.
- *
- * @param string $status One of ok|warn|fail|idle.
- * @return string
- */
-function sahaj_atlas_status_word( $status ) {
-	$map = array(
-		'ok'   => __( 'Passed', 'sahaj-atlas' ),
-		'warn' => __( 'Needs attention', 'sahaj-atlas' ),
-		'fail' => __( 'Failed', 'sahaj-atlas' ),
-		'idle' => __( 'Not checked yet', 'sahaj-atlas' ),
+		'ok'   => array( '✓', __( 'Passed', 'sahaj-atlas' ) ),
+		'warn' => array( '!', __( 'Needs attention', 'sahaj-atlas' ) ),
+		'fail' => array( '✗', __( 'Failed', 'sahaj-atlas' ) ),
+		'idle' => array( '–', __( 'Not checked yet', 'sahaj-atlas' ) ),
 	);
 
 	return isset( $map[ $status ] ) ? $map[ $status ] : $map['idle'];
