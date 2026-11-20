@@ -26,8 +26,6 @@ drives the whole design:
 - The plugin has a diagnostics panel.
 - Setup is one button, not a set of instructions.
 - Updates run automatically.
-- Every setting is one more thing a volunteer can get wrong, so there are as few as principle 4
-  allows.
 
 ## Principles — acceptance criteria, not goals
 
