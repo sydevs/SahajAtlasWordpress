@@ -102,26 +102,18 @@ jobs:
       - uses: actions/checkout@v7
 
       # `atlas-url-contract.json` must stay byte-identical across three repos: SahajCloud (builds
-      # these URLs), SahajAtlasWeb (parses them), and here (serves them). A stale copy is worse than
-      # no copy. The suite keeps passing while the contract drifts from the system it describes.
+      # these URLs), SahajAtlasWeb (parses them), and here (serves them). A PR that changes this
+      # copy must leave it exactly as SahajCloud's file. A PR that leaves it alone passes, however
+      # far SahajCloud has moved: the contract sync opens the re-sync PR, and comparing every PR
+      # with SahajCloud main reddened every open PR on each upstream change.
       #
-      # ⚠ TRAP: this job once read the file through `gh api` with a `SAHAJCLOUD_READ_TOKEN` secret.
-      # If the secret was missing, the job warned and passed anyway. That design assumed SahajCloud
-      # is private. SahajCloud is public. Nobody ever added the secret, so every run took the warn
-      # branch and never compared the files. The check stayed green for months without diffing
-      # anything. A green check on this job does not by itself prove the diff ran — confirm the
-      # "Compare with SahajCloud" step below actually executed the diff.
-      #
-      # This step uses no token, on purpose: it fetches the same public raw URL that
-      # `pnpm sync:atlas-contract` uses in SahajAtlasWeb. If SahajCloud ever goes private, this step
-      # fails loudly. That failure is the correct way to find out.
-      - name: Compare with SahajCloud
-        run: |
-          curl -fsSL --retry 3 \
-            https://raw.githubusercontent.com/sydevs/SahajCloud/main/src/lib/atlas/atlas-url-contract.json \
-            -o /tmp/upstream.json
-          diff -u /tmp/upstream.json tests/atlas-url-contract.json \
-            || { echo "::error::tests/atlas-url-contract.json has drifted from SahajCloud. Copy the upstream file over it and re-check the specs in tests/contract.php."; exit 1; }
+      # ⚠ A green run often means "this PR did not touch the copy", not "the copies match". The
+      # step log says which. It reads the public raw URL with no token, so if SahajCloud goes
+      # private the comparison fails loudly rather than skipping (the old `gh api` version warned
+      # and passed for months on a missing secret).
+      # why: sydevs/claude-workflow/docs/why.md#a-contract-check-checks-what-a-pr-changes
+      - name: Compare a changed copy with SahajCloud
+        uses: sydevs/claude-workflow/.github/actions/contract-check@main
 
   # Dependency-vulnerability gate. Fails only when this PR ADDS a dependency
   # with a high or critical advisory that reaches production code. An
