@@ -238,8 +238,8 @@ PHP. The fifth runs the one shipped script in plain node.
 | Browser | `pnpm test:browser` | The production widget in Chromium, in every free theme the fleet runs, plus page builders and hostile conditions. Runs in CI (`.github/workflows/browser.yml`, sharded) on a PR that touches a file shaping the embed, and on demand; never a required check, and skipped visibly without the `SAHAJ_ATLAS_TEST_KEY` repo secret. Needs the network, `SAHAJ_ATLAS_TEST_KEY` (the "Sahaj Atlas (Local Test Key)" client's key, from a SahajCloud admin) in `.env.claude.local`, and Chromium (`pnpm exec playwright-core install chromium`, once). `--only <cell,…>` runs a subset, `--shard k/n` runs every n-th cell, `--list` names them. Each cell prints its seconds, and a hung cell fails. `SAHAJ_ATLAS_WIDGET_FROM=<preview origin>` judges a SahajAtlasWeb PR's Cloudflare preview instead of production. |
 
 `pnpm test` and `pnpm test:render` boot the floor — `Requires at least` and `Requires PHP` in the
-`sahaj-atlas.php` header, WordPress 6.7 on PHP 7.4 — unless
-`SAHAJ_ATLAS_PHP` and `SAHAJ_ATLAS_WP` say otherwise (`SAHAJ_ATLAS_PHP=8.3 SAHAJ_ATLAS_WP=latest pnpm test`).
+`sahaj-atlas.php` header — unless `SAHAJ_ATLAS_PHP` and `SAHAJ_ATLAS_WP` say otherwise
+(`SAHAJ_ATLAS_PHP=8.3 SAHAJ_ATLAS_WP=latest pnpm test`).
 CI runs both: the floor job ("Lint & test", required), and "Tests (current PHP and WordPress)",
 which boots PHP 8.3 on WordPress `latest`, so a new core release shows up on the next pull request.
 That job is not required. **Nothing in this repo runs on a schedule.** The suite also fails on any
