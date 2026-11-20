@@ -4,7 +4,7 @@ Tags: meditation, map, events, classes
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.3.4
+Stable tag: 0.3.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -142,6 +142,12 @@ Settings → Sahaj Atlas names where the map rendered. If that row is red, send 
 maintainers.
 
 == Changelog ==
+
+= 0.3.5 =
+* Fixed: the status panel under Settings → Sahaj Atlas now says each row's verdict in words —
+  "Passed", "Needs attention", "Failed" or "Not checked yet". Each row showed only a tick, an
+  exclamation mark or a dash, which a screen reader does not read out, so someone using one heard
+  the check's name and no verdict. The panel looks exactly as it did.
 
 = 0.3.4 =
 * Fixed: a site whose language is Dutch, German, Italian or the like now gives search engines that
