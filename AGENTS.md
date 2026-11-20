@@ -127,7 +127,7 @@ story. Name the function, never a line number: a line number moves with every ed
     a foreign one. The same guard decides whether the root view may take the Atlas page over at
     all: a root answer whose canonical names another domain is a failed fetch, not a tag to drop,
     because `rel_canonical` is gone by the time the tag is printed. A region may canonicalise
-    elsewhere. The root may not. See `sahaj_atlas_is_local_url()` in `includes/sitemap.php`,
+    elsewhere. The root may not. See `sahaj_atlas_sitemap_rows()` in `includes/sitemap.php`,
     `sahaj_atlas_seo_boot()` and `sahaj_atlas_seo_root_points_elsewhere()` in `includes/seo.php`,
     and `tests/sitemap.php`.
 16. Suppress the host's SEO plugin only after a successful fetch. Suppressing first, then finding
