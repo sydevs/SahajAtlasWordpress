@@ -26,8 +26,8 @@ drives the whole design:
 - The plugin has a diagnostics panel.
 - Setup is one button, not a set of instructions.
 - Updates run automatically.
-- The plugin exposes three configuration settings: a key to paste, a checkbox, and where the
-  Atlas page opens.
+- Every setting is one more thing a volunteer can get wrong, so there are as few as principle 4
+  allows.
 
 ## Principles — acceptance criteria, not goals
 
@@ -69,66 +69,67 @@ drives the whole design:
 
 ## Traps already paid for
 
-Each entry states the trap. Where a line number is given, the inline `⚠` comment there carries
-the full story.
+Each entry states the trap. The `⚠` comment in the function or file it names carries the full
+story. Name the function, never a line number: a line number moves with every edit above it.
 
 1. `auto.js` is an ES module. Use `wp_enqueue_script_module()`, not `wp_enqueue_script()` with
-   `defer`. See embed.php:70.
+   `defer`. See `sahaj_atlas_activate()` in `includes/embed.php`.
 2. Print an explicit `<sahaj-atlas></sahaj-atlas>` element. Core prints script modules in the
    footer on classic themes, and in `<head>` on block themes — but the loader refuses `<head>`.
    Core adopts an existing element wherever it sits, so the script tag's own position no longer
    matters.
-3. Element placement now matters, though it did not before. A contained map draws inside its own
-   element's box, so both templates print it in the page flow, right after the header. Do not use
-   `wp_body_open` — that was correct only for the old fixed-overlay map, and now it would place
-   the atlas above the header. This also fixes the old transform-ancestor hazard, since a contained
-   map creates its own containing block.
+3. Print the element in the page flow, right after the header: a contained map draws inside its
+   own element's box. `wp_body_open` would place the atlas above the header.
    Three prints exist, and the first to run wins: the plugin's template, then `the_content` for a
    template this plugin did not supply, then `wp_footer`. The last one lands after the theme's
-   footer, where the sizing script measures the element's top at the document's full height and the
-   map computes to nothing — so it is a last resort, and diagnostics turns red on it rather than
-   reporting the page healthy. A caller that runs `the_content` without rendering the page body,
-   `wp_trim_excerpt()` above all, must not spend the one print. See sahaj-atlas.php:129, embed.php:441,467.
+   footer, where the map computes to nothing — so it is a last resort, and diagnostics turns red
+   on it rather than reporting the page healthy. A caller that runs `the_content` without rendering
+   the page body, `wp_trim_excerpt()` above all, must not spend the one print. See the hook list
+   in `sahaj-atlas.php`, and `sahaj_atlas_content_element()` and
+   `sahaj_atlas_render_element_fallback()` in `includes/embed.php`.
 4. Size `<sahaj-atlas>` with `display: block` and a definite height. This opts into a contained
    map: it draws inside its own box and stacking context, so the site header survives, and the map
    skips the compact-card question. SahajAtlasWeb#170 inverted the old rule — an unsized element
-   now becomes `position: fixed; inset: 0` and covers the page, which is why the Atlas page had no
-   header before #170.
+   now becomes `position: fixed; inset: 0` and covers the page.
 5. `min-height` is not a height. Use a definite height and `display: block` instead — a custom
-   element defaults to `inline` and cannot size itself. See embed.php:560, render.mjs:401,
-   run.php:143.
+   element defaults to `inline` and cannot size itself. See `sahaj_atlas_element_markup()` in
+   `includes/embed.php`, and the `min-height` assertions in `tests/render.mjs` and `tests/run.php`.
 6. Never run `wp_kses()` on markup this plugin generates. `safecss_filter_attr()`'s property
    allowlist has no `display` property, so it silently reduced `display:block;height:520px` to
    `height:520px`, breaking the block path while the shortcode path stayed fine. Sanitize only
    content someone else authored — our own markup takes no caller input.
 7. Never call `get_header()` on a block theme — it falls through to theme-compat and prints a
-   duplicate, 2010-era `<!DOCTYPE html>`. See atlas-page.php:14,20,31.
-8. `get_footer()` is not `wp_footer()`. Always fire `wp_footer()` instead. See atlas-page.php:8,
-   sahaj-atlas.php:129.
+   duplicate, 2010-era `<!DOCTYPE html>`. See `templates/atlas-page.php`.
+8. `get_footer()` is not `wp_footer()`. Always fire `wp_footer()` instead. See
+   `templates/atlas-page.php`.
 9. `redirect_canonical()` 301s deep links back to the page root. Suppress it when the **path**
    route is set, never on every atlas route — the contract publishes `/?p=42&atlas=…` mounts, and
    core's 301 to the pretty permalink is what carries a query-routed visitor to the canonical URL,
    `?atlas=` intact. The reason is not a site-wide cost: `?atlas=` is refused off the Atlas page
-   already. See routing.php:116,121,127.
+   already. See `sahaj_atlas_suppress_canonical_redirect()` in `includes/routing.php`.
 10. No translated string may run before `init` (WordPress 6.7) — not at file scope, in an
-    activation hook, or on `plugins_loaded`. See sahaj-atlas.php:22.
+    activation hook, or on `plugins_loaded`. See the top of `sahaj-atlas.php`.
 11. One `_wp_page_template` value serves both theme kinds. Core strips the suffix automatically,
-    so do not branch to "fix" it. See page.php:275.
+    so do not branch to "fix" it. See `sahaj_atlas_create_page()` in `includes/page.php`.
 12. A front-page atlas refuses path routing, or it would turn the host's own 404 page into the
-    atlas. See routing.php:227, tests/contract.php:130.
+    atlas. See `sahaj_atlas_path_routing_viable()` in `includes/routing.php`, and
+    `tests/contract.php`.
 13. An empty sitemap must return a 404, never an empty `<urlset>` or an index line. See
-    sitemap.php:121, tests/sitemap.php:82.
+    `sahaj_atlas_maybe_serve_sitemap()` in `includes/sitemap.php`, and `tests/sitemap.php`.
 14. `allowedDomains` is newline-separated, and a comma separates too — the bug already fixed was
     splitting on commas alone, which read one two-domain client as one impossible domain. An empty
     list allows every origin — the documented default, not a refusal. A bare entry matches that
     host exactly; only a `*.` prefix matches subdomains, and never the apex. Mirror
     `parseAllowedDomains()` / `isHostAllowed()` in SahajCloud instead of re-deriving them. See
-    diagnostics.php:296,954, tests/domains.php.
+    `sahaj_atlas_check_allowed_domains()` and `sahaj_atlas_is_host_allowed()` in
+    `includes/diagnostics.php`, and `tests/domains.php`.
 15. Publish sitemap URLs only for this host. A shared key, or a mis-set `canonical.embed`, can add
     a foreign one. The same guard decides whether the root view may take the Atlas page over at
     all: a root answer whose canonical names another domain is a failed fetch, not a tag to drop,
     because `rel_canonical` is gone by the time the tag is printed. A region may canonicalise
-    elsewhere. The root may not. See sitemap.php:227,249, seo.php:89,147, tests/sitemap.php:20.
+    elsewhere. The root may not. See `sahaj_atlas_is_local_url()` in `includes/sitemap.php`,
+    `sahaj_atlas_seo_boot()` and `sahaj_atlas_seo_root_points_elsewhere()` in `includes/seo.php`,
+    and `tests/sitemap.php`.
 16. Suppress the host's SEO plugin only after a successful fetch. Suppressing first, then finding
     the endpoint unreachable, leaves the page with no metadata at all — worse than leaving the
     original, generic metadata in place.
@@ -136,23 +137,24 @@ the full story.
     the SEO takeover, the `<title>` filter, the JSON-LD, the crawlable body — follows a
     query-routed deep link too. Reading `?atlas=` stays gated on the Atlas page: the parameter is
     one anyone can append to any URL on the site, and an ungated read would let an arbitrary page
-    claim an atlas route's canonical. See routing.php:164,170,174.
-18. A bare view route — `/search`, `/calendar`, `/filters`, `/online`, `/share` — is a view of the
-    atlas root, and the endpoint answers it with the root document. Decide that from `type` in the
+    claim an atlas route's canonical. See `sahaj_atlas_query_route()` in `includes/routing.php`.
+18. A bare view route, such as `/search` or `/calendar`, is a view of the atlas root, and the
+    endpoint answers it with the root document. Decide that from `type` in the
     answer. Never keep a copy of that segment list here; it drifts the day a view is added
     upstream, the same reason `sahaj_atlas_seo_locale()` keeps no copy of the locale list. See
-    seo.php:83.
+    `sahaj_atlas_seo_boot()` in `includes/seo.php`.
 19. An empty route on the Atlas page is the root view, not "no route". That includes a `?atlas=`
     the sanitiser refused, which falls back to the root rather than to nothing — the page is the
     root view either way, and the refused value must reach neither the endpoint nor the canonical.
-    See seo.php:60, tests/seo.php:303.
+    See `sahaj_atlas_seo_boot()` in `includes/seo.php`, and `tests/seo.php`.
 20. A non-empty `pre_get_document_title` return short-circuits `wp_get_document_title()` before
     every sanitising step below it — core's own `esc_html()` included — and
     `_wp_render_title_tag()` echoes the result raw. Escape inside the filter, or nothing does.
-    See seo.php:229.
+    See `sahaj_atlas_seo_title()` in `includes/seo.php`.
 21. Enqueue `assets/atlas-page.js` in the footer. `<head>` has neither the element it measures nor
     `document.body`, so both the first measure and the observer are lost there — silently. See
-    embed.php:598, atlas-page.js:160.
+    `sahaj_atlas_enqueue_page_assets()` in `includes/embed.php`, and `schedule()` in
+    `assets/atlas-page.js`.
 22. A header the theme takes out of flow occupies nothing for the element's own top to measure, so
     `assets/atlas-page.js` measures that header too, and the offset it writes is a **margin**, never
     padding. The offset walks to its answer over several frames, and asks for them itself — no
@@ -161,14 +163,15 @@ the full story.
     spins the measurement loop forever. And a header reaching past half the screen is refused
     outright, since handing that much away drops the atlas under the widget's map floor and the
     visitor gets the compact card — which is the defect #35 fixed, by another route. See
-    atlas-page.css:31, atlas-page.js:26,64,86,122,127,138.
+    `assets/atlas-page.css`, and `coveredTo()` and `measure()` in `assets/atlas-page.js`.
 23. Owning `<title>` takes a priority *and* a printer. Yoast registers
     `pre_get_document_title` at 15, with a callback that takes no argument and so discards
     whatever ran before it — any priority below the highest vendor's loses. It also removes core's
     three title printers and emits `<title>` from its own `wpseo_head` presenter, so silencing
     that presenter leaves a classic theme with no `<title>` element at all. Both halves are
     invisible from inside this plugin: the page returns 200 with a full `<head>` either way. See
-    seo.php:102,188, tests/fixtures/fake-yoast.php.
+    `sahaj_atlas_seo_boot()` and `sahaj_atlas_seo_suppress_others()` in `includes/seo.php`, and
+    `tests/fixtures/fake-yoast.php`.
 24. Wrapping a string in `__()` delivers nothing on its own. Three separate pieces have to be in
     place before any locale sees a translation, and none of them implies the others. `Domain Path`
     is a hint to tooling and loads nothing. `load_plugin_textdomain()` is what makes the registry
@@ -176,30 +179,36 @@ the full story.
     wordpress.org language pack would land, and this plugin ships from GitHub Releases.
     `wp_set_script_translations()` covers a second, independent reader: `wp.i18n` reads a `.json`
     keyed on an md5 of the script's path, never the `.mo`. Each piece fails silently in English.
-    See sahaj-atlas.php:108, embed.php:630, tests/i18n.php.
+    See `sahaj_atlas_load_textdomain()` in `sahaj-atlas.php`, `sahaj_atlas_register_block()` in
+    `includes/embed.php`, and `tests/i18n.php`.
 25. The sitemap's address follows the permalink shape, and two shapes break it. An `index.php`
     structure needs the prefix core keeps in `$wp_rewrite->root`, and cannot publish a `Sitemap:`
-    line at all, so check 6 warns and names the line to paste. A plain structure can serve nothing,
+    line at all, so the sitemap-discovery check warns and names the line to paste. A plain
+    structure can serve nothing,
     so both index entries and the `robots.txt` line are withheld — `/?robots=1` reaches that filter
     with no rewrite rules, so it needs the guard too. The serve guard still needs none. Keep one
     composer, and one `sahaj_atlas_sitemap_is_servable()` beside it — anything that spells either
-    answer a second time is free to disagree with it. See sitemap.php:62,77,86,287,333,
-    diagnostics.php:545,564.
+    answer a second time is free to disagree with it. See `sahaj_atlas_sitemap_url()`,
+    `sahaj_atlas_sitemap_is_servable()`, `sahaj_atlas_robots_txt()` and
+    `sahaj_atlas_sitemap_index_entry()` in `includes/sitemap.php`, and
+    `sahaj_atlas_check_sitemap_discovery()` in `includes/diagnostics.php`.
 26. A Beaver Builder module must set `'editor_export' => false`. On publish, Beaver Builder renders
     every exportable module into `post_content` and strips `style="…"` on the way, so the exported
     element loses `display:block` and its `aspect-ratio` — and by trap 4 an unsized element covers
     the whole viewport. Nothing shows while the builder is active, because the layout is what
     renders; the overlay appears the day someone deactivates the plugin that was holding it back.
-    It also leaves a second element beside any shortcode. See modules/sahaj-atlas/sahaj-atlas.php:42.
+    It also leaves a second element beside any shortcode. See `editor_export` in
+    `modules/sahaj-atlas/sahaj-atlas.php`.
 27. Dropping a theme's hero does not reclaim the space it held, so the fix is two of the theme's
     own switches: the filter that yields no image, and the class whose rule releases the box. Which
-    switch, and why not the shorter route, are both load-bearing. See page.php:193,218.
+    switch, and why not the shorter route, are both load-bearing. See
+    `sahaj_atlas_quiet_theme_bands()` and `sahaj_atlas_body_class()` in `includes/page.php`.
 28. The resolve on `template_redirect` sees only `post_content` and our own Beaver Builder module.
     A shortcode in a builder's text module, Elementor's shortcode widget, a sidebar or a
     theme-builder template renders all the same, so it claims the page as it renders — but only on
     a request that resolved nothing, and only while core's script-module print is still ahead.
-    Before that, such a page printed nothing and told its editor another atlas "came first". See
-    embed.php:85,91, shortcode.php:58.
+    See `sahaj_atlas_claim_embed()` in `includes/embed.php`, and `sahaj_atlas_render_embed()` in
+    `includes/shortcode.php`.
 
 ## Sitemaps
 
@@ -210,7 +219,8 @@ at our file. `robots.txt` is the load-bearing line, read by every crawler regard
 plugin runs. The Yoast and Rank Math index entries are only a convenience.
 
 Load-bearing, and not always writable. Core serves a virtual `robots.txt` only with rewriting on
-and WordPress at the domain root, and never over a real file. Diagnostics check 6 names each case
+and WordPress at the domain root, and never over a real file. The sitemap-discovery check names
+each case
 and the line to paste; the ⚠ on `sahaj_atlas_robots_txt()` is the pointer back.
 
 ## Testing
@@ -220,14 +230,15 @@ PHP. The fifth runs the one shipped script in plain node.
 
 | Lane | Command | Covers |
 | --- | --- | --- |
-| Syntax | `pnpm lint` | `token_get_all(…, TOKEN_PARSE)` over every PHP file, on PHP 7.4 |
+| Syntax | `pnpm lint` | `token_get_all(…, TOKEN_PARSE)` over every PHP file, at the PHP floor |
 | Measure | `pnpm test:measure` | `assets/atlas-page.js`'s header arithmetic, against a stubbed geometry |
-| Behaviour | `pnpm test` | The behaviour suite, in a booted WordPress 6.7 / PHP 7.4 |
+| Behaviour | `pnpm test` | The behaviour suite, in a booted WordPress at the floor |
 | Render | `pnpm test:render` | Real HTTP requests against a real server, per theme kind |
-| Zip | `pnpm test:zip <zip>` | The built release zip, unzipped and mounted in place of the source tree: the plugin loads, a shortcode page renders the `<sahaj-atlas>` element and the loader tag, and the plugin raises no PHP error. Catches a file `.distignore` wrongly leaves out. CI runs it on the zip `package.sh` builds; locally, build one first (`.github/scripts/package.sh . build`, needs PHP). Not in `pnpm test:all`. |
-| Browser | `pnpm test:browser` | The production widget in Chromium, in every free theme the fleet runs, plus page builders and hostile conditions. Runs in CI (`.github/workflows/browser.yml`, as 2 shards of `--shard k/2` with step and job timeouts) on a PR that touches a file shaping the embed, and on demand; never a required check, and skipped visibly without the `SAHAJ_ATLAS_TEST_KEY` repo secret. Needs the network, `SAHAJ_ATLAS_TEST_KEY` (the "Sahaj Atlas (Local Test Key)" client's key, from a SahajCloud admin) in `.env.claude.local`, and Chromium (`pnpm exec playwright-core install chromium`, once). `--only <cell,…>` runs a subset, `--shard k/n` runs every n-th cell, `--list` names them. Each cell prints its seconds; one that hangs past 8 minutes fails. `SAHAJ_ATLAS_WIDGET_FROM=<preview origin>` judges a SahajAtlasWeb PR's Cloudflare preview instead of production. |
+| Zip | `pnpm test:zip <zip>` | The built release zip, unzipped and mounted in place of the source tree (`tests/zip.mjs`). Catches a file `.distignore` wrongly leaves out. CI runs it on the zip `package.sh` builds; locally, build one first (`.github/scripts/package.sh . build`, needs PHP). Not in `pnpm test:all`. |
+| Browser | `pnpm test:browser` | The production widget in Chromium, in every free theme the fleet runs, plus page builders and hostile conditions. Runs in CI (`.github/workflows/browser.yml`, sharded) on a PR that touches a file shaping the embed, and on demand; never a required check, and skipped visibly without the `SAHAJ_ATLAS_TEST_KEY` repo secret. Needs the network, `SAHAJ_ATLAS_TEST_KEY` (the "Sahaj Atlas (Local Test Key)" client's key, from a SahajCloud admin) in `.env.claude.local`, and Chromium (`pnpm exec playwright-core install chromium`, once). `--only <cell,…>` runs a subset, `--shard k/n` runs every n-th cell, `--list` names them. Each cell prints its seconds, and a hung cell fails. `SAHAJ_ATLAS_WIDGET_FROM=<preview origin>` judges a SahajAtlasWeb PR's Cloudflare preview instead of production. |
 
-`pnpm test` and `pnpm test:render` boot the floor, WordPress 6.7 on PHP 7.4, unless
+`pnpm test` and `pnpm test:render` boot the floor — `Requires at least` and `Requires PHP` in the
+`sahaj-atlas.php` header, WordPress 6.7 on PHP 7.4 — unless
 `SAHAJ_ATLAS_PHP` and `SAHAJ_ATLAS_WP` say otherwise (`SAHAJ_ATLAS_PHP=8.3 SAHAJ_ATLAS_WP=latest pnpm test`).
 CI runs both: the floor job ("Lint & test", required), and "Tests (current PHP and WordPress)",
 which boots PHP 8.3 on WordPress `latest`, so a new core release shows up on the next pull request.
@@ -280,9 +291,10 @@ Ask, do not guess, when these docs and the code disagree. The code is what ships
   directory, the installed folder, and Plugin Update Checker's third argument. Confirmed free on
   wordpress.org as of 2026-08-25.
 - Every release attaches the zip twice: `sahaj-atlas-<version>.zip` and `sahaj-atlas.zip`. The
-  second is the permanent download link, `releases/latest/download/sahaj-atlas.zip`, that README.md
-  and readme.txt give volunteers. SahajCloud's install guide will name the file once
-  SahajCloud#1058 lands. Rename or drop it and that link 404s for every new install.
+  second is the permanent download link, `releases/latest/download/sahaj-atlas.zip`, that README.md,
+  readme.txt and SahajCloud's Install tab (SahajCloud#1058,
+  `src/components/admin/InstallGuide/steps.ts`) give volunteers. Rename or drop it and that link
+  404s for every new install.
 - **A `.po` file is the only translation anyone commits.**
 - Pass every value reaching markup through the escape its sink wants: `esc_attr()` for an
   attribute, `esc_url()` for a URL, `esc_html()` for text — the `<title>` element included. The one

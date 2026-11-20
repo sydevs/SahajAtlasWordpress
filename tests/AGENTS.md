@@ -11,33 +11,32 @@ test. Their inline `⚠` comments carry the full detail. Paths are from the repo
   tests/browser.mjs.
 - The measure lane proves what the script decides, never what a browser lays out. Its geometry is
   stubbed, so an assertion about real overlap belongs in the browser lane (#38, PR #44). That lane
-  retires this one only once it covers the same decisions and runs on every PR; it runs in CI only
-  when a PR touches an embed-shaping file, and skips without a secret, so it does not. The lane reads the script's load position out of `includes/embed.php`, so a fixture
-  cannot keep modelling a page the plugin stopped serving. See tests/measure.mjs:9,13,30.
-- The browser lane's cells run one after another, so CI deals them out with `--shard k/n` (2 shards in
-  `.github/workflows/browser.yml`). A cell's port comes from its place in its own shard's list. A
-  new cell needs no workflow change, but a slow one lengthens a shard; `--list` and the `time` lines
-  show where. Both CI timeouts are derived from the shard count, so changing it moves them too.
+  retires this one only once it covers the same decisions on every PR. The lane reads the script's
+  load position out of `includes/embed.php`, so a fixture cannot keep modelling a page the plugin
+  stopped serving. See `tests/measure.mjs`.
+- The browser lane's cells run one after another, so CI deals them out with `--shard k/n`, the
+  count set in `.github/workflows/browser.yml`. A cell's port comes from its place in its own
+  shard's list. A new cell needs no workflow change, but a slow one lengthens a shard; `--list`
+  and the `time` lines show where. Both CI timeouts are derived from the shard count, so changing it moves them too.
 - The lane's CI summary is `browser-summary.txt`, which the lane appends to as it runs; the workflow
   prints that file and derives nothing from stdout. A shard the step timeout kills has its verdicts
   on disk already, so a new verdict kind has to be written there, or CI will not show it.
-- wp-playground-cli discards stdout when a step fails. See tests/bootstrap.php:5.
+- wp-playground-cli discards stdout when a step fails. See `tests/bootstrap.php`.
 - Pin versions with the blueprint's `preferredVersions`. That key is each lane's default, and
   `tests/versions.mjs` overrides it only when `SAHAJ_ATLAS_PHP` or `SAHAJ_ATLAS_WP` is set, so
   editing a blueprint changes the lane it belongs to and nothing else. A `--php` or `--wp` flag
   changes nothing. Under @wp-playground/cli 3.1, `server` ignores `--php` and `--wp` when given a
-  blueprint, and a blueprint without the key boots the latest WordPress on PHP 8.5. See
-  tests/render.mjs:110.
+  blueprint, and a blueprint without the key boots the latest WordPress on PHP 8.5. See `check()`
+  in `tests/render.mjs`.
 - A command with no blueprint takes the CLI's own default instead, PHP 8.3, not the fleet's 7.4
   floor. `pnpm lint` and `pnpm test`'s report fallback are the two, and both pass `--php 7.4`. A
   syntax lane on 8.3 passes `?->` and every other PHP 8 construct a client site cannot parse.
 - Activate the plugin through a blueprint step. Do not call `activate_plugin()` after
-  `wp-load.php`. See tests/bootstrap.php:42.
+  `wp-load.php`. See `tests/bootstrap.php`.
 - `$_GET` is already slashed when a plugin reads it, so a fixture that assigns a raw value tests a
-  request WordPress never delivers. Set it through `sahaj_set_query_route()`. See
-  tests/run.php:387.
+  request WordPress never delivers. Set it through `sahaj_set_query_route()` in `tests/run.php`.
 - `update_option( 'permalink_structure', … )` does not reach `WP_Rewrite`, which caches the
-  structure in `init()`. Set it through `sahaj_set_permalink_structure()`. See tests/run.php:409.
+  structure in `init()`. Set it through `sahaj_set_permalink_structure()` in `tests/run.php`.
 - The SEO endpoint's answers serve every lane from one file: `tests/fixtures/seo-answer.php`, a
   region route and a root. The PHP suite requires it, and both render blueprints require it from the
   mounted plugin. Three copies of an upstream response shape diverge the first time that shape
