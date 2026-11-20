@@ -153,7 +153,7 @@ story. Name the function, never a line number: a line number moves with every ed
     See `sahaj_atlas_seo_title()` in `includes/seo.php`.
 21. Enqueue `assets/atlas-page.js` in the footer. `<head>` has neither the element it measures nor
     `document.body`, so both the first measure and the observer are lost there — silently. See
-    `sahaj_atlas_enqueue_page_assets()` in `includes/embed.php`, and `schedule()` in
+    `sahaj_atlas_enqueue_page_assets()` in `includes/embed.php`, and `start()` in
     `assets/atlas-page.js`.
 22. A header the theme takes out of flow occupies nothing for the element's own top to measure, so
     `assets/atlas-page.js` measures that header too, and the offset it writes is a **margin**, never
