@@ -167,8 +167,8 @@ No Docker and no system PHP are needed —
 
 ```
 pnpm install
-pnpm test:all        # syntax, measure, behaviour, render — what CI runs
-pnpm test:browser    # the real widget in real themes, in Chromium (local only; see AGENTS.md)
+pnpm test:all        # syntax, measure, behaviour, render — the required CI job
+pnpm test:browser    # the real widget in real themes, in Chromium (needs a key; see AGENTS.md)
 pnpm start           # a real WordPress site with the plugin, for manual testing
 ```
 
