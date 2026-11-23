@@ -222,9 +222,9 @@ sahaj_probe_stub( sahaj_probe_page( '<sahaj-atlas data-sahaj-atlas-render="templ
 
 sahaj_is( 'an intact module tag is healthy', 'ok', sahaj_probe_check( 'sahaj_atlas_check_loader' )['status'] );
 
-// ⚠ The defect SahajAtlasWeb#239 handed here: `auto.js` opens with a top-level `import`, which is a
-// SyntaxError in a classic script. The page gets a blank slot and one console error, and the module
-// cannot report on itself from inside a tag that never ran.
+// ⚠ The defect SahajAtlasWeb#239 handed here: a module cannot report on itself from inside a tag
+// that never ran. Since SahajAtlasWeb#409 `auto.js` runs as a classic script too, so the two
+// verdicts below pin pages that work — see the TODO on `sahaj_atlas_check_loader()`.
 sahaj_probe_stub( sahaj_probe_page( '<sahaj-atlas data-sahaj-atlas-render="template"></sahaj-atlas>', sahaj_probe_loader( '', '' ) ) );
 
 sahaj_is( 'a tag stripped of type="module" is a failure', 'fail', sahaj_probe_check( 'sahaj_atlas_check_loader' )['status'] );
