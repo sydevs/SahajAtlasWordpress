@@ -266,9 +266,9 @@ async function check(run) {
       }
     }
 
-    // The loader is a real ES module. Its first statement is a top-level `import`, which is a
-    // SyntaxError in a classic script. A `<script>` tag without `type="module"` breaks the page
-    // completely. It does not just degrade the experience.
+    // The tag must stay a module: a classic `<script>` in the body holds the parser while it
+    // downloads. `auto.js` runs either way since SahajAtlasWeb#409, so nothing but this assertion
+    // keeps the plugin off `wp_enqueue_script`.
     const script = html.match(/<script[^>]*src="([^"]*auto\.js[^"]*)"[^>]*>/)
 
     ok('the loader is enqueued', Boolean(script), html.includes('auto.js') ? 'found, but not as a script src' : 'absent')

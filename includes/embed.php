@@ -67,9 +67,10 @@ function sahaj_atlas_activate( $embed ) {
 	$GLOBALS['sahaj_atlas_active'] = $embed;
 
 	/*
-	 * ⚠ Use `wp_enqueue_script_module`, never `wp_enqueue_script`. `auto.js` is a real ES module. Its
-	 * first statement is a top-level `import`, which is a SyntaxError in a classic script. So
-	 * `'strategy' => 'defer'` is not a fallback — it is a hard break.
+	 * ⚠ Use `wp_enqueue_script_module`, never `wp_enqueue_script`. A classic `<script>` in the body
+	 * holds the parser while it downloads, and a module never does — and core's script-module hooks
+	 * are what the print order in this file is written against. `auto.js` itself runs either way
+	 * since SahajAtlasWeb#409, so this is a page-speed rule, not a syntax one.
 	 *
 	 * The version argument is `null` on purpose. `false` would make core append `?ver=<wp version>`
 	 * to a URL whose query string is the widget's whole configuration. The widget origin already
