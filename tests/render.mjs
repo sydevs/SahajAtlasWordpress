@@ -266,9 +266,10 @@ async function check(run) {
       }
     }
 
-    // The tag must stay a module: a classic `<script>` in the body holds the parser while it
-    // downloads. `auto.js` runs either way since SahajAtlasWeb#409, so nothing but this assertion
-    // keeps the plugin off `wp_enqueue_script`.
+    // The tag must stay a module: core prints a script module on its own hooks, and the print
+    // order this plugin is built around follows from that. `auto.js` runs either way since
+    // SahajAtlasWeb#409, so this assertion and `tests/run.php`'s `sahaj_claim_modules()` check are
+    // the two guards keeping the plugin off `wp_enqueue_script`.
     const script = html.match(/<script[^>]*src="([^"]*auto\.js[^"]*)"[^>]*>/)
 
     ok('the loader is enqueued', Boolean(script), html.includes('auto.js') ? 'found, but not as a script src' : 'absent')
