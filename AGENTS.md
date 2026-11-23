@@ -70,9 +70,11 @@ drives the whole design:
 Each entry states the trap. The `⚠` comment in the function or file it names carries the full
 story. Name the function, never a line number: a line number moves with every edit above it.
 
-1. Use `wp_enqueue_script_module()`, not `wp_enqueue_script()` with `defer`. `auto.js` runs as a
-   classic script or as a module since SahajAtlasWeb#409, so the reason is page speed and core's
-   print order, not syntax. See `sahaj_atlas_activate()` in `includes/embed.php`.
+1. Use `wp_enqueue_script_module()`, not `wp_enqueue_script()` with `defer`. Core prints a script
+   module on its own hooks, and traps 2, 3 and 21 are written against that timing. `defer` is no
+   slower, and `auto.js` has run either way since SahajAtlasWeb#409, so neither page speed nor
+   syntax separates the two — only the print order does. See `sahaj_atlas_activate()` in
+   `includes/embed.php`.
 2. Print an explicit `<sahaj-atlas></sahaj-atlas>` element. Core prints script modules in the
    footer on classic themes, and in `<head>` on block themes — but the loader refuses `<head>`.
    Core adopts an existing element wherever it sits, so the script tag's own position no longer

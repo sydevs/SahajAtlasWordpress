@@ -67,10 +67,11 @@ function sahaj_atlas_activate( $embed ) {
 	$GLOBALS['sahaj_atlas_active'] = $embed;
 
 	/*
-	 * ⚠ Use `wp_enqueue_script_module`, never `wp_enqueue_script`. A classic `<script>` in the body
-	 * holds the parser while it downloads, and a module never does — and core's script-module hooks
-	 * are what the print order in this file is written against. `auto.js` itself runs either way
-	 * since SahajAtlasWeb#409, so this is a page-speed rule, not a syntax one.
+	 * ⚠ Use `wp_enqueue_script_module`, never `wp_enqueue_script`. Core prints a script module on
+	 * its own hooks — `wp_footer` on a classic theme, `wp_head` on a block theme — and every print
+	 * decision in this file is written against that timing. `'strategy' => 'defer'` is no slower,
+	 * so page speed does not separate the two; the print order does. `auto.js` itself has run as a
+	 * classic script or as a module since SahajAtlasWeb#409, so syntax does not separate them either.
 	 *
 	 * The version argument is `null` on purpose. `false` would make core append `?ver=<wp version>`
 	 * to a URL whose query string is the widget's whole configuration. The widget origin already
