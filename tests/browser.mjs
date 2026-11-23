@@ -253,7 +253,9 @@ const CELLS = [
   { name: 'admin-bar', theme: 'astra', login: true },
   // The third setting reaches the widget: the Atlas page opens at a country, listing its cities.
   { name: 'start-route', theme: 'astra', seed: START_GB, shows: 'Midlands' },
-  // The page is still broken here — only diagnostics now says so, which is the whole fix (#39).
+  // Diagnostics is what reports a stripped `type="module"` (#39). Since SahajAtlasWeb#409 `auto.js`
+  // runs as a classic script, so the page itself survives this cell — the `known` note below and
+  // Check 8's two `fail` rows went stale together, and wait on one decision.
   { name: 'strip-module', theme: 'astra', mu: { 'strip-module': MU.stripModule }, panel: true, known: 'a classic script cannot run the loader; the status panel reports it, the page stays blank (#39)' },
 ]
 

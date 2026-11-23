@@ -646,10 +646,14 @@ function sahaj_atlas_check_render( $probe ) {
 /**
  * Check 8 — did the loader's script tag survive the page?
  *
- * ⚠ `auto.js` is a real ES module, so a classic `<script>` tag cannot run it at all: the page gets
- * a blank slot and one console error ("Cannot use import statement outside a module"). A module
- * cannot detect that from inside itself, which is why SahajAtlasWeb#239 handed the detection here.
- * An "HTML5 cleanup" snippet, a script optimiser, or any `wp_script_attributes` filter can do it.
+ * ⚠ A module cannot report on itself from inside a tag that never ran, which is why
+ * SahajAtlasWeb#239 handed this detection here. An "HTML5 cleanup" snippet, a script optimiser, or
+ * any `wp_script_attributes` filter can strip the tag's `type` or add `async`.
+ *
+ * ⚠ Both `fail` rows below now describe pages that work: since SahajAtlasWeb#409 `auto.js` is a
+ * classic bridge that runs with or without `type="module"`. Dropping them or downgrading them to a
+ * warning is a behaviour change with translated copy behind it, so it waits on a decision.
+ * TODO: settle the two verdicts, and the `probe.php` and `browser.mjs` cases pinned to them.
  *
  * @param array|WP_Error|null $probe Result of the loopback probe.
  * @return array{status:string, label:string, detail:string}
