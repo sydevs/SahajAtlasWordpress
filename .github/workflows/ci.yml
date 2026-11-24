@@ -30,6 +30,8 @@ jobs:
       - name: Classify the change
         id: scope
         uses: sydevs/claude-workflow/.github/actions/change-scope@main
+        with:
+          light: '\.md$|^docs/|^\.claude/|^\.vscode/'
 
       # release.yml runs the same script after the merge. Here a missed version declaration or a
       # broken zip fails the PR, before a release goes red on main.
@@ -108,6 +110,8 @@ jobs:
       - name: Classify the change
         id: scope
         uses: sydevs/claude-workflow/.github/actions/change-scope@main
+        with:
+          light: '\.md$|^docs/|^\.claude/|^\.vscode/'
 
       - if: ${{ steps.scope.outputs.full == 'true' }}
         uses: pnpm/action-setup@v6
