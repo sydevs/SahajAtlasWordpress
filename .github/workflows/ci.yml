@@ -16,50 +16,74 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # ── Docs-only changes take the light lane ───────────────────────────────
+      # A change touching nothing but markdown, docs/, .claude/ or .vscode/ breaks
+      # nothing below: `pnpm lint` parses only .php files, no test reads a doc, and
+      # `.distignore` keeps every one of them out of the zip. So the steps that
+      # follow are skipped and the job reports success in seconds. `readme.txt`
+      # is not `.md`: it is plugin metadata that ships, so it stays on the full lane.
+      #
+      # ⚠ Gate steps, never the workflow. `Lint & test` is a required check, and a
+      # workflow-level `paths-ignore` would leave it never reporting, so the merge
+      # would wait forever. A skipped step passes; a skipped workflow does not.
+      # (why: sydevs/claude-workflow docs/why.md#a-docs-only-change-takes-the-light-lane)
+      - name: Classify the change
+        id: scope
+        uses: sydevs/claude-workflow/.github/actions/change-scope@main
+
       # release.yml runs the same script after the merge. Here a missed version declaration or a
       # broken zip fails the PR, before a release goes red on main.
       - name: Package the plugin zip
+        if: ${{ steps.scope.outputs.full == 'true' }}
         id: package
         run: .github/scripts/package.sh . build
 
       - name: Say what merging releases
-        if: steps.package.outputs.pending == 'true'
+        if: ${{ steps.scope.outputs.full == 'true' && (steps.package.outputs.pending == 'true') }}
         env:
           VERSION: ${{ steps.package.outputs.version }}
         run: echo "::notice title=Release::Merging to main releases v$VERSION to every site running the plugin."
 
-      - uses: pnpm/action-setup@v6
+      - if: ${{ steps.scope.outputs.full == 'true' }}
+        uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v7
+      - if: ${{ steps.scope.outputs.full == 'true' }}
+        uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      - if: ${{ steps.scope.outputs.full == 'true' }}
+        run: pnpm install --frozen-lockfile
 
       # The PHP steps run in WebAssembly through @wp-playground/cli. This needs no system PHP or
       # Docker. ⚠ Every invocation names PHP 7.4, the fleet's floor. The CLI's own default is 8.3,
       # where a syntax check accepts `?->` and every other PHP 8 construct a client site cannot
       # parse. The blueprint lanes pin it through `preferredVersions`; this one passes `--php 7.4`.
       - name: Syntax check
+        if: ${{ steps.scope.outputs.full == 'true' }}
         run: pnpm lint
 
       # Plain node, not WebAssembly: this is the one shipped script, and no PHP lane executes it.
       - name: Measurement checks (assets/atlas-page.js)
+        if: ${{ steps.scope.outputs.full == 'true' }}
         run: pnpm test:measure
 
       - name: Integration tests (WordPress 6.7, PHP 7.4)
+        if: ${{ steps.scope.outputs.full == 'true' }}
         run: pnpm test
 
       # This step starts a real server for each theme kind. The plugin uses a different code path
       # for each kind: `register_block_template()` for block themes, `template_include` for classic
       # themes. A pass on one kind does not test the other.
       - name: Render checks (block and classic themes)
+        if: ${{ steps.scope.outputs.full == 'true' }}
         run: pnpm test:render
 
       # ⚠ Every step above mounts the working tree. This one boots the zip sites install, so a file
       # `.distignore` wrongly leaves out fails the PR, not every site's next automatic update.
       - name: Boot the built zip
+        if: ${{ steps.scope.outputs.full == 'true' }}
         run: pnpm test:zip "${{ steps.package.outputs.zip }}"
 
   # PHP 7.4 is the declared floor and has been end-of-life since 2022, so the job above is the
@@ -80,19 +104,29 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v6
+      # Light lane, as in `Lint & test` above: a docs-only change skips the steps below.
+      - name: Classify the change
+        id: scope
+        uses: sydevs/claude-workflow/.github/actions/change-scope@main
 
-      - uses: actions/setup-node@v7
+      - if: ${{ steps.scope.outputs.full == 'true' }}
+        uses: pnpm/action-setup@v6
+
+      - if: ${{ steps.scope.outputs.full == 'true' }}
+        uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      - if: ${{ steps.scope.outputs.full == 'true' }}
+        run: pnpm install --frozen-lockfile
 
       - name: Integration tests
+        if: ${{ steps.scope.outputs.full == 'true' }}
         run: pnpm test
 
       - name: Render checks (block and classic themes)
+        if: ${{ steps.scope.outputs.full == 'true' }}
         run: pnpm test:render
 
   contract:
