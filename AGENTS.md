@@ -243,8 +243,9 @@ PHP. The fifth runs the one shipped script in plain node.
 (`SAHAJ_ATLAS_PHP=8.3 SAHAJ_ATLAS_WP=latest pnpm test`).
 CI runs both: the floor job ("Lint & test", required), and "Tests (current PHP and WordPress)",
 which boots PHP 8.3 on WordPress `latest`, so a new core release shows up on the next pull request.
-That job is not required. **Nothing in this repo runs on a schedule.** The suite also fails on any
-PHP deprecation, warning or notice raised from the plugin's own files.
+That job is not required. A pull request touching only Markdown, `docs/`, `.claude/` or
+`.vscode/` skips every suite in both jobs. **Nothing in this repo runs on a schedule.** The
+suite also fails on any PHP deprecation, warning or notice raised from the plugin's own files.
 
 `pnpm test:all` runs the first four. The browser lane is the one that sees what a theme's CSS,
 the sizing script and the widget do to the page once a browser runs it, which is where every
