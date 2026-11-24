@@ -41,7 +41,7 @@ jobs:
         run: .github/scripts/package.sh . build
 
       - name: Say what merging releases
-        if: ${{ steps.scope.outputs.full == 'true' && (steps.package.outputs.pending == 'true') }}
+        if: steps.package.outputs.pending == 'true'
         env:
           VERSION: ${{ steps.package.outputs.version }}
         run: echo "::notice title=Release::Merging to main releases v$VERSION to every site running the plugin."
