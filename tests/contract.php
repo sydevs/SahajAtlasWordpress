@@ -37,7 +37,7 @@ $sahaj_contract      = json_decode( (string) file_get_contents( $sahaj_contract_
 sahaj_group( 'The shared URL contract' );
 
 sahaj_ok( 'the fixture parses', is_array( $sahaj_contract ) && ! empty( $sahaj_contract['cases'] ) );
-sahaj_is( 'and is the version this suite was written against', 1, isset( $sahaj_contract['version'] ) ? $sahaj_contract['version'] : null );
+sahaj_is( 'and is the version this suite was written against', 2, isset( $sahaj_contract['version'] ) ? $sahaj_contract['version'] : null );
 
 update_option( 'permalink_structure', '/%postname%/' );
 
@@ -97,7 +97,10 @@ foreach ( $sahaj_contract['cases'] as $case ) {
 
 		$request = $slug . '/' . ltrim( $bad, '/' );
 
-		if ( preg_match( '#' . $sahaj_contract['slugPattern'] . '#', '/' . $request ) ) {
+		// ⚠ The `u` flag is the contract's instruction, not a preference: `slugPattern` matches a
+		// slug's own letters with `\p{...}` classes, and without it PCRE reads a multi-byte letter
+		// as separate bytes and calls a published slug malformed.
+		if ( preg_match( '#' . $sahaj_contract['slugPattern'] . '#u', '/' . $request ) ) {
 			continue;
 		}
 
