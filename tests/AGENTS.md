@@ -18,6 +18,10 @@ test. Their inline `⚠` comments carry the full detail. Paths are from the repo
   count set in `.github/workflows/browser.yml`. A cell's port comes from its place in its own
   shard's list. A new cell needs no workflow change, but a slow one lengthens a shard; `--list`
   and the `time` lines show where. Both CI timeouts are derived from the shard count, so changing it moves them too.
+- Every browser-lane cell runs the render lane's shared seed first, so a cell seeding its own host
+  page needs a slug no page in that seed holds. `wp_insert_post()` answers a duplicate with
+  `<slug>-2` and says nothing, and the cell then measures whichever page kept the slug (#100). See
+  `BB_MODULE_PAGE` in `tests/browser.mjs`.
 - The lane's CI summary is `browser-summary.txt`, which the lane appends to as it runs; the workflow
   prints that file and derives nothing from stdout. A shard the step timeout kills has its verdicts
   on disk already, so a new verdict kind has to be written there, or CI will not show it.
