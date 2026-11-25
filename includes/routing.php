@@ -48,26 +48,20 @@ function sahaj_atlas_register_route_var() {
  */
 function sahaj_atlas_parse_request( $wp ) {
 	/*
-	 * ⚠ This runs before everything else, including the healthy-page check that reads the same
-	 * request. The sitemap lives at the site root, not under the Atlas page, so rules about the
-	 * atlas subtree must not filter it. `sahaj_atlas_maybe_serve_sitemap()` sends its own response
+	 * ⚠ This runs before everything else, including the guards below that read the same request.
+	 * The sitemap lives at the site root, not under the Atlas page, so rules about the atlas
+	 * subtree must not filter it. `sahaj_atlas_maybe_serve_sitemap()` sends its own response
 	 * and returns true. Nothing is left for WordPress to route.
 	 */
 	if ( sahaj_atlas_maybe_serve_sitemap( $wp ) ) {
 		exit;
 	}
 
-	if ( ! sahaj_atlas_page_is_healthy() ) {
-		return;
-	}
-
-	// Plain permalinks (`?p=123`) have no path to route into. `sahaj_atlas_path_routing_viable()`
-	// tells the widget not to try. This is the matching half of that rule.
-	if ( ! get_option( 'permalink_structure' ) ) {
-		return;
-	}
-
-	if ( sahaj_atlas_page_is_front_page() ) {
+	// ⚠ One spelling of these conditions, not three. `sahaj_atlas_path_routing_viable()` decides
+	// what the widget is told, and this is the server half of that same answer — a site sent
+	// `routing=path` must have its subtree served, and a site not sent it must not. A second
+	// spelling here is free to drift away from the first.
+	if ( ! sahaj_atlas_path_routing_viable() ) {
 		return;
 	}
 
@@ -91,8 +85,8 @@ function sahaj_atlas_parse_request( $wp ) {
 		return;
 	}
 
-	// ⚠ The sanitiser is what decodes the path and refuses a shape nothing published. Every other
-	// reader of a route ends there too, so a second spelling here is free to disagree with it.
+	// ⚠ The sanitiser owns the decode and every refusal. Every other reader of a route ends there
+	// too, which is what keeps the two routing shapes answering the same URLs.
 	$route = sahaj_atlas_clean_route( '/' . substr( $path, strlen( $base ) + 1 ) );
 
 	if ( '' === $route ) {
