@@ -77,6 +77,7 @@ sahaj_group( 'A pasted place becomes a route' );
 sahaj_is( 'a route stays a route', '/gb', sahaj_atlas_route_from_input( '/gb' ) );
 sahaj_is( 'a bare slug path gains its slash, and loses a trailing one', '/gb/london', sahaj_atlas_route_from_input( 'gb/london/' ) );
 sahaj_is( 'a sahajatlas.com address is read as its path', '/gb/london', sahaj_atlas_route_from_input( 'https://sahajatlas.com/gb/london' ) );
+sahaj_is( 'and a native-script one as its decoded path', '/bg/софия', sahaj_atlas_route_from_input( 'https://sahajatlas.com/bg/%D1%81%D0%BE%D1%84%D0%B8%D1%8F' ) );
 sahaj_is( 'and its home page as no route', '', sahaj_atlas_route_from_input( 'https://sahajatlas.com/' ) );
 sahaj_is( 'this site\'s Atlas page, path-routed', '/gb/london', sahaj_atlas_route_from_input( "$sahaj_start_page/gb/london/" ) );
 sahaj_is( 'this site\'s Atlas page, query-routed', '/gb', sahaj_atlas_route_from_input( "$sahaj_start_page/?atlas=/gb" ) );

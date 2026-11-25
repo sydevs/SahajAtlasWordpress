@@ -91,7 +91,9 @@ function sahaj_atlas_parse_request( $wp ) {
 		return;
 	}
 
-	$route = sahaj_atlas_route_from_request_path( substr( $path, strlen( $base ) + 1 ) );
+	// ⚠ The sanitiser is what decodes the path and refuses a shape nothing published. Every other
+	// reader of a route ends there too, so a second spelling here is free to disagree with it.
+	$route = sahaj_atlas_clean_route( '/' . substr( $path, strlen( $base ) + 1 ) );
 
 	if ( '' === $route ) {
 		return;
@@ -101,45 +103,6 @@ function sahaj_atlas_parse_request( $wp ) {
 		'page_id'             => $page_id,
 		SAHAJ_ATLAS_ROUTE_VAR => $route,
 	);
-}
-
-/**
- * The atlas route a request path below the Atlas page carries, or an empty string.
- *
- * ⚠ A request carries a native-script slug percent-encoded, while the shared URL contract's
- * `webPath` — what the widget and the SEO endpoint both answer — carries those letters raw. A
- * query-routed host gets that for free, since PHP decodes `$_GET`. Path routing reads
- * `$wp->request`, which does not, so a Bulgarian region arrived as `/bg/%D1%81%D0%BE...` and
- * resolved to nothing. `tests/contract.php` replays the contract's own case.
- *
- * ⚠ Decode one segment at a time, never the whole path. A single `rawurldecode()` would let
- * `%2F` forge a segment boundary, and the base prefix has already been cut using the undecoded
- * length. A decoded segment still holding a slash or a backslash is refused for the same reason:
- * it would reach the widget as a route shape nothing published.
- *
- * ⚠ An empty segment (`/nl//amsterdam`) is refused rather than passed on. The shared URL
- * contract never publishes such a URL — a blank region slug is a known data defect upstream.
- * Claiming one here would serve the atlas at an address nothing points at, under a route the
- * widget cannot resolve. A 404 is the honest answer, and the rest of the system already assumes
- * it.
- *
- * @param string $path Request path below the Atlas page, with no leading slash.
- * @return string
- */
-function sahaj_atlas_route_from_request_path( $path ) {
-	$route = '';
-
-	foreach ( explode( '/', $path ) as $segment ) {
-		$segment = rawurldecode( $segment );
-
-		if ( '' === $segment || false !== strpbrk( $segment, '/\\' ) ) {
-			return '';
-		}
-
-		$route .= '/' . $segment;
-	}
-
-	return $route;
 }
 
 /**

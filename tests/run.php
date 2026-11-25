@@ -83,6 +83,9 @@ foreach ( array(
 	"/\t/evil.com",
 	"/\n/evil.com",
 	"/\r/evil.com",
+	'/%09/evil.com',
+	'/gb/%2Fevil.com',
+	'/nl//amsterdam',
 	'https://evil.com',
 	'javascript:alert(1)',
 	'gb/london',
@@ -94,9 +97,14 @@ foreach ( array(
 	);
 }
 
-foreach ( array( '/gb/london', '/in/pune/507', '/in/pune/507/register', '/' ) as $good ) {
+foreach ( array( '/gb/london', '/in/pune/507', '/in/pune/507/register', '/', '/gb/london/' ) as $good ) {
 	sahaj_is( "accepts $good", $good, sahaj_atlas_clean_route( $good ) );
 }
+
+// The contract publishes `/bg/софия` as its `webPath` and sends the request percent-encoded. The raw
+// letters are what the widget and the SEO endpoint answer, and `sahaj_atlas_script_url()` encodes
+// them again on the way out.
+sahaj_is( 'decodes a native-script slug', '/bg/софия', sahaj_atlas_clean_route( '/bg/%D1%81%D0%BE%D1%84%D0%B8%D1%8F' ) );
 
 // ---------------------------------------------------------------------------------------------
 
@@ -438,6 +446,13 @@ sahaj_is( 'a deeper one too', '/in/pune/507/register', sahaj_route_for( "$base/i
 sahaj_is( 'the page itself is left to WordPress', null, sahaj_route_for( $base ) );
 sahaj_is( 'an unrelated page is left alone', null, sahaj_route_for( 'about-us' ) );
 sahaj_is( 'a page that merely starts with the same letters is left alone', null, sahaj_route_for( $base . '-archive/gb' ) );
+sahaj_is( 'a percent-encoded native-script slug is decoded', '/bg/софия', sahaj_route_for( "$base/bg/%D1%81%D0%BE%D1%84%D0%B8%D1%8F" ) );
+sahaj_is( 'a blank segment is refused rather than claimed', null, sahaj_route_for( "$base/nl//amsterdam" ) );
+
+// ⚠ `%09` decodes to the tab the WHATWG URL parser strips, so this request would reach the widget
+// as `//evil.com`. The query shape has always refused that value. The path shape has to refuse it
+// too, and only judging a segment after decoding it does.
+sahaj_is( 'and so is a tab smuggled in encoded', null, sahaj_route_for( "$base/%09/evil.com" ) );
 
 // A real page below the Atlas page belongs to whoever made it.
 $child = wp_insert_post(

@@ -261,12 +261,35 @@ function sahaj_atlas_clean_ratio( $value ) {
 }
 
 /**
- * A route the widget will accept, or an empty string.
+ * A route the widget will accept, decoded, or an empty string.
  *
  * The widget refuses anything that is not site-relative. Its own `safePath` rejects
  * protocol-relative `//evil.com`, and the tab, LF and CR forms the URL parser strips before
  * parsing. This function rejects the same shapes, so a bad value in a shortcode never reaches an
- * attribute at all.
+ * attribute at all. Every route this plugin reads — a request path, `?atlas=`, a shortcode
+ * attribute, a pasted address — ends here, so this is the one place those rules are spelled.
+ *
+ * ⚠ The route is decoded here. A request path and a pasted address carry a native-script slug
+ * percent-encoded, while the shared URL contract's `webPath` — what the widget and the SEO
+ * endpoint both answer — carries those letters raw, and `sahaj_atlas_script_url()` encodes them
+ * again on the way out. A query-routed host gets the decode for free, since PHP decodes `$_GET`.
+ * `tests/contract.php` replays the contract's own case.
+ *
+ * ⚠ Decode one segment at a time, never the whole route. A single `rawurldecode()` would let
+ * `%2F` forge a segment boundary, and `sahaj_atlas_parse_request()` has already cut the Atlas
+ * page's prefix off using the undecoded length. A segment still holding a slash or a backslash
+ * after decoding is refused for the same reason: it would reach the widget as a route shape
+ * nothing published.
+ *
+ * ⚠ Strip tab, LF and CR after decoding, never before. `%09` decodes to the tab the URL parser
+ * drops, so `/%09/evil.com` would otherwise reach the widget as `//evil.com`. Stripping leaves
+ * that segment empty, and an empty segment is refused.
+ *
+ * ⚠ An empty interior segment (`/nl//amsterdam`) is refused rather than passed on. The shared
+ * URL contract never publishes such a URL — a blank region slug is a known data defect upstream.
+ * Claiming one here would serve the atlas at an address nothing points at, under a route the
+ * widget cannot resolve. A 404 is the honest answer, and the rest of the system already assumes
+ * it.
  *
  * @param string $route Candidate route.
  * @return string
@@ -274,23 +297,33 @@ function sahaj_atlas_clean_ratio( $value ) {
 function sahaj_atlas_clean_route( $route ) {
 	$route = trim( $route );
 
-	if ( '' === $route ) {
+	if ( '' === $route || 0 !== strpos( $route, '/' ) ) {
 		return '';
 	}
 
-	// Strip the characters the WHATWG URL parser removes before parsing, so `/\tevil` cannot
-	// become `//evil` downstream.
-	$route = str_replace( array( "\t", "\n", "\r" ), '', $route );
+	$rest = substr( $route, 1 );
 
-	if ( 0 !== strpos( $route, '/' ) ) {
-		return '';
+	if ( '' === $rest ) {
+		return '/';
 	}
 
-	if ( 0 === strpos( $route, '//' ) || 0 === strpos( $route, '/\\' ) ) {
-		return '';
+	// A trailing slash is the one empty segment that is not a defect: it names the same view. It is
+	// held back over the split and put again, so `//` still reads as a blank first segment.
+	$trailing = '/' === substr( $rest, -1 ) ? '/' : '';
+	$rest     = '' === $trailing ? $rest : substr( $rest, 0, -1 );
+	$clean    = '';
+
+	foreach ( explode( '/', $rest ) as $segment ) {
+		$segment = str_replace( array( "\t", "\n", "\r" ), '', rawurldecode( $segment ) );
+
+		if ( '' === $segment || false !== strpbrk( $segment, '/\\' ) ) {
+			return '';
+		}
+
+		$clean .= '/' . $segment;
 	}
 
-	return $route;
+	return $clean . $trailing;
 }
 
 /**
