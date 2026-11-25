@@ -81,8 +81,25 @@ function sahaj_atlas_parse_request( $wp ) {
 	$path = trim( (string) $wp->request, '/' );
 	$base = trim( $base, '/' );
 
+	/*
+	 * ⚠ `$wp->request` is the percent-encoded path, exactly as the browser sent it, while a slug
+	 * keeps its native letters (`/bg/софия`, not `/bg/%D1%81...`). Both sides go through the same
+	 * helper, so a page whose own slug is non-ASCII, and a client that writes its hex in the other
+	 * case, still match — and what a segment may hold is spelled once. `get_page_by_path()` below
+	 * takes the path as received, since core decodes and re-encodes it itself.
+	 *
+	 * ⚠ A refusal here is a 404, never a pass-through: an empty segment (`/nl//amsterdam`),
+	 * invalid UTF-8, or a `%2F`, `%3F`, `%23`, `%5C` or control byte that would turn into path
+	 * syntax once decoded. The shared URL contract never publishes such a URL — a blank region slug
+	 * is a known data defect upstream. Claiming one would serve the atlas at an address nothing
+	 * points at, under a route the widget cannot resolve, and the rest of the system already
+	 * assumes the 404.
+	 */
+	$decoded_path = sahaj_atlas_decode_route_path( $path );
+	$decoded_base = sahaj_atlas_decode_route_path( $base );
+
 	// WordPress serves the page itself as usual. Only what is below it belongs to this plugin.
-	if ( 0 !== strpos( $path, $base . '/' ) ) {
+	if ( '' === $decoded_path || '' === $decoded_base || 0 !== strpos( $decoded_path, $decoded_base . '/' ) ) {
 		return;
 	}
 
@@ -91,22 +108,79 @@ function sahaj_atlas_parse_request( $wp ) {
 		return;
 	}
 
-	$route = '/' . substr( $path, strlen( $base ) + 1 );
-
-	/*
-	 * ⚠ This refuses an empty segment (`/nl//amsterdam`) rather than pass it on. The shared URL
-	 * contract never publishes such a URL — a blank region slug is a known data defect upstream.
-	 * Claiming one here would serve the atlas at an address nothing points at, under a route the
-	 * widget cannot resolve. A 404 is the honest answer, and the rest of the system already assumes
-	 * it.
-	 */
-	if ( false !== strpos( $route, '//' ) ) {
-		return;
-	}
+	$route = (string) substr( $decoded_path, strlen( $decoded_base ) );
 
 	$wp->query_vars = array(
 		'page_id'             => $page_id,
 		SAHAJ_ATLAS_ROUTE_VAR => $route,
+	);
+}
+
+/**
+ * Decode a percent-encoded request path below the Atlas page into a route, or refuse it.
+ *
+ * Slugs keep their native letters, so the route is raw Unicode (`/bg/софия`) while the request
+ * carries it encoded (`/bg/%D1%81%D0%BE%D1%84%D0%B8%D1%8F`). Decoding is per segment, which is what
+ * the shared URL contract asks of a parser. A segment that is empty, is not valid UTF-8, or decodes
+ * to a control character, `/`, `\`, `?` or `#` refuses the whole path, and the answer is an empty
+ * string. Nothing here encodes: `sahaj_atlas_seo_request()` encodes the route once, on the way out.
+ *
+ * @param string $path Encoded path, e.g. `bg/%D1%81%D0%BE%D1%84%D0%B8%D1%8F`.
+ * @return string The route with a leading slash, or an empty string.
+ */
+function sahaj_atlas_decode_route_path( $path ) {
+	$segments = array();
+
+	// Exactly one leading slash is optional. A second one is an empty segment, and refuses.
+	if ( 0 === strpos( $path, '/' ) ) {
+		$path = (string) substr( $path, 1 );
+	}
+
+	foreach ( explode( '/', $path ) as $segment ) {
+		$segment = rawurldecode( $segment );
+
+		// `preg_match()` with `/u` returns false on invalid UTF-8, so only an exact 0 passes.
+		if ( '' === $segment || 0 !== preg_match( '/[\x00-\x1f\x7f\/\\\\?#]/u', $segment ) ) {
+			return '';
+		}
+
+		$segments[] = $segment;
+	}
+
+	return '/' . implode( '/', $segments );
+}
+
+/**
+ * Percent-encode the non-ASCII bytes below a URL's authority, and nothing else.
+ *
+ * A canonical, an alternate or a sitemap `<loc>` must be the encoded form a crawler can compare
+ * (`/bg/%D1%81...`), never raw letters.
+ *
+ * ⚠ Not every answer arrives that way, so this is not dead weight. A document's `webUrl` is
+ * `base . encodeURI(path)`, but the **root** view's canonical is not a `webUrl`: SahajCloud
+ * composes it as `origin . mount` straight from the client record, in `canonicalMountUrl()`, with
+ * no `encodeURI`. An Atlas page at `/карта` therefore answers with raw letters in its canonical,
+ * its hreflang rows and its `og:url`, and `esc_url()` passes bytes ≥ 0x80 through untouched.
+ *
+ * ⚠ The authority is left alone. A non-ASCII host is an IDN, whose only valid wire form is
+ * punycode — percent-encoding its bytes would publish an address no resolver can use.
+ *
+ * `%` is ASCII and is left alone, which is what keeps a second pass from double-encoding. This is
+ * a guard against an answer that arrives raw, never a second composer of the URL.
+ *
+ * @param string $url A URL.
+ * @return string
+ */
+function sahaj_atlas_encode_url( $url ) {
+	$mark  = strpos( $url, '://' );
+	$start = false === $mark ? 0 : (int) strpos( $url . '/', '/', $mark + 3 );
+
+	return substr( $url, 0, $start ) . (string) preg_replace_callback(
+		'/[\x80-\xff]+/',
+		function ( $match ) {
+			return rawurlencode( $match[0] );
+		},
+		(string) substr( $url, $start )
 	);
 }
 

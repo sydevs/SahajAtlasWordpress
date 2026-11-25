@@ -210,6 +210,17 @@ story. Name the function, never a line number: a line number moves with every ed
     a request that resolved nothing, and only while core's script-module print is still ahead.
     See `sahaj_atlas_claim_embed()` in `includes/embed.php`, and `sahaj_atlas_render_embed()` in
     `includes/shortcode.php`.
+29. A request carries a path route percent-encoded, while a slug keeps its native letters, so one
+    decode on the way in and one encode on the way out are the whole rule — and each has exactly
+    one home. Decode through `sahaj_atlas_decode_route_path()`, **both sides of every compare**:
+    `get_permalink()` spells a non-ASCII page slug in hex, a pasted address may carry it raw or in
+    the other hex case, and a byte-wise `strpos()` of the two misses with nothing to show for it.
+    Encode through `sahaj_atlas_encode_url()`, which starts below the authority — a non-ASCII host
+    is an IDN, and only punycode spells one. That encode is not dead weight: the root view's
+    canonical is `origin . mount` from the client record, composed with no `encodeURI`, and
+    `esc_url()` publishes bytes ≥ 0x80 untouched. See `sahaj_atlas_parse_request()` and
+    `sahaj_atlas_encode_url()` in `includes/routing.php`, `sahaj_atlas_route_from_input()` in
+    `includes/embed.php`, and `tests/start.php`.
 
 ## Sitemaps
 

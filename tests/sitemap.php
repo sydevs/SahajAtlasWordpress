@@ -46,6 +46,21 @@ sahaj_is( 'the newest lastmod wins for the index entry', '2026-08-20T00:00:00.00
 
 sahaj_group( 'The sitemap document' );
 
+// A native-script slug is published percent-encoded, whichever way the endpoint sent it, and the
+// XML escape never turns the `%` of an encoding into anything else.
+$sahaj_unicode_rows = sahaj_atlas_sitemap_rows(
+	array(
+		'urls' => array(
+			array( 'loc' => home_url( '/map/bg/софия' ) ),
+			array( 'loc' => home_url( '/map/bg/%D1%81%D0%BE%D1%84%D0%B8%D1%8F' ) ),
+		),
+	)
+);
+
+sahaj_is( 'a raw Unicode loc is published encoded', home_url( '/map/bg/%D1%81%D0%BE%D1%84%D0%B8%D1%8F' ), $sahaj_unicode_rows[0]['loc'] );
+sahaj_is( 'an encoded one is left as it was', $sahaj_unicode_rows[0]['loc'], $sahaj_unicode_rows[1]['loc'] );
+sahaj_ok( 'and the XML carries it once, encoded', 2 === substr_count( sahaj_atlas_sitemap_xml( $sahaj_unicode_rows ), '/map/bg/%D1%81%D0%BE%D1%84%D0%B8%D1%8F</loc>' ) );
+
 $sahaj_xml = sahaj_atlas_sitemap_xml( $sahaj_rows );
 
 sahaj_ok( 'declares itself XML', 0 === strpos( $sahaj_xml, '<?xml version="1.0" encoding="UTF-8"?>' ) );

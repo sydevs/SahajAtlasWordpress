@@ -270,7 +270,7 @@ function sahaj_atlas_seo_emit() {
 	 * be the single agreed address.
 	 */
 	if ( ! empty( $seo['canonical'] ) ) {
-		printf( '<link rel="canonical" href="%s" />' . "\n", esc_url( (string) $seo['canonical'] ) );
+		printf( '<link rel="canonical" href="%s" />' . "\n", esc_url( sahaj_atlas_encode_url( (string) $seo['canonical'] ) ) );
 	}
 
 	if ( ! empty( $seo['alternates'] ) && is_array( $seo['alternates'] ) ) {
@@ -282,7 +282,7 @@ function sahaj_atlas_seo_emit() {
 			printf(
 				'<link rel="alternate" hreflang="%s" href="%s" />' . "\n",
 				esc_attr( (string) $alternate['hreflang'] ),
-				esc_url( (string) $alternate['href'] )
+				esc_url( sahaj_atlas_encode_url( (string) $alternate['href'] ) )
 			);
 		}
 	}
@@ -296,6 +296,12 @@ function sahaj_atlas_seo_emit() {
 			// `og:*` and `article:*` use the `property` attribute. `twitter:*` uses `name`. Every
 			// consumer silently ignores the wrong attribute, which is the worst kind of wrong.
 			$attribute = 0 === strpos( (string) $property, 'twitter:' ) ? 'name' : 'property';
+
+			// `og:url` is the canonical restated. Encoded on one tag and raw on the other, the page
+			// would name two addresses for one document.
+			if ( 'og:url' === $property ) {
+				$content = sahaj_atlas_encode_url( (string) $content );
+			}
 
 			printf(
 				'<meta %s="%s" content="%s" />' . "\n",

@@ -37,7 +37,7 @@ $sahaj_contract      = json_decode( (string) file_get_contents( $sahaj_contract_
 sahaj_group( 'The shared URL contract' );
 
 sahaj_ok( 'the fixture parses', is_array( $sahaj_contract ) && ! empty( $sahaj_contract['cases'] ) );
-sahaj_is( 'and is the version this suite was written against', 1, isset( $sahaj_contract['version'] ) ? $sahaj_contract['version'] : null );
+sahaj_is( 'and is the version this suite was written against', 2, isset( $sahaj_contract['version'] ) ? $sahaj_contract['version'] : null );
 
 update_option( 'permalink_structure', '/%postname%/' );
 
@@ -97,7 +97,11 @@ foreach ( $sahaj_contract['cases'] as $case ) {
 
 		$request = $slug . '/' . ltrim( $bad, '/' );
 
-		if ( preg_match( '#' . $sahaj_contract['slugPattern'] . '#', '/' . $request ) ) {
+		// ⚠ The pattern is a Unicode one (`\p{Ll}`), so it compiles with `u`, and it judges the
+		// decoded request, segment by segment — the way a parser must read what a server received.
+		$decoded = implode( '/', array_map( 'rawurldecode', explode( '/', $request ) ) );
+
+		if ( preg_match( '#' . $sahaj_contract['slugPattern'] . '#u', '/' . $decoded ) ) {
 			continue;
 		}
 
@@ -119,7 +123,7 @@ foreach ( $sahaj_contract['cases'] as $case ) {
 	);
 }
 
-sahaj_ok( 'replayed the path cases the contract publishes', $sahaj_replayed >= 3 );
+sahaj_ok( 'replayed the path cases the contract publishes', $sahaj_replayed >= 4 );
 sahaj_ok( 'and the ones it refuses', $sahaj_refused >= 1 );
 
 // ---------------------------------------------------------------------------------------------
@@ -214,6 +218,6 @@ foreach ( $sahaj_contract['cases'] as $case ) {
 
 sahaj_clear_query_route();
 
-sahaj_ok( 'replayed the query cases the contract publishes', $sahaj_query_replayed >= 3 );
+sahaj_ok( 'replayed the query cases the contract publishes', $sahaj_query_replayed >= 4 );
 
 $GLOBALS['wp_query'] = $sahaj_previous_query;

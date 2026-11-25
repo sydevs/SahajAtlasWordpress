@@ -322,14 +322,20 @@ function sahaj_atlas_route_from_input( $value ) {
 		$path = untrailingslashit( (string) wp_parse_url( $value, PHP_URL_PATH ) );
 
 		if ( strtolower( (string) wp_parse_url( SAHAJ_ATLAS_WIDGET_ORIGIN, PHP_URL_HOST ) ) === $host ) {
-			return sahaj_atlas_clean_route( $path );
+			return sahaj_atlas_clean_route( sahaj_atlas_decode_route_path( $path ) );
 		}
 
 		$page = sahaj_atlas_page_id() ? get_permalink( sahaj_atlas_page_id() ) : '';
-		$base = $page ? untrailingslashit( (string) wp_parse_url( $page, PHP_URL_PATH ) ) : '';
 
-		if ( '' !== $base && strtolower( (string) wp_parse_url( $page, PHP_URL_HOST ) ) === $host && 0 === strpos( $path . '/', $base . '/' ) ) {
-			return sahaj_atlas_clean_route( (string) substr( $path, strlen( $base ) ) );
+		// ⚠ Both sides are decoded before they are compared, as `sahaj_atlas_parse_request()`
+		// does. `$page` spells a non-ASCII slug in the hex `utf8_uri_encode()` chose, while a
+		// pasted address may carry it raw or in the other hex case, and a byte-wise `strpos()`
+		// then misses — silently storing no route for an Atlas page at `/карта`.
+		$base    = $page ? sahaj_atlas_decode_route_path( untrailingslashit( (string) wp_parse_url( $page, PHP_URL_PATH ) ) ) : '';
+		$decoded = sahaj_atlas_decode_route_path( $path );
+
+		if ( '' !== $base && '' !== $decoded && strtolower( (string) wp_parse_url( $page, PHP_URL_HOST ) ) === $host && 0 === strpos( $decoded . '/', $base . '/' ) ) {
+			return sahaj_atlas_clean_route( (string) substr( $decoded, strlen( $base ) ) );
 		}
 
 		return '';
@@ -339,7 +345,8 @@ function sahaj_atlas_route_from_input( $value ) {
 		$value = '/' . $value;
 	}
 
-	return sahaj_atlas_clean_route( '/' === $value ? '' : untrailingslashit( $value ) );
+	// A pasted address path arrives percent-encoded; a route is held decoded, like `?atlas=`.
+	return sahaj_atlas_clean_route( '/' === $value ? '' : sahaj_atlas_decode_route_path( untrailingslashit( $value ) ) );
 }
 
 /**

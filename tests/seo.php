@@ -177,6 +177,27 @@ $sahaj_seo_children = sahaj_atlas_element_children();
 sahaj_ok( 'the crawlable body names the region', false !== strpos( $sahaj_seo_children, '<h1>Amsterdam</h1>' ), $sahaj_seo_children );
 sahaj_ok( 'and lists its classes', false !== strpos( $sahaj_seo_children, 'Tuesday evening class' ), $sahaj_seo_children );
 
+// ⚠ The root view's canonical is not a `webUrl`. SahajCloud composes it as `origin . mount`
+// from the client record, with no `encodeURI`, so an Atlas page at `/карта` answers raw letters —
+// which `esc_url()` would publish untouched. Encoded once on the way out, and `og:url` with it.
+$sahaj_seo_kept_answer = $GLOBALS['sahaj_atlas_seo'];
+$sahaj_seo_cyr         = 'https://example.com/%D0%BA%D0%B0%D1%80%D1%82%D0%B0';
+
+$GLOBALS['sahaj_atlas_seo'] = array(
+	'canonical'  => 'https://example.com/карта',
+	'alternates' => array( array( 'hreflang' => 'bg', 'href' => 'https://example.com/карта?locale=bg' ) ),
+	'openGraph'  => array( 'og:url' => 'https://example.com/карта' ),
+);
+
+$sahaj_seo_raw_head = sahaj_seo_head();
+
+sahaj_is( 'a raw canonical is encoded once', 1, substr_count( $sahaj_seo_raw_head, 'href="' . $sahaj_seo_cyr . '" />' ) );
+sahaj_ok( 'the hreflang row with it', false !== strpos( $sahaj_seo_raw_head, 'href="' . $sahaj_seo_cyr . '?locale=bg"' ), $sahaj_seo_raw_head );
+sahaj_ok( 'and og:url names the same address', false !== strpos( $sahaj_seo_raw_head, 'content="' . $sahaj_seo_cyr . '"' ), $sahaj_seo_raw_head );
+sahaj_ok( 'so no raw letters are left in the head', false === strpos( $sahaj_seo_raw_head, 'карта' ), $sahaj_seo_raw_head );
+
+$GLOBALS['sahaj_atlas_seo'] = $sahaj_seo_kept_answer;
+
 // ---------------------------------------------------------------------------------------------
 
 sahaj_group( 'Path routing is unchanged by any of this' );
