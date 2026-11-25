@@ -87,6 +87,30 @@ sahaj_is( 'a protocol-relative path is refused', '', sahaj_atlas_route_from_inpu
 sahaj_is( 'and so is one smuggled through sahajatlas.com', '', sahaj_atlas_route_from_input( 'https://sahajatlas.com//evil.example' ) );
 sahaj_is( 'and through an atlas parameter', '', sahaj_atlas_route_from_input( 'https://example.org/?atlas=//evil.example' ) );
 
+// ⚠ An Atlas page whose own slug is non-ASCII. `get_permalink()` spells it in the hex
+// `utf8_uri_encode()` chose, while a volunteer pastes whatever their browser showed them, so a
+// byte-wise compare of the two misses and the setting silently stores no route.
+$sahaj_start_cyrillic = wp_insert_post(
+	array(
+		'post_type'   => 'page',
+		'post_status' => 'publish',
+		'post_title'  => 'карта',
+	)
+);
+
+$sahaj_start_previous_page = (int) get_option( SAHAJ_ATLAS_OPTION_PAGE );
+update_option( SAHAJ_ATLAS_OPTION_PAGE, (int) $sahaj_start_cyrillic );
+
+$sahaj_start_cyr_page = untrailingslashit( (string) get_permalink( $sahaj_start_cyrillic ) );
+$sahaj_start_cyr_raw  = implode( '/', array_map( 'rawurldecode', explode( '/', $sahaj_start_cyr_page ) ) );
+
+sahaj_ok( 'the fixture Atlas page really has a percent-encoded slug', false !== strpos( $sahaj_start_cyr_page, '%' ) );
+sahaj_is( 'a non-ASCII Atlas page reads its own encoded address', '/bg/софия', sahaj_atlas_route_from_input( "$sahaj_start_cyr_page/bg/%D1%81%D0%BE%D1%84%D0%B8%D1%8F" ) );
+sahaj_is( 'and the raw spelling a browser shows', '/bg/софия', sahaj_atlas_route_from_input( "$sahaj_start_cyr_raw/bg/софия" ) );
+sahaj_is( 'and the page itself is still no route', '', sahaj_atlas_route_from_input( $sahaj_start_cyr_raw ) );
+
+update_option( SAHAJ_ATLAS_OPTION_PAGE, $sahaj_start_previous_page );
+
 // ---------------------------------------------------------------------------------------------
 
 sahaj_group( 'Saving checks the place with SahajCloud' );
