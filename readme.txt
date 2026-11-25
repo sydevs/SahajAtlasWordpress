@@ -4,7 +4,7 @@ Tags: meditation, map, events, classes
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.3.5
+Stable tag: 0.3.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -142,6 +142,12 @@ Settings → Sahaj Atlas names where the map rendered. If that row is red, send 
 maintainers.
 
 == Changelog ==
+
+= 0.3.6 =
+* Fixed: map pages for places whose names use letters beyond plain English — "Oberösterreich",
+  "София", "João Pessoa" — now open at their own address, with the right title and description
+  for search engines, and appear correctly in the sitemap. Those places' addresses now keep the
+  name's own letters instead of a plain-English spelling.
 
 = 0.3.5 =
 * Fixed: the status panel under Settings → Sahaj Atlas now says each row's verdict in words —
