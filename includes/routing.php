@@ -151,23 +151,36 @@ function sahaj_atlas_decode_route_path( $path ) {
 }
 
 /**
- * Percent-encode the non-ASCII bytes of a URL, and nothing else.
+ * Percent-encode the non-ASCII bytes below a URL's authority, and nothing else.
  *
  * A canonical, an alternate or a sitemap `<loc>` must be the encoded form a crawler can compare
- * (`/bg/%D1%81...`), never raw letters. The CMS already sends the encoded form, so this is a no-op
- * on it: `%` is ASCII and is left alone, which is what keeps a second pass from double-encoding.
- * It is a guard against an answer that arrives raw, not a second composer of the URL.
+ * (`/bg/%D1%81...`), never raw letters.
+ *
+ * ⚠ Not every answer arrives that way, so this is not dead weight. A document's `webUrl` is
+ * `base . encodeURI(path)`, but the **root** view's canonical is not a `webUrl`: SahajCloud
+ * composes it as `origin . mount` straight from the client record, in `canonicalMountUrl()`, with
+ * no `encodeURI`. An Atlas page at `/карта` therefore answers with raw letters in its canonical,
+ * its hreflang rows and its `og:url`, and `esc_url()` passes bytes ≥ 0x80 through untouched.
+ *
+ * ⚠ The authority is left alone. A non-ASCII host is an IDN, whose only valid wire form is
+ * punycode — percent-encoding its bytes would publish an address no resolver can use.
+ *
+ * `%` is ASCII and is left alone, which is what keeps a second pass from double-encoding. This is
+ * a guard against an answer that arrives raw, never a second composer of the URL.
  *
  * @param string $url A URL.
  * @return string
  */
 function sahaj_atlas_encode_url( $url ) {
-	return (string) preg_replace_callback(
+	$mark  = strpos( $url, '://' );
+	$start = false === $mark ? 0 : (int) strpos( $url . '/', '/', $mark + 3 );
+
+	return substr( $url, 0, $start ) . (string) preg_replace_callback(
 		'/[\x80-\xff]+/',
 		function ( $match ) {
 			return rawurlencode( $match[0] );
 		},
-		$url
+		(string) substr( $url, $start )
 	);
 }
 

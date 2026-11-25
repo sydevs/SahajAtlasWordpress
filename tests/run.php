@@ -456,6 +456,8 @@ sahaj_is( 'an encoded URL passes through untouched', $sahaj_cyr_enc, sahaj_atlas
 sahaj_is( 'a raw one is encoded', $sahaj_cyr_enc, sahaj_atlas_encode_url( 'https://example.com/map/bg/софия' ) );
 sahaj_is( 'a Latin diacritic is encoded', 'https://example.com/de/universit%C3%A4t-trier?a=1&b=2', sahaj_atlas_encode_url( 'https://example.com/de/universität-trier?a=1&b=2' ) );
 sahaj_is( 'twice is once', $sahaj_cyr_enc, sahaj_atlas_encode_url( sahaj_atlas_encode_url( 'https://example.com/map/bg/софия' ) ) );
+sahaj_is( 'an IDN host is left alone, since punycode is its only valid form', 'https://медитация.рф/map/bg/%D1%81%D0%BE%D1%84%D0%B8%D1%8F', sahaj_atlas_encode_url( 'https://медитация.рф/map/bg/софия' ) );
+sahaj_is( 'and a bare path still encodes', '/map/bg/%D1%81%D0%BE%D1%84%D0%B8%D1%8F', sahaj_atlas_encode_url( '/map/bg/софия' ) );
 sahaj_is( 'a pasted encoded address is read as the decoded route', '/bg/софия', sahaj_atlas_route_from_input( 'https://sahajatlas.com/bg/%D1%81%D0%BE%D1%84%D0%B8%D1%8F' ) );
 sahaj_is( 'the page itself is left to WordPress', null, sahaj_route_for( $base ) );
 sahaj_is( 'an unrelated page is left alone', null, sahaj_route_for( 'about-us' ) );

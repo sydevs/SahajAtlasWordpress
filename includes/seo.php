@@ -297,6 +297,12 @@ function sahaj_atlas_seo_emit() {
 			// consumer silently ignores the wrong attribute, which is the worst kind of wrong.
 			$attribute = 0 === strpos( (string) $property, 'twitter:' ) ? 'name' : 'property';
 
+			// `og:url` is the canonical restated. Encoded on one tag and raw on the other, the page
+			// would name two addresses for one document.
+			if ( 'og:url' === $property ) {
+				$content = sahaj_atlas_encode_url( (string) $content );
+			}
+
 			printf(
 				'<meta %s="%s" content="%s" />' . "\n",
 				esc_attr( $attribute ),
