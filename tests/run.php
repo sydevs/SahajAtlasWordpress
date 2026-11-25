@@ -454,6 +454,20 @@ sahaj_is( 'a blank segment is refused rather than claimed', null, sahaj_route_fo
 // too, and only judging a segment after decoding it does.
 sahaj_is( 'and so is a tab smuggled in encoded', null, sahaj_route_for( "$base/%09/evil.com" ) );
 
+/*
+ * ⚠ `sahaj_atlas_register_route_var()` makes the route a public query var, so core fills it from
+ * `$_GET` and `$_POST` on every request, before this hook runs. Only a route this plugin resolved
+ * may survive: an injected one reaches `sahaj_atlas_seo_boot()` with no sanitiser and no Atlas-page
+ * check, which is the hole gating `?atlas=` exists to close.
+ */
+$sahaj_injected             = new WP();
+$sahaj_injected->request    = 'about-us';
+$sahaj_injected->query_vars = array( SAHAJ_ATLAS_ROUTE_VAR => '//evil.com' );
+
+sahaj_atlas_parse_request( $sahaj_injected );
+
+sahaj_ok( 'a request-supplied route var does not survive', ! isset( $sahaj_injected->query_vars[ SAHAJ_ATLAS_ROUTE_VAR ] ) );
+
 // A real page below the Atlas page belongs to whoever made it.
 $child = wp_insert_post(
 	array(

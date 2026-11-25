@@ -48,6 +48,17 @@ function sahaj_atlas_register_route_var() {
  */
 function sahaj_atlas_parse_request( $wp ) {
 	/*
+	 * ⚠ `sahaj_atlas_register_route_var()` makes the route a public query var, so core has already
+	 * filled it from `$_GET` and `$_POST` by the time this hook runs. Dropping that value is what
+	 * makes the resolve below the only way a route is ever set. Without it, `?sahaj_atlas_route=`
+	 * on any URL reaches `sahaj_atlas_path_route()` — and through it `sahaj_atlas_seo_boot()` — with
+	 * no sanitiser and no Atlas-page check, which is the hole the check in
+	 * `sahaj_atlas_query_route()` exists to close for `?atlas=`. The claim below replaces
+	 * `query_vars` wholesale, so only the early returns need this.
+	 */
+	unset( $wp->query_vars[ SAHAJ_ATLAS_ROUTE_VAR ] );
+
+	/*
 	 * ⚠ This runs before everything else, including the guards below that read the same request.
 	 * The sitemap lives at the site root, not under the Atlas page, so rules about the atlas
 	 * subtree must not filter it. `sahaj_atlas_maybe_serve_sitemap()` sends its own response
