@@ -742,7 +742,8 @@ async function checkArticle(browser, cell, viewport, port, checks) {
     if (!booted) {
       const printed = await page.locator('sahaj-atlas').count()
 
-      fit(`${label}: the widget booted inside <sahaj-atlas>`, false, printed ? `no .sy-atlas in the element on /${host}/${log.dump()}` : `no <sahaj-atlas> on /${host}/`)
+      await page.screenshot({ path: join(SCREENSHOTS, `${cell.name}-article-${viewport.name}.png`) }).catch(() => {})
+      fit(`${label}: the widget booted inside <sahaj-atlas>`, false, `${printed ? `no .sy-atlas in the element on /${host}/` : `no <sahaj-atlas> on /${host}/`}${log.dump()}`)
 
       return
     }
