@@ -83,23 +83,24 @@ function sahaj_atlas_parse_request( $wp ) {
 
 	/*
 	 * ⚠ `$wp->request` is the percent-encoded path, exactly as the browser sent it, while a slug
-	 * keeps its native letters (`/bg/софия`, not `/bg/%D1%81...`). Compare and route on the decoded
-	 * segments. Both sides are decoded, so a page whose own slug is non-ASCII, and a client that
-	 * writes its hex in the other case, still match. `get_page_by_path()` below takes the path as
-	 * received, since core decodes and re-encodes it itself.
+	 * keeps its native letters (`/bg/софия`, not `/bg/%D1%81...`). Both sides go through the same
+	 * helper, so a page whose own slug is non-ASCII, and a client that writes its hex in the other
+	 * case, still match — and what a segment may hold is spelled once. `get_page_by_path()` below
+	 * takes the path as received, since core decodes and re-encodes it itself.
+	 *
+	 * ⚠ A refusal here is a 404, never a pass-through: an empty segment (`/nl//amsterdam`),
+	 * invalid UTF-8, or a `%2F`, `%3F`, `%23`, `%5C` or control byte that would turn into path
+	 * syntax once decoded. The shared URL contract never publishes such a URL — a blank region slug
+	 * is a known data defect upstream. Claiming one would serve the atlas at an address nothing
+	 * points at, under a route the widget cannot resolve, and the rest of the system already
+	 * assumes the 404.
 	 */
-	$path_segments = explode( '/', $path );
-	$base_segments = array_map( 'rawurldecode', explode( '/', $base ) );
+	$decoded_path = sahaj_atlas_decode_route_path( $path );
+	$decoded_base = sahaj_atlas_decode_route_path( $base );
 
 	// WordPress serves the page itself as usual. Only what is below it belongs to this plugin.
-	if ( count( $path_segments ) <= count( $base_segments ) ) {
+	if ( '' === $decoded_path || '' === $decoded_base || 0 !== strpos( $decoded_path, $decoded_base . '/' ) ) {
 		return;
-	}
-
-	foreach ( $base_segments as $i => $segment ) {
-		if ( rawurldecode( $path_segments[ $i ] ) !== $segment ) {
-			return;
-		}
 	}
 
 	// A real page beneath the Atlas page belongs to whoever made it, not to us.
@@ -107,19 +108,7 @@ function sahaj_atlas_parse_request( $wp ) {
 		return;
 	}
 
-	/*
-	 * ⚠ This refuses an empty segment (`/nl//amsterdam`) rather than pass it on. The shared URL
-	 * contract never publishes such a URL — a blank region slug is a known data defect upstream.
-	 * Claiming one here would serve the atlas at an address nothing points at, under a route the
-	 * widget cannot resolve. A 404 is the honest answer, and the rest of the system already assumes
-	 * it. The same decode refuses a segment that is not text a slug can be: invalid UTF-8, or a
-	 * `%2F`, `%3F`, `%23`, `%5C` or control byte that would turn into path syntax once decoded.
-	 */
-	$route = sahaj_atlas_decode_route_path( implode( '/', array_slice( $path_segments, count( $base_segments ) ) ) );
-
-	if ( '' === $route ) {
-		return;
-	}
+	$route = (string) substr( $decoded_path, strlen( $decoded_base ) );
 
 	$wp->query_vars = array(
 		'page_id'             => $page_id,
