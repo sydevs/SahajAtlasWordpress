@@ -210,6 +210,18 @@ story. Name the function, never a line number: a line number moves with every ed
     a request that resolved nothing, and only while core's script-module print is still ahead.
     See `sahaj_atlas_claim_embed()` in `includes/embed.php`, and `sahaj_atlas_render_embed()` in
     `includes/shortcode.php`.
+29. Every route this plugin resolves ends at `sahaj_atlas_clean_route()`, and its tab, LF and CR
+    strip runs *after* the percent-decode. A reader that sanitises for itself is how the path shape
+    came to claim `/%09/evil.com`, the value the query shape had always refused; stripping before
+    the decode is how `%09` walks past the strip. The decode is per segment, so `%2F` cannot forge
+    a segment boundary after a caller has already cut its prefix off by the undecoded length. See
+    `sahaj_atlas_clean_route()` in `includes/embed.php`.
+30. The route is a public query var, so core fills it from `$_GET` and `$_POST` on every request,
+    before `parse_request` runs. The resolve drops that value first, or `?sahaj_atlas_route=` on
+    any URL reaches the SEO takeover with neither the sanitiser nor the Atlas-page check that
+    `?atlas=` gets — trap 17's gate, by the other door. See `sahaj_atlas_parse_request()` and
+    `sahaj_atlas_query_route()` in `includes/routing.php`, and the injection assertion in
+    `tests/run.php`.
 
 ## Sitemaps
 
