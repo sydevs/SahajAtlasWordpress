@@ -435,6 +435,28 @@ function sahaj_query_page( $page_id = null ) {
 
 sahaj_is( 'a deep link is claimed', '/gb/london', sahaj_route_for( "$base/gb/london" ) );
 sahaj_is( 'a deeper one too', '/in/pune/507/register', sahaj_route_for( "$base/in/pune/507/register" ) );
+
+// Slugs keep their native letters. WordPress hands the path over percent-encoded, and the route is
+// held decoded — raw or encoded request, the same route, and never an encoded one back.
+sahaj_is( 'a Cyrillic slug path is claimed from its encoded request', '/bg/софия', sahaj_route_for( "$base/bg/%D1%81%D0%BE%D1%84%D0%B8%D1%8F" ) );
+sahaj_is( 'and from a lower-case-hex one', '/bg/софия', sahaj_route_for( "$base/bg/%d1%81%d0%be%d1%84%d0%b8%d1%8f" ) );
+sahaj_is( 'and from a raw one', '/bg/софия', sahaj_route_for( "$base/bg/софия" ) );
+sahaj_is( 'a Latin diacritic slug path is claimed from its encoded request', '/de/trier/universität-trier/1998', sahaj_route_for( "$base/de/trier/universit%C3%A4t-trier/1998" ) );
+sahaj_is( 'and from a raw one too', '/de/trier/universität-trier/1998', sahaj_route_for( "$base/de/trier/universität-trier/1998" ) );
+sahaj_is( 'an encoded slash is no path separator', null, sahaj_route_for( "$base/bg/a%2Fb" ) );
+sahaj_is( 'an encoded query delimiter is refused', null, sahaj_route_for( "$base/bg/a%3Fb" ) );
+sahaj_is( 'an encoded control byte is refused', null, sahaj_route_for( "$base/bg/a%00b" ) );
+sahaj_is( 'invalid UTF-8 is refused', null, sahaj_route_for( "$base/bg/%D1" ) );
+sahaj_is( 'an empty segment is still refused', null, sahaj_route_for( "$base/bg//%D1%81" ) );
+sahaj_is( 'a prefix match is on decoded segments, not bytes', null, sahaj_route_for( rawurlencode( $base ) . 'x/bg/%D1%81' ) );
+
+// Nothing re-encodes a URL that already is encoded, and an answer that arrives raw is encoded once.
+$sahaj_cyr_enc = 'https://example.com/map/bg/%D1%81%D0%BE%D1%84%D0%B8%D1%8F';
+sahaj_is( 'an encoded URL passes through untouched', $sahaj_cyr_enc, sahaj_atlas_encode_url( $sahaj_cyr_enc ) );
+sahaj_is( 'a raw one is encoded', $sahaj_cyr_enc, sahaj_atlas_encode_url( 'https://example.com/map/bg/софия' ) );
+sahaj_is( 'a Latin diacritic is encoded', 'https://example.com/de/universit%C3%A4t-trier?a=1&b=2', sahaj_atlas_encode_url( 'https://example.com/de/universität-trier?a=1&b=2' ) );
+sahaj_is( 'twice is once', $sahaj_cyr_enc, sahaj_atlas_encode_url( sahaj_atlas_encode_url( 'https://example.com/map/bg/софия' ) ) );
+sahaj_is( 'a pasted encoded address is read as the decoded route', '/bg/софия', sahaj_atlas_route_from_input( 'https://sahajatlas.com/bg/%D1%81%D0%BE%D1%84%D0%B8%D1%8F' ) );
 sahaj_is( 'the page itself is left to WordPress', null, sahaj_route_for( $base ) );
 sahaj_is( 'an unrelated page is left alone', null, sahaj_route_for( 'about-us' ) );
 sahaj_is( 'a page that merely starts with the same letters is left alone', null, sahaj_route_for( $base . '-archive/gb' ) );

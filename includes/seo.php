@@ -270,7 +270,7 @@ function sahaj_atlas_seo_emit() {
 	 * be the single agreed address.
 	 */
 	if ( ! empty( $seo['canonical'] ) ) {
-		printf( '<link rel="canonical" href="%s" />' . "\n", esc_url( (string) $seo['canonical'] ) );
+		printf( '<link rel="canonical" href="%s" />' . "\n", esc_url( sahaj_atlas_encode_url( (string) $seo['canonical'] ) ) );
 	}
 
 	if ( ! empty( $seo['alternates'] ) && is_array( $seo['alternates'] ) ) {
@@ -282,7 +282,7 @@ function sahaj_atlas_seo_emit() {
 			printf(
 				'<link rel="alternate" hreflang="%s" href="%s" />' . "\n",
 				esc_attr( (string) $alternate['hreflang'] ),
-				esc_url( (string) $alternate['href'] )
+				esc_url( sahaj_atlas_encode_url( (string) $alternate['href'] ) )
 			);
 		}
 	}

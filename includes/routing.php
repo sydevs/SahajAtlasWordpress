@@ -81,9 +81,25 @@ function sahaj_atlas_parse_request( $wp ) {
 	$path = trim( (string) $wp->request, '/' );
 	$base = trim( $base, '/' );
 
+	/*
+	 * ⚠ `$wp->request` is the percent-encoded path, exactly as the browser sent it, while a slug
+	 * keeps its native letters (`/bg/софия`, not `/bg/%D1%81...`). Compare and route on the decoded
+	 * segments. Both sides are decoded, so a page whose own slug is non-ASCII, and a client that
+	 * writes its hex in the other case, still match. `get_page_by_path()` below takes the path as
+	 * received, since core decodes and re-encodes it itself.
+	 */
+	$path_segments = explode( '/', $path );
+	$base_segments = array_map( 'rawurldecode', explode( '/', $base ) );
+
 	// WordPress serves the page itself as usual. Only what is below it belongs to this plugin.
-	if ( 0 !== strpos( $path, $base . '/' ) ) {
+	if ( count( $path_segments ) <= count( $base_segments ) ) {
 		return;
+	}
+
+	foreach ( $base_segments as $i => $segment ) {
+		if ( rawurldecode( $path_segments[ $i ] ) !== $segment ) {
+			return;
+		}
 	}
 
 	// A real page beneath the Atlas page belongs to whoever made it, not to us.
@@ -91,22 +107,78 @@ function sahaj_atlas_parse_request( $wp ) {
 		return;
 	}
 
-	$route = '/' . substr( $path, strlen( $base ) + 1 );
-
 	/*
 	 * ⚠ This refuses an empty segment (`/nl//amsterdam`) rather than pass it on. The shared URL
 	 * contract never publishes such a URL — a blank region slug is a known data defect upstream.
 	 * Claiming one here would serve the atlas at an address nothing points at, under a route the
 	 * widget cannot resolve. A 404 is the honest answer, and the rest of the system already assumes
-	 * it.
+	 * it. The same decode refuses a segment that is not text a slug can be: invalid UTF-8, or a
+	 * `%2F`, `%3F`, `%23`, `%5C` or control byte that would turn into path syntax once decoded.
 	 */
-	if ( false !== strpos( $route, '//' ) ) {
+	$route = sahaj_atlas_decode_route_path( implode( '/', array_slice( $path_segments, count( $base_segments ) ) ) );
+
+	if ( '' === $route ) {
 		return;
 	}
 
 	$wp->query_vars = array(
 		'page_id'             => $page_id,
 		SAHAJ_ATLAS_ROUTE_VAR => $route,
+	);
+}
+
+/**
+ * Decode a percent-encoded request path below the Atlas page into a route, or refuse it.
+ *
+ * Slugs keep their native letters, so the route is raw Unicode (`/bg/софия`) while the request
+ * carries it encoded (`/bg/%D1%81%D0%BE%D1%84%D0%B8%D1%8F`). Decoding is per segment, which is what
+ * the shared URL contract asks of a parser. A segment that is empty, is not valid UTF-8, or decodes
+ * to a control character, `/`, `\`, `?` or `#` refuses the whole path, and the answer is an empty
+ * string. Nothing here encodes: `sahaj_atlas_seo_request()` encodes the route once, on the way out.
+ *
+ * @param string $path Encoded path, e.g. `bg/%D1%81%D0%BE%D1%84%D0%B8%D1%8F`.
+ * @return string The route with a leading slash, or an empty string.
+ */
+function sahaj_atlas_decode_route_path( $path ) {
+	$segments = array();
+
+	// Exactly one leading slash is optional. A second one is an empty segment, and refuses.
+	if ( 0 === strpos( $path, '/' ) ) {
+		$path = (string) substr( $path, 1 );
+	}
+
+	foreach ( explode( '/', $path ) as $segment ) {
+		$segment = rawurldecode( $segment );
+
+		// `preg_match()` with `/u` returns false on invalid UTF-8, so only an exact 0 passes.
+		if ( '' === $segment || 0 !== preg_match( '/[\x00-\x1f\x7f\/\\\\?#]/u', $segment ) ) {
+			return '';
+		}
+
+		$segments[] = $segment;
+	}
+
+	return '/' . implode( '/', $segments );
+}
+
+/**
+ * Percent-encode the non-ASCII bytes of a URL, and nothing else.
+ *
+ * A canonical, an alternate or a sitemap `<loc>` must be the encoded form a crawler can compare
+ * (`/bg/%D1%81...`), never raw letters. The CMS already sends the encoded form, so this is a no-op
+ * on it: `%` is ASCII and is left alone, which is what keeps a second pass from double-encoding.
+ * It is a guard against an answer that arrives raw, not a second composer of the URL.
+ *
+ * @param string $url A URL.
+ * @return string
+ */
+function sahaj_atlas_encode_url( $url ) {
+	return (string) preg_replace_callback(
+		'/[\x80-\xff]+/',
+		function ( $match ) {
+			return rawurlencode( $match[0] );
+		},
+		$url
 	);
 }
 

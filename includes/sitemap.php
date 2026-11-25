@@ -229,7 +229,7 @@ function sahaj_atlas_sitemap_rows( $body ) {
 		}
 
 		$urls[] = array(
-			'loc'     => $row['loc'],
+			'loc'     => sahaj_atlas_encode_url( $row['loc'] ),
 			'lastmod' => ( isset( $row['lastmod'] ) && is_string( $row['lastmod'] ) ) ? $row['lastmod'] : '',
 		);
 	}
