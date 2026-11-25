@@ -141,6 +141,11 @@ const ARTICLE_PAGE = `wp_insert_post(array('post_type'=>'page','post_status'=>'p
  * A host page built with Beaver Builder: a row → column-group → column holding the plugin's own
  * module, with a text module above and below it, so there is a page to scroll past the map.
  *
+ * ⚠ Its slug must be one no page the shared seed already inserts holds. `seed()` runs that seed
+ * first, and `wp_insert_post()` answers a second `builder-host` with `builder-host-2` — so the cell
+ * loaded the render lane's placeholder page and found no element on it (#100). The cell's `article`
+ * is this slug.
+ *
  * ⚠ The layout lives in post meta, not in `post_content`, which is the whole reason
  * `sahaj_atlas_find_bb_module()` exists. `_fl_builder_data` holds node objects keyed by node id;
  * `_fl_builder_enabled` is what `FLBuilderModel::is_builder_enabled()` reads. The module node's
@@ -161,7 +166,7 @@ const ARTICLE_PAGE = `wp_insert_post(array('post_type'=>'page','post_status'=>'p
  * type `column` — so a column parented straight to a row renders an empty group and the module
  * inside it never renders at all.
  */
-const BB_MODULE_PAGE = `$bb = wp_insert_post(array('post_type'=>'page','post_status'=>'publish','post_title'=>'Builder host','post_name'=>'builder-host','post_content'=>'[sahaj_atlas]'));
+const BB_MODULE_PAGE = `$bb = wp_insert_post(array('post_type'=>'page','post_status'=>'publish','post_title'=>'Beaver Builder module host','post_name'=>'bb-module-host','post_content'=>'[sahaj_atlas]'));
 update_post_meta($bb, '_fl_builder_enabled', 1);
 update_post_meta($bb, '_fl_builder_data', array(
   'rowone' => (object) array('node'=>'rowone','type'=>'row','parent'=>null,'position'=>0,'settings'=>(object) array()),
@@ -244,7 +249,7 @@ const CELLS = [
   { name: 'beaver-builder', theme: 'astra', plugins: ['beaver-builder-lite-version'], wp: '6.8' },
   // The plugin's own Beaver Builder module, in a layout the builder saved (#63). The shortcode
   // cell above covers the Atlas page under the same builder.
-  { name: 'beaver-builder-module', theme: 'astra', plugins: ['beaver-builder-lite-version'], wp: '6.8', seed: BB_MODULE_PAGE, article: 'builder-host' },
+  { name: 'beaver-builder-module', theme: 'astra', plugins: ['beaver-builder-lite-version'], wp: '6.8', seed: BB_MODULE_PAGE, article: 'bb-module-host' },
   // Hostile conditions, each on a theme that passes clean.
   { name: 'async-css', theme: 'astra', mu: { 'async-css': MU.asyncCss } },
   { name: 'fixed-header', theme: 'twentytwenty', mu: { 'fixed-header': MU.fixedHeader } },
@@ -728,7 +733,20 @@ async function checkArticle(browser, cell, viewport, port, checks) {
     const { fit, widget } = checks
 
     await page.goto(`${base}/${host}/`, { waitUntil: 'load', timeout: 90000 })
-    await page.waitForSelector('sahaj-atlas .sy-atlas', { timeout: 45000 }).catch(() => {})
+
+    const booted = await page.waitForSelector('sahaj-atlas .sy-atlas', { timeout: 45000 }).then(() => true, () => false)
+
+    // ⚠ Report the wait, never swallow it. Every measurement below reads the element's box, so a
+    // page printing none fails on `scrollIntoViewIfNeeded` timing out instead — a message naming
+    // neither the page it loaded nor what was missing from it (#100).
+    if (!booted) {
+      const printed = await page.locator('sahaj-atlas').count()
+
+      fit(`${label}: the widget booted inside <sahaj-atlas>`, false, printed ? `no .sy-atlas in the element on /${host}/${log.dump()}` : `no <sahaj-atlas> on /${host}/`)
+
+      return
+    }
+
     await page.locator('sahaj-atlas').scrollIntoViewIfNeeded()
     await sleep(4000)
 
